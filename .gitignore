@@ -1,0 +1,64 @@
+/Mythologicum/Library
+/Mythologicum/Screenshots
+/Mythologicum/Logs
+/Mythologicum/obj
+/Mythologicum/.vs
+/Mythologicum/*.sln
+/Mythologicum/*.csproj
+/Mythologicum/Temp/
+/Mythologicum/Assets/AmplifyShaderEditor
+/Mythologicum/Assets/AmplifyShaderEditor.meta
+/Mythologicum/Assets/polyperfect/
+/Mythologicum/Assets/polyperfect.meta
+/Mythologicum/Assets/Mirror/Examples
+/Mythologicum/Assets/Mirror/Examples.meta
+/Mythologicum/Assets/IgnoreOnCommit/
+/Mythologicum/Assets/IgnoreOnCommit.meta
+/Mythologicum/.vsconfig
+/Mythologicum/UserSettings/
+/Mythologicum/Assets/Plugins/
+/Mythologicum/Assets/Plugins.meta
+/Mythologicum/ProjectSettings/AmplifyShaderEditor.asset
+
+###
+# Unity folders and files
+###
+/Mythologicum/[Aa]ssets/AssetStoreTools*
+/Mythologicum/[Bb]uild/
+/Mythologicum/[Ll]ibrary/
+/Mythologicum/[Ll]ocal[Cc]ache/
+/Mythologicum/[Oo]bj/
+/Mythologicum/[Tt]emp/
+/Mythologicum/[Uu]nityGenerated/
+# file on crash reports
+sysinfo.txt
+# Unity3D generated meta files
+*.pidb.meta
+
+###
+# VS/MD solution and project files
+###
+[Ee]xportedObj/
+*.booproj
+*.csproj
+*.sln
+*.suo
+*.svd
+*.unityproj
+*.user
+*.userprefs
+*.pidb
+*.log
+.DS_Store
+
+###
+# OS generated
+###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db

@@ -1,0 +1,129 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Mythologicum
+{
+    public sealed class BuildingConstruction
+    {
+        private sealed class View
+        {
+            public MeshRenderer Body;
+            public TextMesh Label;
+            public bool? LastOpen;
+        }
+        public ParkBuildingNetwork Network { get; }
+        private readonly SquareBuildGrid grid;
+        private readonly Transform parent;
+        private readonly Material material, entranceMaterial;
+        private readonly Dictionary<ParkBuildingRecord, View> views = new Dictionary<ParkBuildingRecord, View>();
+
+        public BuildingConstruction(SquareBuildGrid grid, FenceLayout fences, Transform parent,
+            Material material, Material entranceMaterial)
+        {
+            this.grid = grid;
+            this.parent = parent;
+            this.material = material;
+            this.entranceMaterial = entranceMaterial;
+            Network = new ParkBuildingNetwork(grid, fences);
+        }
+
+        public bool CanPlace(BuildingFootprint footprint)
+        {
+            if (!Network.CanPlace(footprint)) return false;
+            Vector3 half = new Vector3(footprint.Width * grid.CellSize / 2f - 0.05f,
+                footprint.Definition.height / 2f - 0.01f, footprint.Depth * grid.CellSize / 2f - 0.05f);
+            if (Physics.CheckBox(footprint.Center(grid) + Vector3.up * footprint.Definition.height / 2f,
+                half, Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
+            return !Physics.CheckBox(grid.CellCenter(footprint.AccessCell) + Vector3.up * 0.5f,
+                new Vector3(grid.CellSize / 2f - 0.05f, 0.49f, grid.CellSize / 2f - 0.05f),
+                Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        }
+
+        public bool TryPlace(BuildingFootprint footprint)
+        {
+            Physics.SyncTransforms();
+            if (!CanPlace(footprint)) return false;
+            ParkBuildingRecord record = Network.TryPlace(footprint);
+            if (record == null) return false;
+            BuildingDefinition definition = footprint.Definition;
+            var root = new GameObject(definition.displayName);
+            root.transform.SetParent(parent);
+            root.transform.position = footprint.Center(grid);
+            root.transform.rotation = Quaternion.Euler(0f, -90f * footprint.Rotation, 0f);
+            Vector3 size = new Vector3(definition.width * grid.CellSize - 0.16f,
+                definition.height, definition.depth * grid.CellSize - 0.16f);
+            var collider = root.AddComponent<BoxCollider>();
+            collider.size = size;
+            collider.center = Vector3.up * definition.height / 2f;
+            bool resting = definition.kind == BuildingKind.RestArea;
+            GameObject body;
+            if (resting)
+            {
+                float benchWidth = size.x * 0.8f;
+                body = Part(root.transform, "Bench seat", new Vector3(0f, 0.65f, 0.2f),
+                    new Vector3(benchWidth, 0.18f, 0.7f), material);
+                Part(root.transform, "Bench back", new Vector3(0f, 1.03f, 0.51f),
+                    new Vector3(benchWidth, 0.5f, 0.15f), material);
+                for (int side = -1; side <= 1; side += 2)
+                    Part(root.transform, "Bench support", new Vector3(side * benchWidth * 0.4f, 0.3f, 0.2f),
+                        new Vector3(0.18f, 0.6f, 0.6f), material);
+            }
+            else body = Part(root.transform, "Building", Vector3.up * definition.height / 2f, size, material);
+            float doorX = (definition.width / 2 + 0.5f - definition.width / 2f) * grid.CellSize;
+            if (!resting)
+                Part(root.transform, "Dedicated entrance", new Vector3(doorX, 0.8f, -definition.depth * grid.CellSize / 2f),
+                    new Vector3(grid.CellSize * 0.5f, 1.6f, 0.12f), entranceMaterial);
+            Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
+                new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
+                new Vector3(grid.CellSize * 0.6f, 0.08f, grid.CellSize * 0.6f), entranceMaterial);
+            var labelObject = new GameObject("Building status", typeof(TextMesh));
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = Vector3.up * (definition.height + 0.6f);
+            TextMesh label = labelObject.GetComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
+            label.fontSize = 64;
+            label.characterSize = 0.12f;
+            label.anchor = TextAnchor.LowerCenter;
+            label.alignment = TextAlignment.Center;
+            views.Add(record, new View { Body = body.GetComponent<MeshRenderer>(), Label = label });
+            root.AddComponent<DemolitionTarget>().Initialize(() =>
+            {
+                Network.Remove(record);
+                views.Remove(record);
+            });
+            return true;
+        }
+
+        private static GameObject Part(Transform parent, string name, Vector3 position, Vector3 scale, Material material)
+        {
+            var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = name;
+            part.GetComponent<Collider>().enabled = false;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = position;
+            part.transform.localScale = scale;
+            part.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return part;
+        }
+
+        public void Refresh(Camera camera)
+        {
+            Network.Refresh();
+            foreach (var pair in views)
+            {
+                ParkBuildingRecord record = pair.Key;
+                View view = pair.Value;
+                view.Label.transform.rotation = camera.transform.rotation;
+                if (view.LastOpen == record.IsOpen) continue;
+                view.LastOpen = record.IsOpen;
+                Color color = record.IsOpen ? record.Footprint.Definition.openColor : new Color(0.85f, 0.12f, 0.1f);
+                var properties = new MaterialPropertyBlock();
+                properties.SetColor("_BaseColor", color);
+                properties.SetColor("_Color", color);
+                view.Body.SetPropertyBlock(properties);
+                view.Label.text = record.Footprint.Definition.displayName + (record.IsOpen ? "\nOpen" : "\nClosed: no path connection");
+            }
+        }
+    }
+}

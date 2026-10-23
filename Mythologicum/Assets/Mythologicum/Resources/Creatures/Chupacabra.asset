@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: Chupacabra
+  m_EditorClassIdentifier: 
+  displayName: Chupacabra
+  diet: 0
+  tags: 2
+  preyTags: 5
+  fearedTags: 0
+  manuallyPlaceable: 1
+  initialHunger: 55
+  hungerPerSecond: 2
+  huntThreshold: 50
+  foodRelief: 60
+  grazeSeconds: 3
+  initialEnergy: 100
+  energyDrainPerSecond: 0.35
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 20
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  requiresTreeForSleep: 1
+  canClimbWoodenFences: 1
+  treeClimbSeconds: 1.5
+  fenceClimbSeconds: 2
+  failedClimbSeconds: 1.2
+  climbRetrySeconds: 8
+  climbEnergyCost: 5
+  fearGainPerSecond: 50
+  fearRecoveryPerSecond: 15
+  fleeThreshold: 20
+  walkSpeed: 1.8
+  runSpeed: 5.5
+  visionRange: 14
+  fearRange: 14
+  interactionRange: 1.2
+  decisionInterval: 0.35
+  minimumSpace: 100
+  requiredTrees: 2
+  environmentRadius: 12
+  minimumCompanions: 0
+  maximumCompanions: 0
+  herdRange: 12
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  pauseMinSeconds: 1.5
+  pauseMaxSeconds: 4
+  preyMemorySeconds: 5
+  attackSeconds: 0.8
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  color: {r: 0.46, g: 0.65, b: 0.32, a: 1}
+  bodyScale: {x: 0.85, y: 0.85, z: 1.2}

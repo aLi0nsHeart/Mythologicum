@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cc5b8ab35bd49049dce55e5b1837373, type: 3}
+  m_Name: DefaultVisitors
+  m_EditorClassIdentifier: 
+  spawnInterval: 8
+  maximumVisitors: 30
+  ticketPrice: 15
+  initialHunger: 20
+  initialEnergy: 80
+  hungerPerSecond: 0.7
+  energyDrainPerSecond: 0.45
+  hungerThreshold: 50
+  restThreshold: 30
+  comfortableEnergy: 85
+  walkSpeed: 1.6
+  runSpeed: 4.8
+  viewRange: 10
+  fearRange: 6
+  fearGainPerSecond: 60
+  fearRecoveryPerSecond: 20
+  fleeSafeDistance: 10
+  decisionInterval: 0.5
+  watchingSeconds: 6
+  minimumStaySeconds: 30
+  maximumStaySeconds: 300
