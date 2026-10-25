@@ -44,6 +44,8 @@ namespace Mythologicum
         [Min(0f)] public float sleepRecoveryPerSecond = 8f;
 
         [Header("Sleep and climbing")]
+        [Tooltip("Time spent settling into new surroundings before non-urgent fence climbing. Severe hunger, exhaustion and fleeing override this caution.")]
+        [Min(0f)] public float settlingSeconds = 45f;
         [Tooltip("Must reach and climb a tree before sleep can restore energy.")]
         public bool requiresTreeForSleep;
         [Tooltip("Can cross ordinary wooden fences by climbing. Spiked fences resist climbing.")]
@@ -92,6 +94,12 @@ namespace Mythologicum
         [Tooltip("Maximum happiness points gained or lost each second.")]
         [Min(0f)] public float happinessChangePerSecond = 4f;
 
+        [Header("Escape intentions (chance per minute)")]
+        [Range(0f, 1f)] public float randomEscapeChance = 0.0005f;
+        [Range(0f, 1f)] public float hungryEscapeChance = 0.3f;
+        [Range(0f, 1f)] public float agitatedEscapeChance = 0.35f;
+        [Range(0f, 1f)] public float crowdedEscapeChance = 0.35f;
+        [Min(1f)] public float escapeRetrySeconds = 30f;
         [Header("Behaviour timing")]
         [Min(0f)] public float pauseMinSeconds = 1.5f;
         [Min(0f)] public float pauseMaxSeconds = 4f;

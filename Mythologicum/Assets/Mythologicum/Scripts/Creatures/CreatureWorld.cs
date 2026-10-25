@@ -220,6 +220,7 @@ namespace Mythologicum
                 }
                 if (agent.ExternallyControlled) { RefreshVisual(agent); continue; }
                 agent.StateTimer -= dt;
+                if (agent.Activity != CreatureActivity.Sleeping) agent.Exploration.Tick(dt);
                 agent.DecisionTimer -= dt;
                 agent.WanderTimer -= dt;
                 bool traversing = TickTraversal(agent, dt);
@@ -241,6 +242,7 @@ namespace Mythologicum
                 agent.Energy.Tick(dt, definition.energyDrainPerSecond, energyMultiplier, sleeping, definition.sleepRecoveryPerSecond);
                 if (!traversing) { Move(agent, dt); Feed(agent, dt); }
                 UpdateWellbeing(agent, dt);
+                TickEscape(agent, dt);
                 RefreshVisual(agent);
             }
             for (int i = agents.Count - 1; i >= 0; i--)
@@ -272,6 +274,7 @@ namespace Mythologicum
             if (agent.Energy.Energy <= definition.sleepThreshold) agent.WantsSleep = true;
             if (agent.Activity == CreatureActivity.Sleeping || agent.WantsSleep)
             { SeekSleep(agent); return; }
+            if (agent.EscapeIntent && Escape(agent)) return;
             if (agent.Activity == CreatureActivity.Fleeing)
             { FinishSegment(agent); agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent); }
             if (!stillUnsafe || agent.Vitals.Fear < definition.fleeThreshold) agent.HasDanger = false;
@@ -307,8 +310,8 @@ namespace Mythologicum
                         agent.SocialPartner = other; agent.Activity = CreatureActivity.Socializing;
                         agent.StateTimer = definition.socializingSeconds; return;
                     }
-            List<Vector2Int> choices = Navigation(agent).Reachable(agent.Cell, 4);
-            if (choices.Count > 1 && SetGoal(agent, choices[UnityEngine.Random.Range(1, choices.Count)]))
+            List<Vector2Int> choices = navigation.Reachable(agent.Cell, 4);
+            if (choices.Count > 1 && SetGoal(agent, choices[UnityEngine.Random.Range(1, choices.Count)], true))
                 agent.Activity = CreatureActivity.Wandering;
             else agent.StateTimer = PauseDuration(agent);
         }
@@ -317,6 +320,91 @@ namespace Mythologicum
             Mathf.Max(agent.Definition.pauseMinSeconds, agent.Definition.pauseMaxSeconds))
             * Mathf.Lerp(1f, 0.4f, agent.Wellbeing.Agitation);
 
+        private void TickEscape(CreatureAgent agent, float dt)
+        {
+            agent.EscapeCheckTimer -= dt;
+            if (agent.EscapeCheckTimer <= 0f)
+            {
+                agent.EscapeCheckTimer = .5f;
+                var ground = ReachableRegion(agent.Cell);
+                float required = 0f;
+                foreach (CreatureAgent other in agents)
+                    if (other.Alive && !other.ExternallyControlled && ground.Contains(other.Cell))
+                        required += Mathf.Max(0f, other.Definition.minimumSpace);
+                agent.Crowding = CreatureEscape.Overcrowding(ground.Count * grid.CellSize * grid.CellSize, required);
+            }
+            CreatureDefinition data = agent.Definition;
+            agent.EscapeChancePerMinute = CreatureEscape.Chance(agent.Vitals.Hunger, agent.Wellbeing.Agitation,
+                agent.Crowding, data.randomEscapeChance, data.hungryEscapeChance, data.agitatedEscapeChance, data.crowdedEscapeChance);
+            if (agent.EscapeIntent || time < agent.EscapeAfter || agent.Elevation > .01f
+                || agent.Activity == CreatureActivity.Sleeping || agent.Activity == CreatureActivity.SeekingSleep
+                || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
+                || agent.Activity == CreatureActivity.ClimbingFence || agent.Activity == CreatureActivity.FailedClimb
+                || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.Feeding
+                || agent.Activity == CreatureActivity.Fleeing) return;
+            if (UnityEngine.Random.value >= CreatureEscape.Probability(agent.EscapeChancePerMinute, dt)) return;
+            agent.EscapeIntent = true; agent.EscapeUntil = time + 30f;
+            agent.EscapeGoal = null; agent.EscapeBarrier = null;
+            agent.EscapeStatus = "Seeking a way out"; agent.DecisionTimer = 0f;
+        }
+
+        private void EndEscape(CreatureAgent agent, string reason)
+        {
+            agent.EscapeIntent = false; agent.EscapeGoal = null; agent.EscapeBarrier = null;
+            agent.EscapeAfter = time + Mathf.Max(1f, agent.Definition.escapeRetrySeconds);
+            agent.EscapeStatus = reason; FinishSegment(agent);
+        }
+
+        private bool Escape(CreatureAgent agent)
+        {
+            ReleaseClaim(agent);
+            if (time >= agent.EscapeUntil)
+            { EndEscape(agent, "Attempt ended; resting before retry"); return false; }
+            if (agent.EscapeGoal.HasValue)
+            {
+                if (agent.Cell == agent.EscapeGoal.Value && agent.Route.Count == 0)
+                {
+                    FenceEdge? barrier = agent.EscapeBarrier;
+                    EndEscape(agent, barrier.HasValue ? "Blocked by a fence" : "Reached new ground");
+                    if (barrier.HasValue && agent.Definition.canClimbWoodenFences && fences.HasFence(barrier.Value))
+                    { agent.AttemptFence = barrier; BeginFailedClimb(agent); return true; }
+                    return false;
+                }
+                if (SetGoal(agent, agent.EscapeGoal.Value))
+                { agent.Activity = CreatureActivity.Escaping; return true; }
+                EndEscape(agent, "Escape route blocked"); return false;
+            }
+            var ground = ReachableRegion(agent.Cell);
+            Vector2Int? goal = null; FenceEdge? obstruction = null;
+            float best = float.MaxValue;
+            // Explore physical barriers, independent of enclosure identity. Goats cannot acquire climbing abilities.
+            foreach (FenceEdge edge in fences.Edges)
+            {
+                bool a = ground.Contains(edge.CellA), b = ground.Contains(edge.CellB);
+                if (a == b) continue;
+                Vector2Int near = a ? edge.CellA : edge.CellB, far = a ? edge.CellB : edge.CellA;
+                if (!navigation.IsWalkable(far)) continue;
+                bool climb = agent.Definition.canClimbWoodenFences && fences.CanClimb(edge);
+                float distance = ConstructionRouteGraph.CellDistance(agent.Cell, near) + (climb ? 0f : grid.Width * grid.Depth);
+                if (distance >= best) continue;
+                best = distance; goal = climb ? far : near; obstruction = climb ? (FenceEdge?)null : edge;
+            }
+            if (!goal.HasValue)
+            {
+                // With a gap or no fence, seek room away from the current group using ordinary ground travel.
+                int distance = 0;
+                foreach (Vector2Int cell in navigation.Reachable(agent.Cell, 6))
+                {
+                    int candidate = ConstructionRouteGraph.CellDistance(agent.Cell, cell);
+                    if (candidate > distance) { distance = candidate; goal = cell; }
+                }
+            }
+            if (!goal.HasValue || !SetGoal(agent, goal.Value))
+            { EndEscape(agent, "No usable escape route"); return false; }
+            agent.EscapeGoal = goal; agent.EscapeBarrier = obstruction;
+            agent.Activity = CreatureActivity.Escaping; return true;
+        }
+
         private void FinishSegment(CreatureAgent agent)
         {
             // Keep only the active segment; never teleport to a grid centre to change activity.
@@ -324,8 +412,10 @@ namespace Mythologicum
             agent.Goal = null;
         }
 
-        private CreatureNavigation Navigation(CreatureAgent agent) =>
-            agent.Definition.canClimbWoodenFences ? climbingNavigation : navigation;
+        private bool CanClimbForNeeds(CreatureAgent agent) => agent.Definition.canClimbWoodenFences
+            && (agent.EscapeIntent || agent.Exploration.WillClimb(agent.Definition.settlingSeconds, agent.Vitals.Hunger,
+                agent.Energy.Energy, agent.Activity == CreatureActivity.Fleeing));
+        private CreatureNavigation Navigation(CreatureAgent agent) => CanClimbForNeeds(agent) ? climbingNavigation : navigation;
 
         private static FenceEdge CrossingEdge(Vector2Int from, Vector2Int to) => from.x != to.x
             ? new FenceEdge(new Vector2Int(Math.Max(from.x, to.x), from.y), false)
@@ -354,7 +444,8 @@ namespace Mythologicum
                 return;
             }
 
-            HashSet<Vector2Int> accessible = ReachableRegion(agent.Cell, agent.Definition.canClimbWoodenFences);
+            HashSet<Vector2Int> accessible = ReachableRegion(agent.Cell, CanClimbForNeeds(agent));
+            HashSet<Vector2Int> local = ReachableRegion(agent.Cell);
             Vector2Int? tree = null;
             float closest = float.MaxValue;
             foreach (Vector2Int cell in accessible)
@@ -364,7 +455,7 @@ namespace Mythologicum
                 foreach (CreatureAgent other in agents)
                     if (other != agent && other.Alive && other.SleepTree == cell) { reserved = true; break; }
                 if (reserved) continue;
-                float distance = ConstructionRouteGraph.CellDistance(agent.Cell, cell);
+                float distance = ConstructionRouteGraph.CellDistance(agent.Cell, cell) + (local.Contains(cell) ? 0f : grid.Width * grid.Depth);
                 if (distance < closest) { closest = distance; tree = cell; }
             }
             if (!tree.HasValue)
@@ -472,7 +563,7 @@ namespace Mythologicum
 
         private bool TryBlockedFence(CreatureAgent agent, List<CreatureAgent> candidates)
         {
-            if (!agent.Definition.canClimbWoodenFences || candidates.Count == 0 || time < agent.AttemptAfter) return false;
+            if (!CanClimbForNeeds(agent) || candidates.Count == 0 || time < agent.AttemptAfter) return false;
             HashSet<Vector2Int> region = ReachableRegion(agent.Cell, true);
             FenceEdge? best = null;
             Vector2Int approach = agent.Cell;
@@ -525,17 +616,22 @@ namespace Mythologicum
                     && navigation.HasLineOfSight(agent.Cell, prey.Cell);
                 if (visible) { agent.PreyLastSeen = time; agent.LastSeenPreyCell = prey.Cell; }
                 if (time - agent.PreyLastSeen <= agent.Definition.preyMemorySeconds && agent.LastSeenPreyCell.HasValue
-                    && ReachableRegion(agent.Cell, agent.Definition.canClimbWoodenFences).Contains(agent.LastSeenPreyCell.Value)
+                    && ReachableRegion(agent.Cell, CanClimbForNeeds(agent)).Contains(agent.LastSeenPreyCell.Value)
                     && SetGoal(agent, agent.LastSeenPreyCell.Value))
                 { agent.Activity = visible ? CreatureActivity.Hunting : CreatureActivity.Searching; return true; }
             }
             if (agent.Prey != null) FinishSegment(agent);
             ReleaseClaim(agent);
             var candidates = Visible(agent, agent.Definition.preyTags, agent.Definition.visionRange);
-            candidates.Sort((a, b) => (a.transform.position - agent.transform.position).sqrMagnitude
-                .CompareTo((b.transform.position - agent.transform.position).sqrMagnitude));
+            HashSet<Vector2Int> local = ReachableRegion(agent.Cell);
+            candidates.Sort((a, b) =>
+            {
+                int preference = local.Contains(b.Cell).CompareTo(local.Contains(a.Cell));
+                return preference != 0 ? preference : (a.transform.position - agent.transform.position).sqrMagnitude
+                    .CompareTo((b.transform.position - agent.transform.position).sqrMagnitude);
+            });
             foreach (CreatureAgent candidate in candidates)
-                if (candidate.CapturedBy == null && ReachableRegion(agent.Cell, agent.Definition.canClimbWoodenFences).Contains(candidate.Cell) && SetGoal(agent, candidate.Cell))
+                if (candidate.CapturedBy == null && ReachableRegion(agent.Cell, CanClimbForNeeds(agent)).Contains(candidate.Cell) && SetGoal(agent, candidate.Cell))
                 {
                     agent.AttemptFence = null;
                     agent.Prey = candidate; agent.PreyLastSeen = time; agent.LastSeenPreyCell = candidate.Cell;
@@ -608,13 +704,14 @@ namespace Mythologicum
             return closest;
         }
 
-        private bool SetGoal(CreatureAgent agent, Vector2Int goal)
+        private bool SetGoal(CreatureAgent agent, Vector2Int goal, bool walkingOnly = false)
         {
             if (agent.Goal == goal && agent.Route.Count > 0) return true;
             // Preserve the current movement segment when replanning toward moving prey.
             bool moving = agent.Route.Count > 0;
             Vector2Int start = moving ? agent.Route[0] : agent.Cell;
-            List<Vector2Int> route = Navigation(agent).FindPath(start, goal);
+            List<Vector2Int> route = navigation.FindPath(start, goal);
+            if (route.Count == 0 && !walkingOnly) route = Navigation(agent).FindPath(start, goal);
             if (route.Count == 0) return false;
             agent.Route.Clear(); agent.Goal = goal;
             for (int i = moving ? 0 : 1; i < route.Count; i++) agent.Route.Add(route[i]);

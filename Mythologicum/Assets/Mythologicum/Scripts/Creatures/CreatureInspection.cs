@@ -16,7 +16,7 @@ namespace Mythologicum
             panel.transform.SetParent(canvas.transform, false);
             var rect = (RectTransform)panel.transform;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1f, 1f);
-            rect.anchoredPosition = new Vector2(-15f, -170f); rect.sizeDelta = new Vector2(350f, 395f);
+            rect.anchoredPosition = new Vector2(-15f, -140f); rect.sizeDelta = new Vector2(390f, 485f);
             panel.GetComponent<Image>().color = new Color(0.04f, 0.07f, 0.09f, 0.96f);
             var label = new GameObject("Needs", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             label.transform.SetParent(panel.transform, false);
@@ -40,6 +40,10 @@ namespace Mythologicum
             CreatureNeedScores needs = selected.Wellbeing.Scores;
             string herd = definition.maximumCompanions < 0 ? $"{definition.minimumCompanions}+"
                 : $"{definition.minimumCompanions}-{definition.maximumCompanions}";
+            string reasons = "Rare curiosity";
+            if (selected.Vitals.Hunger > 75f) reasons += ", hunger";
+            if (selected.Wellbeing.Agitation > 0f) reasons += ", agitation";
+            if (selected.Crowding > 0f) reasons += ", space pressure";
             text.text = $"{definition.displayName} - {selected.Activity}\n"
                 + $"Happiness: {selected.Wellbeing.Happiness:0}/100"
                 + (selected.Wellbeing.Agitation > 0f ? "  AGITATED\n" : "\n")
@@ -53,7 +57,11 @@ namespace Mythologicum
                 + $"Reachable: {selected.AccessibleArea:0} / {definition.minimumSpace:0} m²\n"
                 + $"Herd: {needs.Herd:0}/100\n"
                 + $"Companions: {selected.Companions} (preferred {herd})\n"
-                + "\nHigher satisfaction is better.\nClick elsewhere to deselect.";
+                + $"Space pressure: {selected.Crowding * 100f:0}%\n"
+                + $"Escape urge: {selected.EscapeChancePerMinute * 100f:0.00}% / minute\n"
+                + $"Reasons: {reasons}\n"
+                + $"{selected.EscapeStatus}\n"
+                + "Urge is not escape success.\nSleep, urgent actions and retries pause attempts.";
         }
         public void Dispose() { if (panel != null) Object.Destroy(panel); }
     }

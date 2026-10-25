@@ -36,7 +36,7 @@ try {
         Sort-Object FullName | ForEach-Object { '"' + $_.FullName + '"' })
     if ($sources.Count -eq 0) { throw 'No runtime C# sources found in Assets.' }
     $checks = @('CreatureModelChecks', 'CreatureNavigationTests', 'GrazingFieldChecks', 'BuildingOperatingChecks',
-        'CreatureWellbeingChecks', 'EnvironmentTreeChecks', 'CreatureEnergyChecks', 'FenceClimbingChecks')
+        'CreatureWellbeingChecks', 'EnvironmentTreeChecks', 'CreatureEnergyChecks', 'FenceClimbingChecks', 'CreatureExplorationChecks', 'CreatureEscapeChecks')
     $checks += @('..\Visitors\VisitorModelChecks', '..\Visitors\VisitorNavigationChecks', '..\Visitors\EconomyChecks')
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force

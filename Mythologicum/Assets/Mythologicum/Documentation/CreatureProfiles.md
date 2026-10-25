@@ -1,5 +1,11 @@
 # Editing creature species
 
+**Escape intentions:** hunger above 75, agitation, and space pressure add to a rare base escape chance of **0.05% per minute**. The Inspector exposes each maximum contribution and the retry delay. The creature information panel shows the combined current chance, contributing needs, space pressure, and the last attempt status. This is a chance to form an intention, not a chance of crossing a fence. Sleeping, urgent actions and cooldowns pause rolls; chance is converted to elapsed seconds so it does not increase with frame rate. Attempts last up to 30 seconds and respect species abilities. Goats can search for gaps and test barriers but do not gain climbing abilities. Climbable wooden sections offer Chupacabras a route; spiked fences still reject climbing.
+
+Space pressure uses the ordinary ground area shared by animals, divided against the sum of their species' minimum space needs. It includes undersized habitats and overcrowding, excludes visitors, and does not use enclosure assignments. Escape attempts do not replace normal hunting, sleeping or fleeing.
+
+Casual exploration uses walking routes and does not climb fences. Food and sleep sites reachable without climbing are preferred. New animals hesitate before non-urgent fence climbing for **Settling Seconds** (45 by default). Hunger of 80+, energy of 8 or less, and fleeing override this initial caution. After settling, fence climbing still requires purposeful travel rather than idle wandering. Gaps remain ordinary walkable ground; animals have no assigned enclosure or invisible boundary.
+
 Creature behaviour is driven by editable Unity assets. Each living animal has its own hunger, fear and energy; changing a species asset changes the shared rules, not all animals' current needs.
 
 1. In Unity's Project window, open **Assets > Mythologicum > Resources > Creatures**.

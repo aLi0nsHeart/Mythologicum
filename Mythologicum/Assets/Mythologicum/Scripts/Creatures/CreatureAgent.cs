@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
-        SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing }
+        SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing, Escaping }
 
     /// <summary>Individual runtime state. Species rules live in the shared profile asset.</summary>
     public sealed class CreatureAgent : MonoBehaviour
@@ -19,6 +19,14 @@ namespace Mythologicum
         public int NearbyTrees { get; internal set; }
         public int Companions { get; internal set; }
         public CreatureEnergy Energy { get; internal set; }
+        public float EscapeChancePerMinute { get; internal set; }
+        public float Crowding { get; internal set; }
+        public string EscapeStatus { get; internal set; } = "No escape intention";
+        internal bool EscapeIntent;
+        internal float EscapeUntil, EscapeAfter, EscapeCheckTimer;
+        internal Vector2Int? EscapeGoal;
+        internal FenceEdge? EscapeBarrier;
+        internal readonly CreatureExploration Exploration = new CreatureExploration();
         internal bool ExternallyControlled;
         internal string ExternalStatus;
         internal readonly List<Vector2Int> Route = new List<Vector2Int>();

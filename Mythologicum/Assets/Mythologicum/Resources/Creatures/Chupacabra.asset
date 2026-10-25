@@ -31,6 +31,7 @@ MonoBehaviour:
   sleepRecoveryPerSecond: 8
   requiresTreeForSleep: 1
   canClimbWoodenFences: 1
+  settlingSeconds: 45
   treeClimbSeconds: 1.5
   fenceClimbSeconds: 2
   failedClimbSeconds: 1.2
