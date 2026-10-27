@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-
 namespace Mythologicum
 {
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
@@ -41,6 +40,9 @@ namespace Mythologicum
         internal CreatureAgent CapturedBy;
         internal Transform Body;
         internal MeshRenderer BodyRenderer;
+        internal bool HasVisualModel;
+        internal Animator BodyAnimator;
+        internal string AnimationState;
         internal bool WantsSleep;
         internal Vector2Int? SleepTree;
         internal float Elevation, TraversalDuration, TraversalStartElevation, AttemptAfter;
@@ -48,7 +50,7 @@ namespace Mythologicum
         internal FenceEdge? AttemptFence;
         internal CreatureAgent SocialPartner;
         internal TextMesh Label;
-        internal GameObject Grass;
+
         internal ParkBuildingRecord SourceDispenser;
     }
 }

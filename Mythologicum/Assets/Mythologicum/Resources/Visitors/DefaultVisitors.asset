@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4cc5b8ab35bd49049dce55e5b1837373, type: 3}
   m_Name: DefaultVisitors
   m_EditorClassIdentifier: 
+  people: {fileID: 11400000, guid: 699756794611c714eb65bf9af704dc5a, type: 2}
   spawnInterval: 8
   maximumVisitors: 30
   ticketPrice: 15

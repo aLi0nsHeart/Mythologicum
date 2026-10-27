@@ -12,6 +12,7 @@ namespace Mythologicum
     public sealed class BuildModeController : MonoBehaviour
     {
         [SerializeField] private Collider ground;
+        [SerializeField] private GameObject pathTilePrefab;
         [SerializeField, Min(0.25f)] private float cellSize = 2f;
         [SerializeField, Min(0.25f)] private float buildingHeight = 2f;
         [SerializeField] private BuildingDefinition[] buildingCatalog = BuildingDefinition.Defaults();
@@ -21,6 +22,8 @@ namespace Mythologicum
         private Camera view;
         private GameObject gridObject;
         private GameObject preview;
+        private GameObject modelPreview;
+        private static readonly Color ValidPreviewColor = new Color(0.6f, 0.62f, 0.64f);
         private GameObject buildings;
         private ConstructionPalette palette;
         private BuildingConstruction buildingConstruction;
@@ -29,6 +32,7 @@ namespace Mythologicum
         private CreatureDefinition selectedCreature;
         private CreatureWorld creatureWorld;
         private TreeConstruction trees;
+        private GroundVegetation groundVegetation;
         private CreatureInspection creatureInspection;
         private VisitorWorld visitorWorld;
         private VisitorPresentation visitorPresentation;
@@ -81,6 +85,8 @@ namespace Mythologicum
                 if (!found) expanded.Add(addition);
             }
             buildingCatalog = expanded.ToArray();
+            var buildingVisuals = Resources.Load<BuildingVisualCatalog>("Buildings/BuildingVisuals");
+            buildingVisuals?.ApplyTo(buildingCatalog);
             creatureCatalog = Resources.LoadAll<CreatureDefinition>("Creatures");
             Array.Sort(creatureCatalog, (a, b) => string.CompareOrdinal(a.displayName, b.displayName));
             Bounds bounds = ground.bounds;
@@ -89,7 +95,7 @@ namespace Mythologicum
                 Mathf.FloorToInt(bounds.size.x / cellSize), Mathf.FloorToInt(bounds.size.z / cellSize));
             Material groundMaterial = ground.GetComponent<Renderer>().sharedMaterial;
             gridMaterial = new Material(groundMaterial) { color = new Color(0.2f, 0.3f, 0.35f) };
-            previewMaterial = new Material(groundMaterial);
+            previewMaterial = new Material(groundMaterial.shader) { color = ValidPreviewColor };
             buildingMaterial = new Material(groundMaterial) { color = new Color(0.65f, 0.48f, 0.25f) };
             pathMaterial = new Material(groundMaterial) { color = new Color(0.73f, 0.68f, 0.53f) };
             fenceMaterial = new Material(groundMaterial) { color = new Color(0.32f, 0.21f, 0.12f) };
@@ -109,10 +115,11 @@ namespace Mythologicum
             buildings = new GameObject("Placed Buildings");
             var pathRoot = new GameObject("Paths");
             pathRoot.transform.SetParent(buildings.transform);
-            paths = new PathConstruction(grid, pathRoot.transform, pathMaterial);
+            paths = new PathConstruction(grid, pathRoot.transform, pathMaterial, pathTilePrefab);
             var fenceRoot = new GameObject("Fences");
             fenceRoot.transform.SetParent(buildings.transform);
-            fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial);
+            fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial,
+                Resources.Load<FenceVisualCatalog>("Fences/FenceVisuals"));
             buildingConstruction = new BuildingConstruction(grid, fences.Layout, buildings.transform, buildingMaterial, entranceMaterial);
             Environment = new EnvironmentGrid(grid);
             creatureWorld = new CreatureWorld(grid, fences.Layout, buildingConstruction.Network, view, buildingMaterial, creatureCatalog, Environment);
@@ -122,7 +129,9 @@ namespace Mythologicum
             economy = new ParkEconomy(startingFunds);
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy);
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
-            trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial);
+            var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
+            trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
+            groundVegetation = new GroundVegetation(grid, Environment, vegetation);
             entrancePreview = GameObject.CreatePrimitive(PrimitiveType.Cube);
             entrancePreview.name = "Building Entrance Preview";
             entrancePreview.GetComponent<Collider>().enabled = false;
@@ -149,6 +158,19 @@ namespace Mythologicum
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
                 creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree));
             status = palette.Status;
+            var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            creditsObject.transform.SetParent(palette.Root.transform, false);
+            var credits = creditsObject.GetComponent<Text>();
+            credits.text = "Vegetation art: LUX ART STUDIOS";
+            credits.font = status.font;
+            credits.fontSize = 16;
+            credits.color = new Color(0.94f, 0.94f, 0.88f);
+            credits.alignment = TextAnchor.UpperRight;
+            credits.raycastTarget = false;
+            credits.rectTransform.anchorMin = credits.rectTransform.anchorMax = new Vector2(1f, 1f);
+            credits.rectTransform.pivot = new Vector2(1f, 1f);
+            credits.rectTransform.anchoredPosition = new Vector2(-18f, -65f);
+            credits.rectTransform.sizeDelta = new Vector2(330f, 24f);
             foreach (Text label in canvas.GetComponentsInChildren<Text>())
                 if (label.text.Contains("WASD"))
                 {
@@ -182,6 +204,10 @@ namespace Mythologicum
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
+            if (modelPreview != null) { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+            foreach (GameObject item in routePreviews)
+                if (item != null) { item.SetActive(false); Destroy(item); }
+            routePreviews.Clear();
             palette?.Close();
             ResetStroke();
             pathSelection.Reset();
@@ -203,6 +229,7 @@ namespace Mythologicum
         // After camera movement, so the preview follows the final camera pose.
         private void LateUpdate()
         {
+            groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
             visitorWorld.Tick(Time.deltaTime);
@@ -236,6 +263,7 @@ namespace Mythologicum
                 return;
             }
             preview.SetActive(false);
+            if (modelPreview != null) modelPreview.SetActive(false);
             entrancePreview.SetActive(false);
             HideRoutePreviews();
             status.text = tool == Tool.Building
@@ -275,11 +303,9 @@ namespace Mythologicum
             bool valid = buildingConstruction.CanPlace(footprint) && !creatureWorld.Occupies(footprint);
             foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied)) valid = false;
             bool affordable = economy.CanAfford(selectedBuilding.constructionCost);
-            preview.transform.position = footprint.Center(grid) + Vector3.up * selectedBuilding.height / 2f;
-            preview.transform.localScale = new Vector3(footprint.Width * cellSize - 0.1f,
-                selectedBuilding.height, footprint.Depth * cellSize - 0.1f);
-            previewMaterial.color = valid && affordable ? new Color(0.15f, 0.85f, 0.3f) : new Color(0.95f, 0.15f, 0.12f);
-            preview.SetActive(true);
+            previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
+            ShowModelPreview(footprint.Center(grid), Quaternion.Euler(0f, -90f * buildingRotation, 0f),
+                parent => buildingConstruction.CreateVisual(parent, selectedBuilding));
             entrancePreview.transform.position = grid.CellCenter(footprint.AccessCell) + Vector3.up * 0.14f;
             entrancePreview.transform.localScale = new Vector3(cellSize * 0.65f, 0.08f, cellSize * 0.65f);
             entrancePreview.SetActive(true);
@@ -295,21 +321,19 @@ namespace Mythologicum
         private void ApplyTree(Mouse mouse, Vector2Int cell)
         {
             bool valid = trees.CanPlace(cell);
-            preview.transform.position = grid.CellCenter(cell) + Vector3.up * 1.525f;
-            preview.transform.localScale = new Vector3(1.6f, 3.05f, 1.6f);
-            previewMaterial.color = valid ? new Color(0.2f, 0.75f, 0.3f) : new Color(0.95f, 0.15f, 0.12f);
-            preview.SetActive(true);
+            previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
+            ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, trees.CreateVisual);
             if (!valid) status.text = "Choose clear natural ground without a tree, path or building.";
-            if (valid && mouse.leftButton.wasPressedThisFrame) trees.TryPlace(cell);
+            if (valid && mouse.leftButton.wasPressedThisFrame && trees.TryPlace(cell))
+            { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
         }
 
         private void ApplyCreature(Mouse mouse, Vector2Int cell)
         {
             bool valid = creatureWorld.CanSpawn(cell);
-            preview.transform.position = grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y;
-            preview.transform.localScale = selectedCreature.bodyScale;
-            previewMaterial.color = valid ? selectedCreature.color : new Color(0.95f, 0.15f, 0.12f);
-            preview.SetActive(true);
+            previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
+            ShowModelPreview(grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
+                parent => creatureWorld.CreateVisual(parent, selectedCreature, selectedCreature.visualPrefab, out _));
             if (!valid) status.text = "Choose clear ground away from another creature (or population limit reached).";
             if (valid && mouse.leftButton.wasPressedThisFrame && creatureWorld.TrySpawn(selectedCreature, cell)) SelectTool(Tool.None);
         }
@@ -350,7 +374,7 @@ namespace Mythologicum
                 if (segment != null) edge = segment.Edge;
             }
             bool valid = fences.CanPlaceGate(edge);
-            previewMaterial.color = valid ? new Color(0.15f, 0.85f, 0.3f) : new Color(0.95f, 0.15f, 0.12f);
+            previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowFencePreview(edge);
             if (!valid) status.text = "Choose a wooden fence without a gate. Spiked fencing cannot become a gate. | Esc: cancel";
             if (valid && mouse.leftButton.wasPressedThisFrame && fences.TryPlaceGate(edge)) SelectTool(Tool.None);
@@ -390,7 +414,7 @@ namespace Mythologicum
             if (!selection.HasStart)
             {
                 bool valid = canBuild(destination);
-                previewMaterial.color = valid ? new Color(0.15f, 0.85f, 0.3f) : new Color(0.95f, 0.15f, 0.12f);
+                previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
                 showPreview(destination);
                 if (!valid) status.text = "Startpunkt blockiert | Anderen Start waehlen | Esc: Abbrechen";
                 if (valid && mouse.leftButton.wasPressedThisFrame) selection.Begin(destination);
@@ -398,7 +422,7 @@ namespace Mythologicum
             }
             selection.Update(destination, neighbors, canBuild, estimate);
             bool found = selection.Route.Count > 0;
-            previewMaterial.color = found ? new Color(0.15f, 0.85f, 0.3f) : new Color(0.95f, 0.15f, 0.12f);
+            previewMaterial.color = found ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             if (found)
                 foreach (T step in selection.Route) showPreview(step);
             else
@@ -426,35 +450,62 @@ namespace Mythologicum
             visiblePreviews = 0;
         }
 
-        private void ShowRoutePreview(Vector3 position, Vector3 scale)
+        private void PreparePreview(GameObject visual)
+        {
+            foreach (Collider collider in visual.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            foreach (Animator animator in visual.GetComponentsInChildren<Animator>(true))
+            {
+                animator.applyRootMotion = false;
+                if (animator.isActiveAndEnabled && animator.runtimeAnimatorController != null)
+                { animator.Rebind(); animator.Update(0f); }
+                animator.enabled = false;
+            }
+            foreach (Behaviour behaviour in visual.GetComponentsInChildren<Behaviour>(true))
+                behaviour.enabled = false;
+            foreach (Renderer renderer in visual.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = new Material[renderer.sharedMaterials.Length];
+                for (int i = 0; i < materials.Length; i++) materials[i] = previewMaterial;
+                renderer.sharedMaterials = materials;
+                renderer.SetPropertyBlock(null);
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+        }
+
+        private void ShowModelPreview(Vector3 position, Quaternion rotation, Action<Transform> createVisual)
+        {
+            if (modelPreview == null)
+            {
+                modelPreview = new GameObject("Placement model preview");
+                createVisual(modelPreview.transform);
+                PreparePreview(modelPreview);
+            }
+            modelPreview.transform.SetPositionAndRotation(position, rotation);
+            modelPreview.SetActive(true);
+        }
+
+        private void ShowRoutePreview(Vector3 position, Quaternion rotation, Action<Transform> createVisual)
         {
             if (visiblePreviews == routePreviews.Count)
             {
-                GameObject item = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                item.name = "Route Preview";
-                item.GetComponent<Collider>().enabled = false;
-                var renderer = item.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = previewMaterial;
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                var item = new GameObject("Route model preview");
+                createVisual(item.transform);
+                PreparePreview(item);
                 routePreviews.Add(item);
             }
             GameObject visual = routePreviews[visiblePreviews++];
-            visual.transform.position = position;
-            visual.transform.localScale = scale;
+            visual.transform.SetPositionAndRotation(position, rotation);
             visual.SetActive(true);
         }
 
         private void ShowPathPreview(Vector2Int cell) => ShowRoutePreview(
-            grid.CellCenter(cell) + Vector3.up * 0.15f, new Vector3(cellSize * 0.95f, 0.12f, cellSize * 0.95f));
+            grid.CellCenter(cell) + Vector3.up * (PathConstruction.Height / 2f + 0.02f),
+            Quaternion.identity, paths.CreateVisual);
 
-        private void ShowFencePreview(FenceEdge edge)
-        {
-            float height = tool == Tool.Fence && selectedFenceKind == FenceKind.Spiked
-                ? FenceConstruction.SpikedHeight : FenceConstruction.Height;
-            ShowRoutePreview(fences.Layout.Center(edge) + Vector3.up * height / 2f,
-                edge.AlongX ? new Vector3(cellSize, height, FenceConstruction.Thickness)
-                    : new Vector3(FenceConstruction.Thickness, height, cellSize));
-        }
+        private void ShowFencePreview(FenceEdge edge) => ShowRoutePreview(
+            fences.Layout.Center(edge), Quaternion.Euler(0f, edge.AlongX ? 0f : 90f, 0f),
+            parent => fences.CreateVisual(parent, selectedFenceKind, tool == Tool.Gate));
 
         private DemolitionTarget TargetAt(Vector2 pointer)
         {
@@ -508,6 +559,7 @@ namespace Mythologicum
             visitorPresentation?.Dispose();
             visitorWorld?.Dispose();
             creatureInspection?.Dispose();
+            groundVegetation?.Dispose();
             trees?.Dispose();
             creatureWorld?.Dispose();
             enclosurePresentation?.Dispose();
@@ -515,6 +567,7 @@ namespace Mythologicum
                 if (item != null) Destroy(item);
             if (gridObject != null) Destroy(gridObject);
             if (preview != null) Destroy(preview);
+            if (modelPreview != null) Destroy(modelPreview);
             if (palette != null && palette.Root != null) Destroy(palette.Root);
             if (entrancePreview != null) Destroy(entrancePreview);
             if (buildings != null) Destroy(buildings);

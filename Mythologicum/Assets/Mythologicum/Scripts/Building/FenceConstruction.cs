@@ -13,14 +13,16 @@ namespace Mythologicum
         private readonly Transform parent;
         private readonly Material material;
         private readonly Material gateMaterial;
+        private readonly FenceVisualCatalog visuals;
         private readonly Dictionary<FenceEdge, GameObject> objects = new Dictionary<FenceEdge, GameObject>();
         private static Mesh spikeMesh;
 
-        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null)
+        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null)
         {
             this.grid = grid;
             this.parent = parent;
             this.material = material;
+            this.visuals = visuals;
             this.gateMaterial = gateMaterial != null ? gateMaterial : material;
             Layout = new FenceLayout(grid);
         }
@@ -80,33 +82,7 @@ namespace Mythologicum
             root.transform.SetParent(parent);
             root.transform.position = Layout.Center(edge);
             root.transform.rotation = Quaternion.Euler(0f, edge.AlongX ? 0f : 90f, 0f);
-            AddPart(root.transform, new Vector3(-grid.CellSize / 2f + Thickness / 2f, Height / 2f, 0f),
-                new Vector3(Thickness, Height, Thickness));
-            AddPart(root.transform, new Vector3(grid.CellSize / 2f - Thickness / 2f, Height / 2f, 0f),
-                new Vector3(Thickness, Height, Thickness));
-            AddPart(root.transform, new Vector3(0f, Height * 0.35f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
-            AddPart(root.transform, new Vector3(0f, Height * 0.8f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
-            if (spiked)
-            {
-                int count = Mathf.Max(3, Mathf.CeilToInt(grid.CellSize / 0.3f));
-                for (int i = 0; i <= count; i++)
-                {
-                    float x = Mathf.Lerp(-grid.CellSize / 2f + Thickness / 2f,
-                        grid.CellSize / 2f - Thickness / 2f, (float)i / count);
-                    AddPart(root.transform, new Vector3(x, Height / 2f, 0f), new Vector3(0.08f, Height, 0.08f));
-                    AddSpike(root.transform, new Vector3(x, Height, 0f));
-                }
-            }
-            if (gate)
-            {
-                var leaf = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                leaf.name = "Staff gate";
-                leaf.GetComponent<Collider>().enabled = false;
-                leaf.transform.SetParent(root.transform, false);
-                leaf.transform.localPosition = Vector3.up * Height / 2f;
-                leaf.transform.localScale = new Vector3(grid.CellSize - Thickness * 2f, Height * 0.65f, 0.1f);
-                leaf.GetComponent<MeshRenderer>().sharedMaterial = gateMaterial;
-            }
+            CreateVisual(root.transform, spiked ? FenceKind.Spiked : FenceKind.Wooden, gate);
             var collider = root.AddComponent<BoxCollider>();
             collider.center = Vector3.up * height / 2f;
             collider.size = new Vector3(grid.CellSize, height, Thickness);
@@ -124,6 +100,84 @@ namespace Mythologicum
                 Layout.TryRemove(edge);
                 objects.Remove(edge);
             });
+        }
+
+        public void CreateVisual(Transform parent, FenceKind kind, bool gate = false)
+        {
+            bool spiked = !gate && kind == FenceKind.Spiked;
+            float height = spiked ? SpikedHeight : Height;
+            GameObject prefab = visuals == null ? null : gate ? visuals.gate : spiked ? visuals.spiked : visuals.normal;
+            if (prefab != null)
+            {
+                float yaw = gate ? visuals.gateYaw : spiked ? visuals.spikedYaw : visuals.normalYaw;
+                CreateModel(parent, prefab, yaw, height);
+            }
+            else
+            {
+                AddPart(parent, new Vector3(-grid.CellSize / 2f + Thickness / 2f, Height / 2f, 0f),
+                    new Vector3(Thickness, Height, Thickness));
+                AddPart(parent, new Vector3(grid.CellSize / 2f - Thickness / 2f, Height / 2f, 0f),
+                    new Vector3(Thickness, Height, Thickness));
+                AddPart(parent, new Vector3(0f, Height * 0.35f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
+                AddPart(parent, new Vector3(0f, Height * 0.8f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
+                if (spiked)
+                {
+                    int count = Mathf.Max(3, Mathf.CeilToInt(grid.CellSize / 0.3f));
+                    for (int i = 0; i <= count; i++)
+                    {
+                        float x = Mathf.Lerp(-grid.CellSize / 2f + Thickness / 2f,
+                            grid.CellSize / 2f - Thickness / 2f, (float)i / count);
+                        AddPart(parent, new Vector3(x, Height / 2f, 0f), new Vector3(0.08f, Height, 0.08f));
+                        AddSpike(parent, new Vector3(x, Height, 0f));
+                    }
+                }
+                if (gate)
+                {
+                    var leaf = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    leaf.name = "Staff gate";
+                    leaf.GetComponent<Collider>().enabled = false;
+                    leaf.transform.SetParent(parent, false);
+                    leaf.transform.localPosition = Vector3.up * Height / 2f;
+                    leaf.transform.localScale = new Vector3(grid.CellSize - Thickness * 2f, Height * 0.65f, 0.1f);
+                    leaf.GetComponent<MeshRenderer>().sharedMaterial = gateMaterial;
+                }
+            }
+        }
+
+        private void CreateModel(Transform parent, GameObject prefab, float yaw, float height)
+        {
+            var wrapper = new GameObject("Fence model");
+            wrapper.transform.SetParent(parent, false);
+            var model = Object.Instantiate(prefab, wrapper.transform, false);
+            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            foreach (Collider collider in model.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            Renderer[] renderers = model.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+            Bounds bounds = LocalBounds(wrapper.transform, renderers);
+            wrapper.transform.localScale = new Vector3(grid.CellSize / Mathf.Max(0.001f, bounds.size.x),
+                height / Mathf.Max(0.001f, bounds.size.y), Thickness / Mathf.Max(0.001f, bounds.size.z));
+            // Account for source pivots after fitting to the cell edge and gameplay barrier height.
+            wrapper.transform.localPosition = -Vector3.Scale(bounds.center, wrapper.transform.localScale) + Vector3.up * height / 2f;
+        }
+
+        private static Bounds LocalBounds(Transform parent, Renderer[] renderers)
+        {
+            Bounds bounds = new Bounds();
+            bool initialized = false;
+            foreach (Renderer renderer in renderers)
+            {
+                Bounds local = renderer.localBounds;
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                        for (int z = -1; z <= 1; z += 2)
+                        {
+                            Vector3 corner = local.center + Vector3.Scale(local.extents, new Vector3(x, y, z));
+                            Vector3 point = parent.InverseTransformPoint(renderer.transform.TransformPoint(corner));
+                            if (!initialized) { bounds = new Bounds(point, Vector3.zero); initialized = true; }
+                            else bounds.Encapsulate(point);
+                        }
+            }
+            return bounds;
         }
 
         private void AddSpike(Transform parent, Vector3 position)

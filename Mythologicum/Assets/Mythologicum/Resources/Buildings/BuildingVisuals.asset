@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab7766b383e64b718a4201c9d83243ab, type: 3}
+  m_Name: BuildingVisuals
+  m_EditorClassIdentifier: 
+  activeBuildings:
+  - kind: 4
+    prefab: {fileID: 5571536447997674746, guid: 32e1e79f6605c1242a465efad631fc8a, type: 3}
+    width: 4
+    depth: 3
+    height: 3.5493762
+    yaw: 180
+    entranceColumn: 3
+  - kind: 2
+    prefab: {fileID: 650591154451796056, guid: 459bf6bc825ea9845822408053e0b7aa, type: 3}
+    width: 4
+    depth: 3
+    height: 3.309885
+    yaw: 180
+    entranceColumn: -1
+  - kind: 0
+    prefab: {fileID: 8585650954766913903, guid: 5c06f3174e1062d44b9caa19b044b217, type: 3}
+    width: 5
+    depth: 5
+    height: 5.033782
+    yaw: 180
+    entranceColumn: -1
+  - kind: 1
+    prefab: {fileID: 1360468252654966213, guid: 47589020b1f8f044082bb38c7f20a651, type: 3}
+    width: 8
+    depth: 6
+    height: 4.591313
+    yaw: 180
+    entranceColumn: -1
+  - kind: 3
+    prefab: {fileID: 3805677815586169614, guid: a3547b8c6d9feb2409fe80fecfedd546, type: 3}
+    width: 1
+    depth: 1
+    height: 0.5
+    yaw: 0
+    entranceColumn: -1
+  researchCentre: {fileID: 8051985769325472309, guid: 22b01b1920e109543b7a1ef76356924e, type: 3}
+  mercenary: {fileID: 7861617570233870979, guid: 5154c08efe2be6a44bc4d1ff6a11317e, type: 3}
+  zookeeper: {fileID: 2661994169556932180, guid: 0972cd229ac9d20489bbc3a57a51be46, type: 3}

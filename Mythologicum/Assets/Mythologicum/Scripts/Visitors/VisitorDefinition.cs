@@ -6,6 +6,9 @@ namespace Mythologicum
     [CreateAssetMenu(menuName = "Mythologicum/Visitor profile", fileName = "DefaultVisitors")]
     public sealed class VisitorDefinition : ScriptableObject
     {
+        [Header("Appearance")]
+        public PeopleDefinition people;
+
         [Header("Arrivals")]
         [Min(.1f)] public float spawnInterval = 8f;
         [Min(0)] public int maximumVisitors = 30;

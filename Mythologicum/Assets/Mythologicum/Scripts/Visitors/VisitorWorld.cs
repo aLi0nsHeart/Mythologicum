@@ -17,6 +17,7 @@ namespace Mythologicum
         private readonly CreatureDefinition actorProfile;
         private readonly List<VisitorAgent> visitors = new List<VisitorAgent>();
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> groundRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
+        private readonly System.Random appearanceRandom = new System.Random();
         private float arrivalTimer, time;
         private int gridRevision = -1, fenceRevision = -1;
         public VisitorDefinition Definition { get; }
@@ -55,7 +56,10 @@ namespace Mythologicum
         {
             buildings.Refresh();
             if (Population >= Definition.maximumVisitors || buildings.Entrance == null || !buildings.Entrance.IsOpen) return null;
-            CreatureAgent actor = creatures.SpawnExternal(actorProfile, buildings.Entrance.Footprint.AccessCell);
+            GameObject model = null;
+            if (Definition.people != null && Definition.people.civilians != null && Definition.people.civilians.Length > 0)
+                model = Definition.people.civilians[appearanceRandom.Next(Definition.people.civilians.Length)];
+            CreatureAgent actor = creatures.SpawnExternal(actorProfile, buildings.Entrance.Footprint.AccessCell, model);
             if (actor == null) return null;
             var visitor = actor.gameObject.AddComponent<VisitorAgent>();
             visitor.Actor = actor; visitor.Activity = VisitorActivity.Arriving;

@@ -13,12 +13,15 @@ namespace Mythologicum
         private readonly Material trunkMaterial, leafMaterial;
         private readonly Dictionary<Vector2Int, GameObject> trees = new Dictionary<Vector2Int, GameObject>();
         private bool disposed;
+        private readonly VegetationDefinition vegetation;
+        private readonly System.Random random = new System.Random();
 
-        public TreeConstruction(SquareBuildGrid grid, EnvironmentGrid environment, Transform parent, Material baseMaterial)
+        public TreeConstruction(SquareBuildGrid grid, EnvironmentGrid environment, Transform parent, Material baseMaterial, VegetationDefinition vegetation = null)
         {
             this.grid = grid;
             this.environment = environment;
             this.parent = parent;
+            this.vegetation = vegetation ?? Resources.Load<VegetationDefinition>("Environment/Vegetation");
             trunkMaterial = new Material(baseMaterial) { name = "Tree bark", color = new Color(0.36f, 0.22f, 0.12f) };
             leafMaterial = new Material(baseMaterial) { name = "Tree leaves", color = new Color(0.16f, 0.43f, 0.21f) };
         }
@@ -41,10 +44,8 @@ namespace Mythologicum
             var root = new GameObject($"Tree [{cell.x}, {cell.y}]");
             root.transform.SetParent(parent, false);
             root.transform.position = grid.CellCenter(cell);
-            Part(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1f, 0f),
-                new Vector3(0.28f, 1f, 0.28f), trunkMaterial);
-            Part(root.transform, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f),
-                new Vector3(1.6f, 1.8f, 1.6f), leafMaterial);
+            CreateVisual(root.transform);
+            nextPrefab = null;
             var collider = root.AddComponent<BoxCollider>();
             collider.isTrigger = true;
             collider.size = new Vector3(1.6f, 3.05f, 1.6f);
@@ -56,6 +57,31 @@ namespace Mythologicum
                 trees.Remove(cell);
             });
             return true;
+        }
+
+        private GameObject nextPrefab;
+        private float nextHeight, nextYaw;
+
+        public void CreateVisual(Transform parent)
+        {
+            if (vegetation != null && vegetation.trees != null && vegetation.trees.Length > 0)
+            {
+                if (nextPrefab == null)
+                {
+                    nextPrefab = vegetation.trees[random.Next(vegetation.trees.Length)];
+                    nextHeight = vegetation.treeHeight * (0.9f + (float)random.NextDouble() * 0.2f);
+                    nextYaw = (float)random.NextDouble() * 360f;
+                }
+                VegetationVisuals.Create(nextPrefab, parent, nextHeight,
+                    nextYaw, true);
+            }
+            else
+            {
+                Part(parent, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1f, 0f),
+                    new Vector3(0.28f, 1f, 0.28f), trunkMaterial);
+                Part(parent, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f),
+                    new Vector3(1.6f, 1.8f, 1.6f), leafMaterial);
+            }
         }
 
         private static void Part(Transform parent, string name, PrimitiveType primitive, Vector3 position,

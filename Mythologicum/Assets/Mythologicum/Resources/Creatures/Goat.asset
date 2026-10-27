@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Goat
   m_EditorClassIdentifier: 
   displayName: Goat
+  visualPrefab: {fileID: 6885452974112614176, guid: 1f8729ffe5e3ebb45b5c6b50bc6a2cec, type: 3}
+  visualScale: {x: 1, y: 1, z: 1}
   diet: 1
   tags: 1
   preyTags: 0
