@@ -31,9 +31,21 @@ namespace Mythologicum
             var collider = tile.AddComponent<BoxCollider>();
             collider.isTrigger = true;
             collider.size = new Vector3(grid.CellSize, Height, grid.CellSize);
+            CreateVisual(tile.transform);
+            tiles.Add(cell, tile);
+            tile.AddComponent<DemolitionTarget>().Initialize(() =>
+            {
+                grid.TryRemove(cell, BuildCellContent.Path);
+                tiles.Remove(cell);
+            });
+            return true;
+        }
+
+        public void CreateVisual(Transform parent)
+        {
             if (tilePrefab != null)
             {
-                var visual = Object.Instantiate(tilePrefab, tile.transform, false);
+                var visual = Object.Instantiate(tilePrefab, parent, false);
                 foreach (Collider importedCollider in visual.GetComponentsInChildren<Collider>(true))
                     importedCollider.enabled = false;
                 var renderers = visual.GetComponentsInChildren<Renderer>();
@@ -43,24 +55,17 @@ namespace Mythologicum
                     visual.transform.localScale = Vector3.Scale(visual.transform.localScale,
                         new Vector3(grid.CellSize / Mathf.Max(0.001f, bounds.size.x),
                             Height / Mathf.Max(0.001f, bounds.size.y), grid.CellSize / Mathf.Max(0.001f, bounds.size.z)));
-                    visual.transform.position += tile.transform.position - RenderBounds(renderers).center;
+                    visual.transform.position += parent.position - RenderBounds(renderers).center;
                 }
             }
             else
             {
                 var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                visual.transform.SetParent(tile.transform, false);
+                visual.transform.SetParent(parent, false);
                 visual.transform.localScale = new Vector3(grid.CellSize, Height, grid.CellSize);
                 visual.GetComponent<Collider>().enabled = false;
                 visual.GetComponent<MeshRenderer>().sharedMaterial = material;
             }
-            tiles.Add(cell, tile);
-            tile.AddComponent<DemolitionTarget>().Initialize(() =>
-            {
-                grid.TryRemove(cell, BuildCellContent.Path);
-                tiles.Remove(cell);
-            });
-            return true;
         }
 
         private static Bounds RenderBounds(Renderer[] renderers)

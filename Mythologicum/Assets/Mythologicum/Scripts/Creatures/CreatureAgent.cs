@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-
 namespace Mythologicum
 {
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
@@ -51,7 +50,7 @@ namespace Mythologicum
         internal FenceEdge? AttemptFence;
         internal CreatureAgent SocialPartner;
         internal TextMesh Label;
-        internal GameObject Grass;
+
         internal ParkBuildingRecord SourceDispenser;
     }
 }

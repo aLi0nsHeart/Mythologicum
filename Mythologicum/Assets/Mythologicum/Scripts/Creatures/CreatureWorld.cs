@@ -12,7 +12,7 @@ namespace Mythologicum
         private readonly ParkBuildingNetwork buildings;
         private readonly Camera camera;
         private readonly GameObject root;
-        private readonly Material material, grassMaterial;
+        private readonly Material material;
         private readonly CreatureNavigation navigation;
         private readonly CreatureNavigation climbingNavigation;
         private readonly GrazingField grass;
@@ -36,7 +36,6 @@ namespace Mythologicum
             this.camera = camera; this.material = material;
             this.environment = environment ?? new EnvironmentGrid(grid);
             root = new GameObject("Creatures");
-            grassMaterial = new Material(material) { color = new Color(0.2f, 0.65f, 0.16f) };
             navigation = new CreatureNavigation(grid, fences, IsPhysicallyClear);
             climbingNavigation = new CreatureNavigation(grid, fences, IsPhysicallyClear, true);
             grass = new GrazingField(grid);
@@ -143,7 +142,6 @@ namespace Mythologicum
             actor.GetComponent<Collider>().enabled = false;
             actor.gameObject.SetActive(false);
             if (actor.Label != null) UnityEngine.Object.Destroy(actor.Label.gameObject);
-            if (actor.Grass != null) UnityEngine.Object.Destroy(actor.Grass);
             UnityEngine.Object.Destroy(actor.gameObject);
         }
 
@@ -164,29 +162,8 @@ namespace Mythologicum
             var collider = go.AddComponent<CapsuleCollider>();
             collider.isTrigger = true; collider.radius = Mathf.Max(definition.bodyScale.x, definition.bodyScale.z) * 0.5f;
             collider.height = Mathf.Max(definition.bodyScale.y * 2f, collider.radius * 2f);
-            GameObject body;
-            MeshRenderer renderer = null;
             GameObject model = visualPrefab != null ? visualPrefab : definition.visualPrefab;
-            if (model != null)
-            {
-                body = UnityEngine.Object.Instantiate(model, go.transform, false);
-                body.transform.localScale = definition.visualScale;
-                body.transform.localPosition = Vector3.down * definition.bodyScale.y;
-                foreach (Collider visualCollider in body.GetComponentsInChildren<Collider>())
-                    visualCollider.enabled = false;
-            }
-            else
-            {
-                body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                body.name = "Animated placeholder"; body.transform.SetParent(go.transform, false);
-                body.transform.localScale = definition.bodyScale;
-                body.GetComponent<Collider>().enabled = false;
-                renderer = body.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = material;
-                var properties = new MaterialPropertyBlock();
-                properties.SetColor("_BaseColor", definition.color); properties.SetColor("_Color", definition.color);
-                renderer.SetPropertyBlock(properties);
-            }
+            GameObject body = CreateVisual(go.transform, definition, model, out MeshRenderer renderer);
             CreatureAgent agent = go.AddComponent<CreatureAgent>();
             agent.Body = body.transform; agent.BodyRenderer = renderer;
             agent.HasVisualModel = model != null;
@@ -206,14 +183,36 @@ namespace Mythologicum
             agent.Label.GetComponent<MeshRenderer>().sharedMaterial = agent.Label.font.material;
             agent.Label.fontSize = 48; agent.Label.characterSize = 0.085f;
             agent.Label.anchor = TextAnchor.LowerCenter; agent.Label.alignment = TextAlignment.Center;
-            var patch = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            patch.name = "Grazing grass"; patch.transform.SetParent(root.transform);
-            patch.GetComponent<Collider>().enabled = false;
-            patch.GetComponent<MeshRenderer>().sharedMaterial = grassMaterial;
-            patch.transform.localScale = new Vector3(grid.CellSize * 0.65f, 0.1f, grid.CellSize * 0.65f);
-            patch.SetActive(false); agent.Grass = patch;
             agents.Add(agent);
             return true;
+        }
+
+        public GameObject CreateVisual(Transform parent, CreatureDefinition definition, GameObject model, out MeshRenderer renderer)
+        {
+            GameObject body;
+            renderer = null;
+
+            if (model != null)
+            {
+                body = UnityEngine.Object.Instantiate(model, parent, false);
+                body.transform.localScale = definition.visualScale;
+                body.transform.localPosition = Vector3.down * definition.bodyScale.y;
+                foreach (Collider visualCollider in body.GetComponentsInChildren<Collider>())
+                    visualCollider.enabled = false;
+            }
+            else
+            {
+                body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                body.name = "Animated placeholder"; body.transform.SetParent(parent, false);
+                body.transform.localScale = definition.bodyScale;
+                body.GetComponent<Collider>().enabled = false;
+                renderer = body.GetComponent<MeshRenderer>();
+                renderer.sharedMaterial = material;
+                var properties = new MaterialPropertyBlock();
+                properties.SetColor("_BaseColor", definition.color); properties.SetColor("_Color", definition.color);
+                renderer.SetPropertyBlock(properties);
+            }
+            return body;
         }
 
         public void Tick(float deltaTime)
@@ -267,7 +266,6 @@ namespace Mythologicum
                 {
                     CreatureAgent dead = agents[i]; agents.RemoveAt(i);
                     UnityEngine.Object.Destroy(dead.Label.gameObject);
-                    UnityEngine.Object.Destroy(dead.Grass);
                     UnityEngine.Object.Destroy(dead.gameObject);
                 }
         }
@@ -836,8 +834,6 @@ namespace Mythologicum
             agent.Label.color = agitated ? new Color(1f, 0.4f, 0.2f)
                 : agent.Activity == CreatureActivity.Fleeing ? new Color(1f, 0.65f, 0.2f) : Color.white;
             Animate(agent);
-            agent.Grass.SetActive(!agent.ExternallyControlled && agent.Alive && agent.CapturedBy == null && agent.Activity == CreatureActivity.Grazing);
-            agent.Grass.transform.position = grid.CellCenter(agent.Cell) + Vector3.up * 0.15f;
         }
 
         private void Animate(CreatureAgent agent)
@@ -973,7 +969,6 @@ namespace Mythologicum
         public void Dispose()
         {
             if (root != null) UnityEngine.Object.Destroy(root);
-            if (grassMaterial != null) UnityEngine.Object.Destroy(grassMaterial);
         }
     }
 }

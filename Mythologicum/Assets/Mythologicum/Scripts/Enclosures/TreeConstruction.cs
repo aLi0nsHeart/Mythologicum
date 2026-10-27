@@ -44,19 +44,8 @@ namespace Mythologicum
             var root = new GameObject($"Tree [{cell.x}, {cell.y}]");
             root.transform.SetParent(parent, false);
             root.transform.position = grid.CellCenter(cell);
-            if (vegetation != null && vegetation.trees != null && vegetation.trees.Length > 0)
-            {
-                GameObject prefab = vegetation.trees[random.Next(vegetation.trees.Length)];
-                VegetationVisuals.Create(prefab, root.transform, vegetation.treeHeight * (0.9f + (float)random.NextDouble() * 0.2f),
-                    (float)random.NextDouble() * 360f, true);
-            }
-            else
-            {
-                Part(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1f, 0f),
-                    new Vector3(0.28f, 1f, 0.28f), trunkMaterial);
-                Part(root.transform, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f),
-                    new Vector3(1.6f, 1.8f, 1.6f), leafMaterial);
-            }
+            CreateVisual(root.transform);
+            nextPrefab = null;
             var collider = root.AddComponent<BoxCollider>();
             collider.isTrigger = true;
             collider.size = new Vector3(1.6f, 3.05f, 1.6f);
@@ -68,6 +57,31 @@ namespace Mythologicum
                 trees.Remove(cell);
             });
             return true;
+        }
+
+        private GameObject nextPrefab;
+        private float nextHeight, nextYaw;
+
+        public void CreateVisual(Transform parent)
+        {
+            if (vegetation != null && vegetation.trees != null && vegetation.trees.Length > 0)
+            {
+                if (nextPrefab == null)
+                {
+                    nextPrefab = vegetation.trees[random.Next(vegetation.trees.Length)];
+                    nextHeight = vegetation.treeHeight * (0.9f + (float)random.NextDouble() * 0.2f);
+                    nextYaw = (float)random.NextDouble() * 360f;
+                }
+                VegetationVisuals.Create(nextPrefab, parent, nextHeight,
+                    nextYaw, true);
+            }
+            else
+            {
+                Part(parent, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1f, 0f),
+                    new Vector3(0.28f, 1f, 0.28f), trunkMaterial);
+                Part(parent, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f),
+                    new Vector3(1.6f, 1.8f, 1.6f), leafMaterial);
+            }
         }
 
         private static void Part(Transform parent, string name, PrimitiveType primitive, Vector3 position,

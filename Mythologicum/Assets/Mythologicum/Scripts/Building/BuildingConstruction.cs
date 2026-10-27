@@ -56,26 +56,8 @@ namespace Mythologicum
             var collider = root.AddComponent<BoxCollider>();
             collider.size = size;
             collider.center = Vector3.up * definition.height / 2f;
-            bool resting = definition.kind == BuildingKind.RestArea;
-            GameObject body;
-            if (definition.visualPrefab != null)
-                body = CreateModel(root.transform, definition, size);
-            else if (resting)
-            {
-                float benchWidth = size.x * 0.8f;
-                body = Part(root.transform, "Bench seat", new Vector3(0f, 0.65f, 0.2f),
-                    new Vector3(benchWidth, 0.18f, 0.7f), material);
-                Part(root.transform, "Bench back", new Vector3(0f, 1.03f, 0.51f),
-                    new Vector3(benchWidth, 0.5f, 0.15f), material);
-                for (int side = -1; side <= 1; side += 2)
-                    Part(root.transform, "Bench support", new Vector3(side * benchWidth * 0.4f, 0.3f, 0.2f),
-                        new Vector3(0.18f, 0.6f, 0.6f), material);
-            }
-            else body = Part(root.transform, "Building", Vector3.up * definition.height / 2f, size, material);
+            GameObject body = CreateVisual(root.transform, definition);
             float doorX = (definition.DoorColumn + 0.5f - definition.width / 2f) * grid.CellSize;
-            if (!resting && definition.visualPrefab == null)
-                Part(root.transform, "Dedicated entrance", new Vector3(doorX, 0.8f, -definition.depth * grid.CellSize / 2f),
-                    new Vector3(grid.CellSize * 0.5f, 1.6f, 0.12f), entranceMaterial);
             GameObject marker = Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
                 new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
                 new Vector3(grid.CellSize * 0.6f, 0.08f, grid.CellSize * 0.6f), entranceMaterial);
@@ -97,6 +79,34 @@ namespace Mythologicum
                 views.Remove(record);
             });
             return true;
+        }
+
+        // Shared by placement and its ghost; creates no occupancy, labels or gameplay components.
+        public GameObject CreateVisual(Transform parent, BuildingDefinition definition)
+        {
+            Vector3 size = new Vector3(definition.width * grid.CellSize - 0.16f,
+                definition.height, definition.depth * grid.CellSize - 0.16f);
+            bool resting = definition.kind == BuildingKind.RestArea;
+            GameObject body;
+            if (definition.visualPrefab != null)
+                body = CreateModel(parent, definition, size);
+            else if (resting)
+            {
+                float benchWidth = size.x * 0.8f;
+                body = Part(parent, "Bench seat", new Vector3(0f, 0.65f, 0.2f),
+                    new Vector3(benchWidth, 0.18f, 0.7f), material);
+                Part(parent, "Bench back", new Vector3(0f, 1.03f, 0.51f),
+                    new Vector3(benchWidth, 0.5f, 0.15f), material);
+                for (int side = -1; side <= 1; side += 2)
+                    Part(parent, "Bench support", new Vector3(side * benchWidth * 0.4f, 0.3f, 0.2f),
+                        new Vector3(0.18f, 0.6f, 0.6f), material);
+            }
+            else body = Part(parent, "Building", Vector3.up * definition.height / 2f, size, material);
+            float doorX = (definition.DoorColumn + 0.5f - definition.width / 2f) * grid.CellSize;
+            if (!resting && definition.visualPrefab == null)
+                Part(parent, "Dedicated entrance", new Vector3(doorX, 0.8f, -definition.depth * grid.CellSize / 2f),
+                    new Vector3(grid.CellSize * 0.5f, 1.6f, 0.12f), entranceMaterial);
+            return body;
         }
 
         private static GameObject CreateModel(Transform parent, BuildingDefinition definition, Vector3 size)
@@ -162,10 +172,11 @@ namespace Mythologicum
                 properties.SetColor("_BaseColor", color);
                 properties.SetColor("_Color", color);
                 if (view.Body != null) view.Body.SetPropertyBlock(properties);
-                // Keep the model's authored palette; show connection state at its access point.
+                // Keep the model's authored palette; mark only entrances still needing a path.
                 properties.SetColor("_BaseColor", record.IsOpen ? entranceMaterial.color : new Color(0.85f, 0.12f, 0.1f));
                 properties.SetColor("_Color", record.IsOpen ? entranceMaterial.color : new Color(0.85f, 0.12f, 0.1f));
                 view.Marker.SetPropertyBlock(properties);
+                view.Marker.enabled = record.Footprint.Definition.RequiresPathConnection && !record.IsOpen;
                 view.Label.color = record.IsOpen ? Color.white : new Color(1f, 0.45f, 0.35f);
                 view.Label.text = record.Footprint.Definition.displayName + (record.IsOpen ? "\nOpen" : "\nClosed: no path connection");
             }
