@@ -41,6 +41,9 @@ namespace Mythologicum
         internal CreatureAgent CapturedBy;
         internal Transform Body;
         internal MeshRenderer BodyRenderer;
+        internal bool HasVisualModel;
+        internal Animator BodyAnimator;
+        internal string AnimationState;
         internal bool WantsSleep;
         internal Vector2Int? SleepTree;
         internal float Elevation, TraversalDuration, TraversalStartElevation, AttemptAfter;

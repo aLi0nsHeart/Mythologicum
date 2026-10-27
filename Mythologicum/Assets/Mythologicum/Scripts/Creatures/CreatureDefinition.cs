@@ -111,7 +111,12 @@ namespace Mythologicum
         [Min(0.1f)] public float fleeSafeDistance = 6f;
         [Min(1f)] public float agitatedSpeedMultiplier = 1.35f;
 
-        [Header("Placeholder appearance")]
+        [Header("Presentation")]
+        [Tooltip("Optional visual prefab. Movement and collisions remain controlled by the creature simulation.")]
+        public GameObject visualPrefab;
+        public Vector3 visualScale = Vector3.one;
+
+        [Header("Placeholder appearance and simulation bounds")]
         public Color color = new Color(0.85f, 0.8f, 0.65f);
         public Vector3 bodyScale = new Vector3(0.8f, 0.8f, 1.1f);
     }

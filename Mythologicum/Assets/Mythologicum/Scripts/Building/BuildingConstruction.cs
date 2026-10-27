@@ -8,6 +8,7 @@ namespace Mythologicum
         private sealed class View
         {
             public MeshRenderer Body;
+            public MeshRenderer Marker;
             public TextMesh Label;
             public bool? LastOpen;
         }
@@ -57,7 +58,9 @@ namespace Mythologicum
             collider.center = Vector3.up * definition.height / 2f;
             bool resting = definition.kind == BuildingKind.RestArea;
             GameObject body;
-            if (resting)
+            if (definition.visualPrefab != null)
+                body = CreateModel(root.transform, definition, size);
+            else if (resting)
             {
                 float benchWidth = size.x * 0.8f;
                 body = Part(root.transform, "Bench seat", new Vector3(0f, 0.65f, 0.2f),
@@ -69,11 +72,11 @@ namespace Mythologicum
                         new Vector3(0.18f, 0.6f, 0.6f), material);
             }
             else body = Part(root.transform, "Building", Vector3.up * definition.height / 2f, size, material);
-            float doorX = (definition.width / 2 + 0.5f - definition.width / 2f) * grid.CellSize;
-            if (!resting)
+            float doorX = (definition.DoorColumn + 0.5f - definition.width / 2f) * grid.CellSize;
+            if (!resting && definition.visualPrefab == null)
                 Part(root.transform, "Dedicated entrance", new Vector3(doorX, 0.8f, -definition.depth * grid.CellSize / 2f),
                     new Vector3(grid.CellSize * 0.5f, 1.6f, 0.12f), entranceMaterial);
-            Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
+            GameObject marker = Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
                 new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
                 new Vector3(grid.CellSize * 0.6f, 0.08f, grid.CellSize * 0.6f), entranceMaterial);
             var labelObject = new GameObject("Building status", typeof(TextMesh));
@@ -86,13 +89,50 @@ namespace Mythologicum
             label.characterSize = 0.12f;
             label.anchor = TextAnchor.LowerCenter;
             label.alignment = TextAlignment.Center;
-            views.Add(record, new View { Body = body.GetComponent<MeshRenderer>(), Label = label });
+            views.Add(record, new View { Body = definition.visualPrefab == null ? body.GetComponent<MeshRenderer>() : null,
+                Marker = marker.GetComponent<MeshRenderer>(), Label = label });
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 Network.Remove(record);
                 views.Remove(record);
             });
             return true;
+        }
+
+        private static GameObject CreateModel(Transform parent, BuildingDefinition definition, Vector3 size)
+        {
+            GameObject model = Object.Instantiate(definition.visualPrefab, parent, false);
+            model.transform.localRotation = Quaternion.Euler(0f, definition.visualYaw, 0f);
+            foreach (Collider collider in model.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            Renderer[] renderers = model.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return model;
+            Bounds bounds = ModelBounds(parent, renderers);
+            float scale = Mathf.Min(size.x / Mathf.Max(0.001f, bounds.size.x),
+                size.y / Mathf.Max(0.001f, bounds.size.y), size.z / Mathf.Max(0.001f, bounds.size.z));
+            model.transform.localScale *= scale;
+            bounds = ModelBounds(parent, renderers);
+            model.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+            return model;
+        }
+
+        private static Bounds ModelBounds(Transform parent, Renderer[] renderers)
+        {
+            Bounds bounds = new Bounds();
+            bool initialized = false;
+            foreach (Renderer renderer in renderers)
+            {
+                Bounds local = renderer.localBounds;
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                        for (int z = -1; z <= 1; z += 2)
+                        {
+                            Vector3 corner = local.center + Vector3.Scale(local.extents, new Vector3(x, y, z));
+                            Vector3 point = parent.InverseTransformPoint(renderer.transform.TransformPoint(corner));
+                            if (!initialized) { bounds = new Bounds(point, Vector3.zero); initialized = true; }
+                            else bounds.Encapsulate(point);
+                        }
+            }
+            return bounds;
         }
 
         private static GameObject Part(Transform parent, string name, Vector3 position, Vector3 scale, Material material)
@@ -121,7 +161,12 @@ namespace Mythologicum
                 var properties = new MaterialPropertyBlock();
                 properties.SetColor("_BaseColor", color);
                 properties.SetColor("_Color", color);
-                view.Body.SetPropertyBlock(properties);
+                if (view.Body != null) view.Body.SetPropertyBlock(properties);
+                // Keep the model's authored palette; show connection state at its access point.
+                properties.SetColor("_BaseColor", record.IsOpen ? entranceMaterial.color : new Color(0.85f, 0.12f, 0.1f));
+                properties.SetColor("_Color", record.IsOpen ? entranceMaterial.color : new Color(0.85f, 0.12f, 0.1f));
+                view.Marker.SetPropertyBlock(properties);
+                view.Label.color = record.IsOpen ? Color.white : new Color(1f, 0.45f, 0.35f);
                 view.Label.text = record.Footprint.Definition.displayName + (record.IsOpen ? "\nOpen" : "\nClosed: no path connection");
             }
         }

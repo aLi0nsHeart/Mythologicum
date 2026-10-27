@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34eb69c582714d2783278cccc0f4f6c6, type: 3}
+  m_Name: Vegetation
+  m_EditorClassIdentifier: 
+  trees:
+  - {fileID: 2834459741121797975, guid: 5a51cbd696932224196aa50b5a1978a7, type: 3}
+  - {fileID: 5891060847685163199, guid: a7160f1e1e988b2489107548450358ae, type: 3}
+  - {fileID: 5891060847685163199, guid: c70c7e3cc347ed04abe985b705ef99b2, type: 3}
+  - {fileID: 5891060847685163199, guid: 433f90265a6a3e74ba3349ba9b0a2c59, type: 3}
+  - {fileID: 5891060847685163199, guid: 61fa84c6e44df6b429724146ba15dab2, type: 3}
+  - {fileID: 5891060847685163199, guid: d17771e78cb238a45908b914985574c4, type: 3}
+  - {fileID: 5891060847685163199, guid: 95045e9681d321a4a94a8bd3482056f4, type: 3}
+  - {fileID: 5891060847685163199, guid: 3e12b1e5274630e41bfdfa45e50f4529, type: 3}
+  - {fileID: 5891060847685163199, guid: aa184f5827e8741468b7ba558ca45c18, type: 3}
+  - {fileID: 5891060847685163199, guid: b5c2e970d33f6f44dabac6d54b94d8d1, type: 3}
+  grasses:
+  - {fileID: 7204330015767125457, guid: cf18044c14e08cd41931787bf77018ae, type: 3}
+  - {fileID: 7204330015767125457, guid: a8d8e200b1046764d87b8741b4635cf6, type: 3}
+  - {fileID: 7204330015767125457, guid: 2bba4dfe9cc9b9b4c8024c00a37499dc, type: 3}
+  - {fileID: 7204330015767125457, guid: f4be34867e4c7f94e82402ed64010a21, type: 3}
+  - {fileID: 7204330015767125457, guid: 7c41bd75c650f934fa9233c2a8bb3e02, type: 3}
+  herbs:
+  - {fileID: 7204330015767125457, guid: 8bd926d1a745332419dab4a9d2dc8863, type: 3}
+  - {fileID: 7204330015767125457, guid: 18903fd615f739f4fb9febba23e287ad, type: 3}
+  - {fileID: 7204330015767125457, guid: a8a7955415703954f9f0f5b81151aef5, type: 3}
+  - {fileID: 7204330015767125457, guid: 99666a7fe040df646bd94270a58156e7, type: 3}
+  - {fileID: 7204330015767125457, guid: 754d98ef3930ac54cb92c038c2bdd692, type: 3}
+  - {fileID: 7204330015767125457, guid: c721cd6654f2b7645995f4b3a67cd37f, type: 3}
+  flowers:
+  - {fileID: 7204330015767125457, guid: 2d342004967c931468f15476d3c2d447, type: 3}
+  - {fileID: 7204330015767125457, guid: d1b4a915bc146f34ea6de2bd14ef555b, type: 3}
+  - {fileID: 7204330015767125457, guid: 1accfcf0152db604890585cd9e5fcc05, type: 3}
+  - {fileID: 7204330015767125457, guid: a2207ea055b3b4b48a904982f5fec51e, type: 3}
+  - {fileID: 7204330015767125457, guid: bbc192baf615a9c49940a530a713c9ff, type: 3}
+  - {fileID: 7204330015767125457, guid: c21123c74b6d8424ca848afcfb670ee9, type: 3}
+  - {fileID: 7204330015767125457, guid: 8fdb0ad996c02d8448daf0a88c72dd5a, type: 3}
+  patchesPerCell: 2
+  scatterSeed: 271026
+  treeHeight: 3.4

@@ -564,7 +564,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6cf0ecf69efe4e25ad8d928aa3a63009, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1254,6 +1254,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   ground: {fileID: 581735822}
+  pathTilePrefab: {fileID: 6893202037315549474, guid: b012095d0bb42434896d4c0c8096aa85, type: 3}
   cellSize: 2
   buildingHeight: 2
 --- !u!81 &1877376362

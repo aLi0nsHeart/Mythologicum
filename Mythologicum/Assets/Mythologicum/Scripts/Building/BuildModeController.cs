@@ -12,6 +12,7 @@ namespace Mythologicum
     public sealed class BuildModeController : MonoBehaviour
     {
         [SerializeField] private Collider ground;
+        [SerializeField] private GameObject pathTilePrefab;
         [SerializeField, Min(0.25f)] private float cellSize = 2f;
         [SerializeField, Min(0.25f)] private float buildingHeight = 2f;
         [SerializeField] private BuildingDefinition[] buildingCatalog = BuildingDefinition.Defaults();
@@ -29,6 +30,7 @@ namespace Mythologicum
         private CreatureDefinition selectedCreature;
         private CreatureWorld creatureWorld;
         private TreeConstruction trees;
+        private GroundVegetation groundVegetation;
         private CreatureInspection creatureInspection;
         private VisitorWorld visitorWorld;
         private VisitorPresentation visitorPresentation;
@@ -81,6 +83,8 @@ namespace Mythologicum
                 if (!found) expanded.Add(addition);
             }
             buildingCatalog = expanded.ToArray();
+            var buildingVisuals = Resources.Load<BuildingVisualCatalog>("Buildings/BuildingVisuals");
+            buildingVisuals?.ApplyTo(buildingCatalog);
             creatureCatalog = Resources.LoadAll<CreatureDefinition>("Creatures");
             Array.Sort(creatureCatalog, (a, b) => string.CompareOrdinal(a.displayName, b.displayName));
             Bounds bounds = ground.bounds;
@@ -109,10 +113,11 @@ namespace Mythologicum
             buildings = new GameObject("Placed Buildings");
             var pathRoot = new GameObject("Paths");
             pathRoot.transform.SetParent(buildings.transform);
-            paths = new PathConstruction(grid, pathRoot.transform, pathMaterial);
+            paths = new PathConstruction(grid, pathRoot.transform, pathMaterial, pathTilePrefab);
             var fenceRoot = new GameObject("Fences");
             fenceRoot.transform.SetParent(buildings.transform);
-            fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial);
+            fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial,
+                Resources.Load<FenceVisualCatalog>("Fences/FenceVisuals"));
             buildingConstruction = new BuildingConstruction(grid, fences.Layout, buildings.transform, buildingMaterial, entranceMaterial);
             Environment = new EnvironmentGrid(grid);
             creatureWorld = new CreatureWorld(grid, fences.Layout, buildingConstruction.Network, view, buildingMaterial, creatureCatalog, Environment);
@@ -122,7 +127,9 @@ namespace Mythologicum
             economy = new ParkEconomy(startingFunds);
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy);
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
-            trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial);
+            var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
+            trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
+            groundVegetation = new GroundVegetation(grid, Environment, vegetation);
             entrancePreview = GameObject.CreatePrimitive(PrimitiveType.Cube);
             entrancePreview.name = "Building Entrance Preview";
             entrancePreview.GetComponent<Collider>().enabled = false;
@@ -149,6 +156,19 @@ namespace Mythologicum
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
                 creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree));
             status = palette.Status;
+            var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            creditsObject.transform.SetParent(palette.Root.transform, false);
+            var credits = creditsObject.GetComponent<Text>();
+            credits.text = "Vegetation art: LUX ART STUDIOS";
+            credits.font = status.font;
+            credits.fontSize = 16;
+            credits.color = new Color(0.94f, 0.94f, 0.88f);
+            credits.alignment = TextAnchor.UpperRight;
+            credits.raycastTarget = false;
+            credits.rectTransform.anchorMin = credits.rectTransform.anchorMax = new Vector2(1f, 1f);
+            credits.rectTransform.pivot = new Vector2(1f, 1f);
+            credits.rectTransform.anchoredPosition = new Vector2(-18f, -65f);
+            credits.rectTransform.sizeDelta = new Vector2(330f, 24f);
             foreach (Text label in canvas.GetComponentsInChildren<Text>())
                 if (label.text.Contains("WASD"))
                 {
@@ -203,6 +223,7 @@ namespace Mythologicum
         // After camera movement, so the preview follows the final camera pose.
         private void LateUpdate()
         {
+            groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
             visitorWorld.Tick(Time.deltaTime);
@@ -508,6 +529,7 @@ namespace Mythologicum
             visitorPresentation?.Dispose();
             visitorWorld?.Dispose();
             creatureInspection?.Dispose();
+            groundVegetation?.Dispose();
             trees?.Dispose();
             creatureWorld?.Dispose();
             enclosurePresentation?.Dispose();
