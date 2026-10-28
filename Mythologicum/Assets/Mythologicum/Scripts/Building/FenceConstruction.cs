@@ -141,14 +141,14 @@ namespace Mythologicum
         {
             bool spiked = !gate && kind == FenceKind.Spiked;
             float height = HeightFor(kind);
-            // Protected gates retain their barrier's model and protection, rather than becoming a wooden opening.
-            GameObject prefab = visuals == null ? null : kind == FenceKind.Heavy ? visuals.heavy
-                : kind == FenceKind.Sanctified ? visuals.sanctified : gate ? visuals.gate
+            // Appearance is a gate; protection and health remain those of its underlying fence kind.
+            GameObject prefab = visuals == null ? null : gate ? visuals.gate : kind == FenceKind.Heavy ? visuals.heavy
+                : kind == FenceKind.Sanctified ? visuals.sanctified
                 : spiked ? visuals.spiked : visuals.normal;
             if (prefab != null)
             {
-                float yaw = kind == FenceKind.Heavy ? visuals.heavyYaw : kind == FenceKind.Sanctified ? visuals.sanctifiedYaw
-                    : gate ? visuals.gateYaw : spiked ? visuals.spikedYaw : visuals.normalYaw;
+                float yaw = gate ? visuals.gateYaw : kind == FenceKind.Heavy ? visuals.heavyYaw : kind == FenceKind.Sanctified ? visuals.sanctifiedYaw
+                    : spiked ? visuals.spikedYaw : visuals.normalYaw;
                 CreateModel(parent, prefab, yaw, height);
             }
             else

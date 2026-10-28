@@ -65,7 +65,8 @@ namespace Mythologicum
             var visitor = actor.gameObject.AddComponent<VisitorAgent>();
             visitor.Actor = actor; visitor.Activity = VisitorActivity.Arriving;
             visitors.Add(visitor);
-            economy.Earn(Definition.ticketPrice);
+            float ticket = buildings.Entrance.Price;
+            buildings.Entrance.RecordRevenue(ticket); economy.Earn(ticket);
             return visitor;
         }
 
@@ -178,7 +179,7 @@ namespace Mythologicum
             CreatureAgent best = null; float nearest = float.MaxValue;
             foreach (CreatureAgent other in creatures.Agents)
             {
-                if (!other.Alive || other.Definition.threat <= guest.Actor.Definition.threat
+                if (!other.Alive || other.IsSedated || (other.Definition.tags & CreatureTags.Staff) != 0 || other.Definition.threat <= guest.Actor.Definition.threat
                     || !creatures.CanSee(guest.Actor, other, Definition.fearRange)) continue;
                 if (!GroundRegion(guest.Actor.Cell).Contains(other.Cell)) continue;
                 float distance = Distance(guest.Actor.transform.position, other.transform.position);
@@ -363,6 +364,7 @@ namespace Mythologicum
                 if (!ServiceAvailable(guest) || actor.Cell != guest.Service.Footprint.AccessCell)
                 { ReleaseService(guest); guest.DecisionTimer = 0f; return; }
                 bool food = guest.Activity == VisitorActivity.SeekingFood;
+                guest.QuotedPrice = guest.Service.Price;
                 guest.StateTimer = Mathf.Max(.1f, guest.Service.Footprint.Definition.serviceSeconds);
                 SetActivity(guest, food ? VisitorActivity.Eating : VisitorActivity.Resting,
                     food ? "Eating at a kiosk" : "Resting at a bench area");
@@ -370,12 +372,12 @@ namespace Mythologicum
             else if (guest.Activity == VisitorActivity.Eating && guest.StateTimer <= 0f && ServiceAvailable(guest))
             {
                 BuildingDefinition service = guest.Service.Footprint.Definition;
-                actor.Vitals.Eat(service.foodRelief); economy.Earn(service.foodPrice); guest.Mood.Reward(8f);
+                actor.Vitals.Eat(service.foodRelief); ChargeService(guest); guest.Mood.Reward(8f);
                 ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "Finished eating"); guest.DecisionTimer = 0f;
             }
-            else if (guest.Activity == VisitorActivity.Resting && actor.Energy.Energy >= Definition.comfortableEnergy)
+            else if (guest.Activity == VisitorActivity.Resting && actor.Energy.Energy >= Definition.comfortableEnergy && ServiceAvailable(guest))
             {
-                guest.Mood.Reward(6f); ReleaseService(guest);
+                ChargeService(guest); guest.Mood.Reward(6f); ReleaseService(guest);
                 SetActivity(guest, VisitorActivity.Arriving, "Feeling rested"); guest.DecisionTimer = 0f;
             }
             else if (guest.Activity == VisitorActivity.Walking && guest.Watching != null)
@@ -405,6 +407,13 @@ namespace Mythologicum
         {
             if (actor.Route.Count > 1) actor.Route.RemoveRange(1, actor.Route.Count - 1);
             actor.Goal = null;
+        }
+
+        private void ChargeService(VisitorAgent guest)
+        {
+            guest.Service.RecordRevenue(guest.QuotedPrice);
+            economy.Earn(guest.QuotedPrice);
+            guest.QuotedPrice = 0f;
         }
 
         private static void SetActivity(VisitorAgent guest, VisitorActivity activity, string status)

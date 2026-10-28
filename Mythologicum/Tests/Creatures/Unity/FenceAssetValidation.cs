@@ -151,6 +151,8 @@ public static class FenceAssetValidation
                     "Reinforced gate inherits its fence protection");
                 Check(construction.TryPlaceGate(sanctifiedEdge) && !construction.Layout.CanPhase(sanctifiedEdge),
                     "Sanctified gate does not create a phasing loophole");
+                View(construction,heavyEdge,cellSize,FenceConstruction.HeightFor(FenceKind.Heavy),catalog.gate);
+                View(construction,sanctifiedEdge,cellSize,FenceConstruction.HeightFor(FenceKind.Sanctified),catalog.gate);
             }
             var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
             var actual = Field<FenceConstruction>(controller, "fences");

@@ -23,7 +23,7 @@ All four fence kinds appear in the construction palette. Normal fences remain cl
 
 Fence health is **120 wood, 220 spiked, 300 sanctified and 800 reinforced**. Creature strikes reduce health on the first three kinds; reinforced fences retain their health under creature attacks. At zero health the barrier is removed from navigation, and construction refresh removes its visual and colliders. Damaged segments display current/max health. Replacing a fence with a different kind restores the new kind's full health.
 
-Normal, reinforced and sanctified fences can become staff gates; spiked fencing cannot. Gates retain their kind, health and corresponding protections, allow authorized path travel, and remain closed to ordinary creature and panic ground travel. Reinforced and sanctified gates use their matching protective fence model. The normal gate uses the **static Fence Type2 01 panel**, not the pack's separate animated Fence Type2 Door. No gate-opening animation is introduced.
+Normal, reinforced and sanctified fences can become staff gates; spiked fencing cannot. Gates retain their kind, health and corresponding protections, allow authorized path travel, and remain closed to ordinary creature and panic ground travel. All gate kinds use the gate model, fitted to their fence height, while keeping the original kind's protection and health. The gate model is the **static Fence Type2 01 panel**, not the pack's separate animated Fence Type2 Door. No gate-opening animation is introduced.
 
 Unused variants, animated doors, demo scripts/scenes and unused materials/textures were removed with the original source folder. This import had no publisher readme; its AssetOrigin records remain on the retained files.
 

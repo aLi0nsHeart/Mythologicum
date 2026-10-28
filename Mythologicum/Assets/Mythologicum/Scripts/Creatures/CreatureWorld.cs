@@ -96,6 +96,7 @@ namespace Mythologicum
         public bool CanSee(CreatureAgent observer, CreatureAgent target, float range)
         {
             if (observer == null || target == null || !observer.Alive || !target.Alive || range < 0f) return false;
+            if (observer.CarriedBy != null || target.CarriedBy != null) return false;
             if (target.Definition.requiresGravestoneForSleep && target.Activity == CreatureActivity.Sleeping) return false;
             RefreshNavigation();
             return HorizontalDistance(observer.transform.position, target.transform.position) <= range
@@ -121,6 +122,7 @@ namespace Mythologicum
         public void RemoveExternal(CreatureAgent actor)
         {
             if (actor == null || !actor.ExternallyControlled || !agents.Contains(actor)) return;
+            foreach (CreatureAgent carried in agents) if (carried.CarriedBy == actor) CancelCarry(carried);
             ReleaseClaim(actor);
             actor.Alive = false;
             actor.CapturedBy = null;
@@ -220,6 +222,7 @@ namespace Mythologicum
 
         public void Tick(float deltaTime)
         {
+            if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) return;
             float dt = Mathf.Max(0f, deltaTime);
             time += dt;
             RefreshNavigation();
@@ -229,6 +232,7 @@ namespace Mythologicum
             {
                 if (!agent.Alive)
                 { agent.CorpseTimer -= dt; RefreshVisual(agent); continue; }
+                if (TickStaffControl(agent, dt)) continue;
                 if (agent.CapturedBy != null && agent.CapturedBy.Alive)
                 {
                     agent.Vitals.Tick(dt, agent.Definition.hungerPerSecond, agent.Definition.fearGainPerSecond,
@@ -649,6 +653,7 @@ namespace Mythologicum
         private bool Hunt(CreatureAgent agent)
         {
             CreatureAgent prey = agent.Prey;
+            if (prey != null && prey.CarriedBy != null) { ReleaseClaim(agent); prey = null; }
             if (prey != null && prey.Alive && (prey.CapturedBy == null || prey.CapturedBy == agent))
             {
                 bool visible = HorizontalDistance(agent.transform.position, prey.transform.position) <= agent.Definition.visionRange
@@ -725,7 +730,7 @@ namespace Mythologicum
             var result = new List<CreatureAgent>();
             if (tags == CreatureTags.None) return result;
             foreach (CreatureAgent other in agents)
-                if (other != observer && other.Alive && (other.Definition.tags & tags) != 0
+                if (other != observer && other.Alive && other.CarriedBy == null && (other.Definition.tags & tags) != 0
                     && HorizontalDistance(observer.transform.position, other.transform.position) <= range
                     && navigation.HasLineOfSight(observer.Cell, other.Cell)) result.Add(other);
             return result;
@@ -862,6 +867,7 @@ namespace Mythologicum
 
         private bool CanInteract(CreatureAgent agent, CreatureAgent target) =>
             HorizontalDistance(agent.transform.position, target.transform.position) <= agent.Definition.interactionRange
+            && target.CarriedBy == null && agent.CarriedBy == null
             && Mathf.Abs(target.Elevation) <= 0.01f && Mathf.Abs(agent.Elevation) <= 0.01f
             && target.Activity != CreatureActivity.ClimbingFence && agent.Activity != CreatureActivity.ClimbingFence
             && target.Activity != CreatureActivity.PhasingFence && agent.Activity != CreatureActivity.PhasingFence
@@ -917,7 +923,7 @@ namespace Mythologicum
                 offset = Vector3.down * 0.3f;
                 rotation = Quaternion.Euler(-12f + Mathf.Sin(time * 2f) * 2f, 0f, 0f);
             }
-            else if (agent.Activity == CreatureActivity.Sleeping)
+            else if (agent.Activity == CreatureActivity.Sleeping || agent.IsSedated)
             {
                 rotation = Quaternion.Euler(0f, 0f, 75f);
                 offset = new Vector3(agent.Elevation > 0f ? 0.55f : 0f,
@@ -964,7 +970,7 @@ namespace Mythologicum
             agent.Body.localRotation = Quaternion.identity;
             if (agent.BodyAnimator == null) return;
             string state = !agent.Alive ? "death"
-                : agent.Activity == CreatureActivity.Sleeping ? "stand_to_sit"
+                : agent.Activity == CreatureActivity.Sleeping || agent.IsSedated ? "stand_to_sit"
                 : agent.Activity == CreatureActivity.Grazing || agent.Activity == CreatureActivity.Feeding ? "eating"
                 : agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.AttackingFence ? "attack"
                 : agent.Route.Count > 0 ? (agent.Activity == CreatureActivity.Fleeing
@@ -981,6 +987,11 @@ namespace Mythologicum
             int stateHash = Animator.StringToHash("Base Layer." + state);
             if (!agent.BodyAnimator.HasState(0, stateHash))
             {
+                if (agent.IsSedated)
+                {
+                    agent.Body.localRotation = Quaternion.Euler(0f, 0f, 75f);
+                    agent.Body.localPosition += Vector3.up * .15f;
+                }
                 if (agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.Attacking
                     || agent.Activity == CreatureActivity.Scaring)
                 {
@@ -1007,15 +1018,15 @@ namespace Mythologicum
                 active.Add(building);
                 if (!dispenserTimers.TryGetValue(building, out float remaining)) remaining = definition.dispenseInterval;
                 // Respect each building's operating state; dispensers do not require park paths.
-                if (building.IsOpen) remaining -= dt;
-                if (remaining <= 0f)
+                if (building.IsOpen && building.FeedStock > 0) remaining -= dt;
+                if (remaining <= 0f && building.FeedStock > 0)
                 {
                     int living = 0;
                     foreach (CreatureAgent agent in agents) if (agent.Alive && agent.SourceDispenser == building) living++;
                     CreatureDefinition goat = definition.dispensedCreature != null ? definition.dispensedCreature : defaultGoat;
                     if (living < definition.maximumDispensed && goat != null)
                         foreach (Vector2Int cell in navigation.Reachable(building.Footprint.AccessCell, 2))
-                            if (TrySpawn(goat, cell, building)) break;
+                            if (TrySpawn(goat, cell, building)) { building.ConsumeFeed(); break; }
                     remaining = definition.dispenseInterval;
                 }
                 dispenserTimers[building] = remaining;

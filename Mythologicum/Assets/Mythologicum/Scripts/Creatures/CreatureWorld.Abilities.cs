@@ -49,7 +49,7 @@ namespace Mythologicum
             CreatureAgent closest = null; float best = float.MaxValue;
             foreach (CreatureAgent other in agents)
             {
-                if (other == observer || !other.Alive || other.Definition.threat <= observer.Definition.threat
+                if (other == observer || !other.Alive || other.IsSedated || other.Definition.threat <= observer.Definition.threat
                     || !CanSee(observer, other, range) || !ReachableRegion(observer.Cell).Contains(other.Cell)) continue;
                 float distance = HorizontalDistance(observer.transform.position, other.transform.position);
                 if (distance < best) { best = distance; closest = other; }

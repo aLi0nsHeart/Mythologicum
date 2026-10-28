@@ -38,6 +38,10 @@ namespace Mythologicum
         private VisitorWorld visitorWorld;
         private VisitorPresentation visitorPresentation;
         private ParkEconomy economy;
+        private StaffWorld staffWorld;
+        private BuildingInspection buildingInspection;
+        private CreatureAgent movingCreature;
+        public StaffWorld Personnel => staffWorld;
         private bool ownsVisitorSettings;
         public VisitorWorld Visitors => visitorWorld;
         public ParkEconomy Economy => economy;
@@ -60,7 +64,7 @@ namespace Mythologicum
         public EnvironmentGrid Environment { get; private set; }
         public EnclosureMap Enclosures => enclosureMap;
         public FenceLayout Barriers => fences?.Layout;
-        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone }
+        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone, MoveCreature }
         private Tool tool;
         private bool dragging;
         private readonly ConstructionRouteSelection<Vector2Int> pathSelection = new ConstructionRouteSelection<Vector2Int>();
@@ -130,6 +134,8 @@ namespace Mythologicum
             { visitorSettings = ScriptableObject.CreateInstance<VisitorDefinition>(); ownsVisitorSettings = true; }
             economy = new ParkEconomy(startingFunds);
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy);
+            staffWorld = new StaffWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, economy,
+                visitorSettings.people != null ? visitorSettings.people : Resources.Load<PeopleDefinition>("People/People"), creatureCatalog);
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
             var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
@@ -144,6 +150,10 @@ namespace Mythologicum
             entrancePreview.SetActive(false);
             CreateUI();
             creatureInspection = new CreatureInspection(FindFirstObjectByType<Canvas>(), status.font);
+            creatureInspection.ConfigureStaffActions(actor => { staffWorld.RequestRetire(actor); },
+                actor => { staffWorld.RequestSedate(actor); }, BeginCreatureMove);
+            creatureInspection.ConfigureResearch(staffWorld.Research.Description);
+            buildingInspection = new BuildingInspection(FindFirstObjectByType<Canvas>(),status.font,staffWorld,staffWorld.Research,creatureCatalog);
             visitorPresentation = new VisitorPresentation(FindFirstObjectByType<Canvas>(), status.font, visitorWorld, economy);
             enclosureMap = new EnclosureMap(grid, fences.Layout, Environment);
             enclosurePresentation = new EnclosurePresentation(enclosureMap, grid, FindFirstObjectByType<Canvas>(), status.font, groundMaterial);
@@ -205,6 +215,7 @@ namespace Mythologicum
 
         private void SelectTool(Tool selected)
         {
+            if (selected != Tool.MoveCreature) movingCreature = null;
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
@@ -224,6 +235,13 @@ namespace Mythologicum
             enclosurePresentation?.SetInspecting(tool == Tool.None);
             creatureInspection?.SetInspecting(tool == Tool.None);
             visitorPresentation?.SetInspecting(tool == Tool.None);
+            buildingInspection?.SetInspecting(tool == Tool.None);
+        }
+
+        private void BeginCreatureMove(CreatureAgent actor)
+        {
+            if (actor == null || !actor.Alive || !actor.IsSedated || actor.CarriedBy != null) return;
+            movingCreature = actor; SelectTool(Tool.MoveCreature);
         }
 
         private void ResetStroke()
@@ -237,19 +255,20 @@ namespace Mythologicum
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
+            staffWorld.Tick(Time.deltaTime);
             fences.Refresh(view);
             visitorWorld.Tick(Time.deltaTime);
-            float operatingCost = 0f;
-            foreach (ParkBuildingRecord building in buildingConstruction.Network.Records)
-                operatingCost += Mathf.Max(0f, building.Footprint.Definition.operatingCostPerSecond);
-            economy.Tick(Time.deltaTime, operatingCost);
+            BuildingEconomy.Tick(buildingConstruction.Network,economy,Time.deltaTime);
             creatureInspection.Refresh();
+            buildingInspection.Refresh();
             visitorPresentation.Refresh();
             palette.Refresh(buildingConstruction.Network.HasEntrance);
             enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
             enclosurePresentation.Refresh();
             Keyboard keyboard = Keyboard.current;
-            if (keyboard != null)
+            InputField focusedInput = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
+                ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
+            if (keyboard != null && (focusedInput == null || !focusedInput.isFocused))
             {
                 if (keyboard.escapeKey.wasPressedThisFrame) { SelectTool(Tool.None); return; }
                 if (keyboard.bKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Buildings);
@@ -275,6 +294,7 @@ namespace Mythologicum
             status.text = tool == Tool.Building
                 ? "Click: place building | R: rotate 90 degrees | Cyan tile: path entrance | Esc: cancel"
                 : tool == Tool.Creature ? "Click: place creature anywhere on clear ground | Esc: cancel"
+                : tool == Tool.MoveCreature ? "Choose a reachable drop-off for a zookeeper | Staff gates provide access | Esc: cancel"
                 : tool == Tool.Tree ? "Click: plant tree | X tool: remove trees | Esc: finish"
                 : tool == Tool.Gravestone ? "Click: place gravestone | X tool: remove gravestones | Esc: finish"
                 : tool == Tool.Path
@@ -302,7 +322,20 @@ namespace Mythologicum
             if (tool == Tool.Creature) { ApplyCreature(mouse, cell); return; }
             if (tool == Tool.Tree) { ApplyTree(mouse, cell); return; }
             if (tool == Tool.Gravestone) { ApplyGravestone(mouse, cell); return; }
+            if (tool == Tool.MoveCreature) { ApplyCreatureMove(mouse,cell); return; }
             ApplyBuilding(mouse, cell);
+        }
+
+        private void ApplyCreatureMove(Mouse mouse, Vector2Int cell)
+        {
+            if (movingCreature == null || !movingCreature.Alive || !movingCreature.IsSedated)
+            { SelectTool(Tool.None); return; }
+            bool valid = staffWorld.CanMoveTo(movingCreature,cell);
+            previewMaterial.color = valid ? ValidPreviewColor : new Color(.95f,.15f,.12f);
+            ShowModelPreview(grid.CellCenter(cell) + Vector3.up * movingCreature.Definition.bodyScale.y,Quaternion.identity,
+                parent => creatureWorld.CreateVisual(parent,movingCreature.Definition,movingCreature.Definition.visualPrefab,out _));
+            if (!valid) status.text = "Choose clear ground reachable through staff gates; the creature must still be sedated.";
+            if (valid && mouse.leftButton.wasPressedThisFrame && staffWorld.RequestMove(movingCreature,cell)) SelectTool(Tool.None);
         }
 
         private void ApplyBuilding(Mouse mouse, Vector2Int cell)
@@ -370,12 +403,21 @@ namespace Mythologicum
                 CreatureAgent creature = creatureHit.collider.GetComponentInParent<CreatureAgent>();
                 if (creature != null && creature.Alive)
                 {
+                    StaffAgent employee = creature.GetComponent<StaffAgent>();
+                    buildingInspection.Select(employee != null ? employee.Home : null);
                     VisitorAgent visitor = creature.GetComponent<VisitorAgent>();
                     visitorPresentation.Select(visitor);
-                    creatureInspection.Select(visitor == null ? creature : null);
+                    creatureInspection.Select(visitor == null && employee == null ? creature : null);
                     enclosurePresentation.Select(null); return;
                 }
+                BuildingSelection selected = creatureHit.collider.GetComponentInParent<BuildingSelection>();
+                if (selected != null)
+                {
+                    buildingInspection.Select(selected.Record); creatureInspection.Select(null);
+                    visitorPresentation.Select(null); enclosurePresentation.Select(null); return;
+                }
             }
+            buildingInspection.Select(null);
             creatureInspection.Select(null);
             visitorPresentation.Select(null);
             if (ground.Raycast(view.ScreenPointToRay(pointer), out RaycastHit hit, view.farClipPlane))
@@ -581,6 +623,8 @@ namespace Mythologicum
 
         private void OnDestroy()
         {
+            buildingInspection?.Dispose();
+            staffWorld?.Dispose();
             visitorPresentation?.Dispose();
             visitorWorld?.Dispose();
             creatureInspection?.Dispose();

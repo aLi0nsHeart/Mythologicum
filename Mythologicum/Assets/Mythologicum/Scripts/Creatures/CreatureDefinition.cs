@@ -6,7 +6,7 @@ namespace Mythologicum
     public enum CreatureDiet { Carnivore, Herbivore, None, Fear }
 
     [Flags]
-    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4 }
+    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8 }
 
     /// <summary>Editable species rules. Individual needs live in CreatureVitals and CreatureEnergy.</summary>
     [CreateAssetMenu(menuName = "Mythologicum/Creature species", fileName = "NewCreature")]

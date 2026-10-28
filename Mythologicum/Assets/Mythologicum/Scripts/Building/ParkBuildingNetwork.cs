@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,9 +6,51 @@ namespace Mythologicum
 {
     public sealed class ParkBuildingRecord
     {
+        private static int nextId;
+        private int hiredCount;
         public BuildingFootprint Footprint { get; }
         public bool IsOpen { get; internal set; }
-        public ParkBuildingRecord(BuildingFootprint footprint) => Footprint = footprint;
+        public int RuntimeId { get; }
+        public float Price { get; private set; }
+        public float Revenue { get; private set; }
+        public float Expenses { get; private set; }
+        public float Profit => Revenue - Expenses;
+        public const int EmployeeCapacity = 5;
+        public int HiredCount
+        {
+            get => hiredCount;
+            internal set => hiredCount = Footprint.Definition.IsEmployeeBuilding ? Math.Max(0, Math.Min(EmployeeCapacity, value)) : 0;
+        }
+        public float UpkeepPerSecond => Bounded((double)Amount(Footprint.Definition.operatingCostPerSecond)
+            + HiredCount * (double)Amount(Footprint.Definition.staffSalaryPerSecond));
+        public int FeedStock { get; private set; }
+        public ParkBuildingRecord(BuildingFootprint footprint)
+        {
+            Footprint = footprint;
+            RuntimeId = System.Threading.Interlocked.Increment(ref nextId);
+            Price = footprint.Definition.kind == BuildingKind.ParkEntrance ? 15f
+                : footprint.Definition.kind == BuildingKind.Kiosk ? Amount(footprint.Definition.foodPrice) : 0f;
+            if (footprint.Definition.kind == BuildingKind.GoatDispenser) RestockFeed();
+        }
+        public bool SetPrice(float value)
+        {
+            if (!Footprint.Definition.CanSetPrice || !Valid(value)) return false;
+            Price = value; return true;
+        }
+        public void RecordRevenue(float amount) { if (Valid(amount)) Revenue = Bounded((double)Revenue + amount); }
+        public void RecordExpense(float amount) { if (Valid(amount)) Expenses = Bounded((double)Expenses + amount); }
+        public bool ConsumeFeed()
+        {
+            if (Footprint.Definition.kind != BuildingKind.GoatDispenser || FeedStock <= 0) return false;
+            FeedStock--; return true;
+        }
+        public void RestockFeed()
+        {
+            if (Footprint.Definition.kind == BuildingKind.GoatDispenser) FeedStock = Math.Max(1, Footprint.Definition.feederCapacity);
+        }
+        private static bool Valid(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+        private static float Amount(float value) => Valid(value) ? value : 0f;
+        private static float Bounded(double value) => (float)Math.Min(float.MaxValue, Math.Max(0d, value));
     }
 
     /// <summary>Footprint reservations and path reachability, without scene dependencies.</summary>
@@ -22,6 +65,7 @@ namespace Mythologicum
         private int lastGridRevision = -1, lastFenceRevision = -1;
         private readonly HashSet<Vector2Int> connected = new HashSet<Vector2Int>();
         public bool IsPathConnected(Vector2Int cell) => connected.Contains(cell);
+        public bool Contains(ParkBuildingRecord record) => record != null && records.Contains(record);
 
         public ParkBuildingNetwork(SquareBuildGrid grid, FenceLayout fences)
         { this.grid = grid; this.fences = fences; }

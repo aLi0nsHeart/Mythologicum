@@ -4,7 +4,8 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum BuildingKind { ParkEntrance, ExpeditionCentre, Kiosk, GoatDispenser, RestArea }
+    public enum BuildingKind { ParkEntrance, ExpeditionCentre, Kiosk, GoatDispenser, RestArea,
+        ResearchCentre, MercenaryHQ, ZookeeperHut }
 
     [Serializable]
     public sealed class BuildingDefinition
@@ -24,7 +25,7 @@ namespace Mythologicum
         [Header("Economy and visitor services")]
         [Min(0f)] public float constructionCost = 100f;
         [Min(0f)] public float operatingCostPerSecond = 0.1f;
-        [Tooltip("Price charged for one kiosk meal. Rest areas are free.")]
+        [Tooltip("Starting price for a kiosk meal. Each placed building keeps its own editable price.")]
         [Min(0f)] public float foodPrice = 8f;
         [Range(0f, 100f)] public float foodRelief = 65f;
         [Min(0.1f)] public float serviceSeconds = 3f;
@@ -34,7 +35,15 @@ namespace Mythologicum
         public CreatureDefinition dispensedCreature;
         [Min(1f)] public float dispenseInterval = 20f;
         [Min(1)] public int maximumDispensed = 12;
+        [Header("Personnel and supplies")]
+        [Min(0f)] public float staffSalaryPerSecond = 0.5f;
+        [Min(0f)] public float hireCost = 50f;
+        [Min(1)] public int feederCapacity = 6;
+        [Min(0f)] public float restockCost = 12f;
         public bool RequiresPathConnection => kind != BuildingKind.GoatDispenser;
+        public bool IsEmployeeBuilding => kind == BuildingKind.ResearchCentre || kind == BuildingKind.MercenaryHQ
+            || kind == BuildingKind.ZookeeperHut;
+        public bool CanSetPrice => kind == BuildingKind.ParkEntrance || kind == BuildingKind.Kiosk || kind == BuildingKind.RestArea;
 
         public static BuildingDefinition[] Defaults() => new[]
         {
@@ -47,7 +56,13 @@ namespace Mythologicum
             new BuildingDefinition { kind = BuildingKind.GoatDispenser, displayName = "Goat dispenser", width = 1, depth = 1,
                 height = 2.5f, openColor = new Color(0.65f, 0.5f, 0.3f), constructionCost = 150f },
             new BuildingDefinition { kind = BuildingKind.RestArea, displayName = "Rest area", width = 4, depth = 3,
-                height = 1.3f, openColor = new Color(0.56f, 0.38f, 0.22f), constructionCost = 120f, foodPrice = 0f }
+                height = 1.3f, openColor = new Color(0.56f, 0.38f, 0.22f), constructionCost = 120f, foodPrice = 0f },
+            new BuildingDefinition { kind = BuildingKind.ResearchCentre, displayName = "Research centre", width = 4, depth = 4,
+                height = 10f, openColor = new Color(.4f,.58f,.75f), constructionCost = 600f },
+            new BuildingDefinition { kind = BuildingKind.MercenaryHQ, displayName = "Mercenary headquarters", width = 4, depth = 4,
+                height = 8f, openColor = new Color(.54f,.58f,.4f), constructionCost = 450f },
+            new BuildingDefinition { kind = BuildingKind.ZookeeperHut, displayName = "Zookeeper station", width = 4, depth = 2,
+                height = 4f, openColor = new Color(.46f,.64f,.42f), constructionCost = 350f }
         };
     }
 

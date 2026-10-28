@@ -18,6 +18,7 @@ namespace Mythologicum
         internal bool LeavingPark, GroundRoute, Panicked;
         internal Vector3 LastDanger;
         internal ParkBuildingRecord Service;
+        internal float QuotedPrice;
         internal CreatureAgent Watching;
         internal readonly Dictionary<CreatureAgent, float> ViewedAt = new Dictionary<CreatureAgent, float>();
     }

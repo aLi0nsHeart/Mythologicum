@@ -4,7 +4,7 @@ namespace Mythologicum
 {
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
         SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing, Escaping,
-        AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave }
+        AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave, Sedated, Carried }
 
     /// <summary>Individual runtime state. Species rules live in the shared profile asset.</summary>
     public sealed class CreatureAgent : MonoBehaviour
@@ -21,6 +21,13 @@ namespace Mythologicum
         public CreatureEnergy Energy { get; internal set; }
         public CreatureHealth Health { get; internal set; }
         public int NearbyGravestones { get; internal set; }
+        public bool IsSedated { get; internal set; }
+        public float SedationRemaining { get; internal set; }
+        public CreatureAgent CarriedBy { get; internal set; }
+        public bool RetirementRequested { get; internal set; }
+        public bool SedationRequested { get; internal set; }
+        public Vector2Int? MoveRequestedDestination { get; internal set; }
+        public string StaffStatus { get; internal set; } = "";
         internal float ScareAfter;
         internal bool ScareSucceeded;
         internal FenceEdge? AttackedFence;

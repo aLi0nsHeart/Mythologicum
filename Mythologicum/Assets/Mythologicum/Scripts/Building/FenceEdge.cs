@@ -84,6 +84,14 @@ namespace Mythologicum
             else health[edge] = remaining;
             return dealt;
         }
+        /// <summary>Repairs an existing segment only. Completely destroyed fences must be rebuilt.</summary>
+        public float TryRepair(FenceEdge edge, float amount)
+        {
+            if (!HasFence(edge) || amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount)) return 0f;
+            float restored = Math.Min(MaximumHealthAt(edge) - HealthAt(edge), amount);
+            health[edge] = HealthAt(edge) + restored;
+            return restored;
+        }
         // Closed gates contain creatures, but provide an authorized staff/path connection.
         public bool BlocksPath(FenceEdge edge) => HasFence(edge) && !IsGate(edge);
         public bool TrySetGate(FenceEdge edge)

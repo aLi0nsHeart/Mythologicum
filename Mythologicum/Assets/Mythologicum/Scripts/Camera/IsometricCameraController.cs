@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Mythologicum
 {
@@ -31,7 +33,9 @@ namespace Mythologicum
         private void Update()
         {
             Keyboard keys = Keyboard.current;
-            if (keys != null)
+            InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
+                ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
+            if (keys != null && (input == null || !input.isFocused))
             {
                 float horizontal = (keys.dKey.isPressed || keys.rightArrowKey.isPressed ? 1 : 0)
                     - (keys.aKey.isPressed || keys.leftArrowKey.isPressed ? 1 : 0);
@@ -42,7 +46,7 @@ namespace Mythologicum
                 yaw += ((keys.eKey.isPressed ? 1 : 0) - (keys.qKey.isPressed ? 1 : 0))
                     * rotationSpeed * Time.deltaTime;
             }
-            if (Mouse.current != null)
+            if (Mouse.current != null && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
                 zoomLevel = Mathf.Clamp(zoomLevel
                     - Mouse.current.scroll.ReadValue().y * zoomSpeed, minimumZoom, maximumZoom);
 

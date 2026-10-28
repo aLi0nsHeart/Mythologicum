@@ -55,6 +55,12 @@ namespace Mythologicum
             foreach (BuildingDefinition definition in definitions)
                 if (definition.kind == BuildingKind.GoatDispenser) enrichmentCount++; else ordinaryCount++;
             int ordinaryIndex = 0, enrichmentIndex = 2;
+            if (ordinaryCount > 4)
+            {
+                var buildingRect = (RectTransform)groups[ConstructionCategory.Buildings].transform;
+                buildingRect.anchoredPosition = new Vector2(0f,144f);
+                buildingRect.sizeDelta = new Vector2(1000f,132f);
+            }
             treeChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "Place trees",
                 new Vector2(-(enrichmentCount - 1) / 2f * Mathf.Min(310f, 960f / enrichmentCount), 0f),
                 () => { Close(); selectTree(); }, true);
@@ -67,10 +73,12 @@ namespace Mythologicum
                 bool enrichment = definition.kind == BuildingKind.GoatDispenser;
                 int count = enrichment ? enrichmentCount : ordinaryCount;
                 int index = enrichment ? enrichmentIndex++ : ordinaryIndex++;
+                bool twoRows = !enrichment && count > 4;
+                Vector2 position = twoRows ? new Vector2((index % 4 - 1.5f) * 240f, index < 4 ? 32f : -32f)
+                    : new Vector2((index - (count - 1) / 2f) * Mathf.Min(310f,960f / count),0f);
                 Button button = MakeButton(template, groups[enrichment ? ConstructionCategory.Enclosures : ConstructionCategory.Buildings].transform,
                     $"{definition.displayName}\n{definition.width} x {definition.depth} tiles | Cost {definition.constructionCost:0}",
-                    new Vector2((index - (count - 1) / 2f) * Mathf.Min(310f, 960f / count), 0f),
-                    () => { Close(); selectBuilding(definition); }, true, Mathf.Min(290f, 960f / count - 10f));
+                    position, () => { Close(); selectBuilding(definition); }, true, twoRows ? 230f : Mathf.Min(290f,960f / count - 10f));
                 buildingButtons.Add(new KeyValuePair<BuildingDefinition, Button>(definition, button));
             }
             pathChoice = MakeButton(template, groups[ConstructionCategory.Paths].transform, "Basic path", Vector2.zero,
@@ -103,7 +111,7 @@ namespace Mythologicum
             Status.alignment = TextAnchor.MiddleCenter;
             Status.raycastTarget = false;
             Status.rectTransform.anchorMin = Status.rectTransform.anchorMax = new Vector2(0.5f, 0f);
-            Status.rectTransform.anchoredPosition = new Vector2(0f, 190f);
+            Status.rectTransform.anchoredPosition = new Vector2(0f, 260f);
             Status.rectTransform.sizeDelta = new Vector2(1100f, 65f);
             Refresh(false);
         }
