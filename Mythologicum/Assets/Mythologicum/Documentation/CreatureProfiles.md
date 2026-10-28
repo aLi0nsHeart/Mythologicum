@@ -1,37 +1,62 @@
 # Editing creature species
 
-**Escape intentions:** hunger above 75, agitation, and space pressure add to a rare base escape chance of **0.05% per minute**. The Inspector exposes each maximum contribution and the retry delay. The creature information panel shows the combined current chance, contributing needs, space pressure, and the last attempt status. This is a chance to form an intention, not a chance of crossing a fence. Sleeping, urgent actions and cooldowns pause rolls; chance is converted to elapsed seconds so it does not increase with frame rate. Attempts last up to 30 seconds and respect species abilities. Goats can search for gaps and test barriers but do not gain climbing abilities. Climbable wooden sections offer Chupacabras a route; spiked fences still reject climbing.
+The creature catalogue lives in **Assets > Mythologicum > Resources > Creatures**. Select a species asset in the Project window and edit its Inspector while Play mode is stopped. Each animal keeps its own current health, hunger, fear and energy; the asset defines shared species rules.
 
-Space pressure uses the ordinary ground area shared by animals, divided against the sum of their species' minimum space needs. It includes undersized habitats and overcrowding, excludes visitors, and does not use enclosure assignments. Escape attempts do not replace normal hunting, sleeping or fleeing.
+## Current species
 
-Casual exploration uses walking routes and does not climb fences. Food and sleep sites reachable without climbing are preferred. New animals hesitate before non-urgent fence climbing for **Settling Seconds** (45 by default). Hunger of 80+, energy of 8 or less, and fleeing override this initial caution. After settling, fence climbing still requires purposeful travel rather than idle wandering. Gaps remain ordinary walkable ground; animals have no assigned enclosure or invisible boundary.
+Group sizes below include the selected animal. The Inspector's **Minimum/Maximum Companions** fields exclude it: 1-2 companions means a total group of 2-3.
 
-Creature behaviour is driven by editable Unity assets. Each living animal has its own hunger, fear and energy; changing a species asset changes the shared rules, not all animals' current needs.
+| Species | Origin | Health / damage / threat | Food and special behaviour | Preferred group |
+| --- | --- | --- | --- | --- |
+| Goat | Domestic | 40 / 5 / 5 | Grazes on natural ground; sleeps on ground | 3-9 |
+| Chupacabra | Southern New World | 120 / 40 / 40 | Hunts goats and visitors; climbs wood; sleeps in trees | 2-3 |
+| Hitotsume | Yokai | 80 / 0 / 20 | Feeds by frightening visitors; eager to escape; climbs wood | 1 |
+| Yurei | Yokai | 120 / 35 / 60 | Hunts goats and visitors; very slow hunger; graveyard habitat and gravestone sleep | 1-20 |
+| Oni | Yokai | 400 / 90 / 100 | Hunts goats and visitors; rapid hunger; seeks to break vulnerable fences | 1-3 |
 
-1. In Unity's Project window, open **Assets > Mythologicum > Resources > Creatures**.
-2. Click **Chupacabra** or **Goat**.
-3. Change the values in the Inspector. Make lasting edits while Play mode is stopped.
+These are prototype balancing values. Chupacabra damage equals goat health, so one successful strike kills a full-health goat. A non-lethal strike reduces health rather than automatically killing its target. **Attack Seconds** controls strike timing. There is no automatic resurrection. **Origin** identifies the species' setting; it does not assign an enclosure or change combat by itself.
 
-The starting values are intentionally fast for testing. Hunger runs from **0 (full)** to **100 (starving)**. At **Hunt Threshold**, a carnivore looks for food and a herbivore looks for plants. **Hunger Per Second** controls how quickly hunger returns. **Food Relief** controls how much a meal reduces hunger. **Graze Seconds** controls the time a plant meal takes.
+## Hunger, fear and health
 
-Fear runs from **0 (calm)** to **100 (terrified)**. Seeing an agent matching **Feared Tags** makes the animal flee immediately and raises fear. It seeks a nearby safe destination, then settles while fear recovers. **Flee Threshold** controls continued flight after losing sight of a threat while still within **Flee Safe Distance**. **Walk Speed**, **Run Speed** and **Vision Range** are measured in metres and seconds.
+Hunger runs from **0 (full)** to **100 (starving)**. **Initial Hunger**, **Hunger Per Second**, **Hunt Threshold** and **Food Relief** tune the feeding loop. Goat grazing uses **Graze Seconds**; carnivores pursue matching **Prey Tags**. The Chupacabra and goat retain their existing food rules. Yurei starts at 20 hunger and gains 0.15 per second; Oni gains 4 per second.
 
-**Fear Range** separately limits how close a threat must be before it frightens the animal, within its normal vision range. Goats use **3 metres** by default; their general vision remains 14 metres. Fear already accumulated takes time to recover after the threat moves away.
+Hitotsume has **Fear** diet and **Feeds On Fear** enabled. It approaches a visitor, performs a timed scare, and gains hunger relief from a successful fright without dealing damage. **Scare Range** is 6 metres, **Scare Seconds** is 1.5 and **Scare Cooldown Seconds** is 8. A scare is distinct from an attack.
 
-**Tags** describe the animal to others; **Prey Tags** describe what it hunts; **Feared Tags** describe what frightens it. The Chupacabra has the Predator tag and hunts Goat or Visitor. The goat has the Goat tag and fears Predator. The Visitor tag prepares the same interaction for future visitors; visitors are not implemented yet. **Diet** controls whether food means prey or plants.
+Fear runs from **0 (calm)** to **100 (terrified)**. A visible creature with a higher **Threat** can frighten a lower-threat creature within its perception/fear range. Equal threat does not automatically frighten peers. Safe barriers and perception still matter; threat is not a map-wide aura. Fear accumulated during danger takes time to recover. Goats retain their close 3-metre fear range. Visitors have 60 health, zero damage and threat 10, so even harmless Hitotsume can scare them.
 
-Profiles deliberately contain no enclosure assignment. An enclosure describes the surrounding land; it does not own the animal. Fences and gates determine which routes the creature can physically use. A species with **Can Climb Wooden Fences** enabled can cross ordinary wooden fences with a climbing animation. Spiked fences and closed staff gates still block it; a Chupacabra can try a spiked fence, fail, and wait **Climb Retry Seconds** before another attempt.
+**Maximum Health** and **Damage** are separate from hunger relief. Damage of zero cannot kill an animal or break a fence. Hunger reaching 100 does not yet cause starvation death. Saving individual needs between sessions and a full medical system are separate features.
 
-**Energy** runs from **100 (rested)** to **0 (exhausted)**. The separate exhaustion value is its inverse, so 20 energy means 80 exhaustion. **Initial Energy** is applied when a creature spawns. **Energy Drain Per Second** consumes energy during awake activity, including idle pauses. Hunting, fleeing and attacking use **Strenuous Energy Multiplier**; socializing uses **Socializing Energy Multiplier**. **Climb Energy Cost** charges additional effort for a climb attempt.
+## Environment, sleep and social needs
 
-At **Sleep Threshold** the animal seeks sleep and resumes ordinary activity at **Wake Threshold**. Actual sleeping restores **Sleep Recovery Per Second** instead of draining energy. The defaults are 100 initial energy, 0.35 drain/second, 3x strenuous drain, 20 sleep threshold, 85 wake threshold and 8 recovery/second. An idle animal therefore needs roughly four minutes to get tired; lower **Initial Energy** to test sleep sooner. Ordinary **Resting** is an awake pause and does not restore energy.
+Chupacabras want **2 trees within 12 metres**, **100 square metres** of reachable space and a group of 2-3. They must reach and climb a tree before sleeping restores energy.
 
-Goats can sleep on the ground. Chupacabras have **Requires Tree For Sleep** enabled: they must reach a tree, climb it, sleep above ground, then descend. Without a reachable tree they cannot recover energy by sleeping. **Tree Climb Seconds**, **Fence Climb Seconds**, and **Failed Climb Seconds** tune the placeholder animation timing. Social animals can spend **Socializing Seconds** interacting with a nearby same-species companion; solitary Chupacabras do not seek these interactions.
+Yurei wants **2 gravestones within 12 metres** and **60 square metres** of reachable space. Plant gravestones from **Enclosures > Place gravestones**. It sleeps in a reachable gravestone instead of a tree. Removing the occupied gravestone stops that recovery; a missing sleep site never substitutes ground sleep for this species.
 
-**Happiness** is the main satisfaction score (0–100, higher is better). It combines fullness (30%), calmness (10%), environment (25%), available space (20%), and herd satisfaction (15%). Happiness changes gradually; below **Happiness Threshold**, agitation increases and affects behaviour. **Minimum Space** is measured in square metres. **Required Trees** and **Environment Radius** describe nearby environmental needs: Chupacabras initially need two trees and 100 square metres. Trees satisfy this preference and provide sleep sites; energy is tracked separately from the current happiness formula.
+Oni wants **500 square metres** of reachable space per animal and tolerates groups up to 3. Hitotsume prefers solitude and 80 square metres. Goats need 48 square metres and prefer 2-8 other goats. Goat, Hitotsume and Oni sleep on the ground.
 
-**Minimum Companions** and **Maximum Companions** count other animals of the same species within **Herd Range**, excluding the animal itself. The Chupacabra is solitary (0–0); goats prefer 2–8 companions. A maximum of -1 removes the upper limit. **Pause Min/Max Seconds**, **Prey Memory Seconds**, **Attack Seconds**, **Feeding Seconds**, and **Flee Safe Distance** tune the shared behaviour without changing code.
+Energy runs from **100 (rested)** to **0 (exhausted)**; exhaustion is its inverse. Awake activity drains energy. Hunting, fleeing, attacking and other strenuous actions consume it faster; socializing has a separate multiplier. Actual sleeping restores energy until **Wake Threshold**. Ordinary **Resting** is an awake pause. Defaults are 100 initial energy, 0.35 baseline drain/second, sleep threshold 20, wake threshold 85 and recovery 8/second. To test sleep quickly, temporarily set **Initial Energy** to 15, then restore it to 100 afterwards.
 
-To add a species profile later, right-click in this Creatures folder and select **Create > Mythologicum > Creature species**. Give it a display name, diet, tags and appearance, then keep **Manually Placeable** enabled to include it in the creature catalogue. New tags or new types of behaviour need code support; changing the existing rules and numbers does not.
+**Happiness** combines fullness, calmness, environment, available space and herd satisfaction. Below **Happiness Threshold**, agitation increases. Gravestones fulfil Yurei's environment preference; trees fulfil the Chupacabra's. The information panel displays origin, health, damage, threat, needs, total group size, crowding and escape urge. Companion counts use reachable ground and **Herd Range**, never enclosure ownership. Yurei and Oni use a large herd range so their group limits apply across the accessible area.
 
-These assets are the species catalogue loaded at startup. Changing their names or balancing values does not require editing a scene. Saving placed animals and their current needs between game sessions is a separate future feature.
+## Fences and movement
+
+Casual exploration uses walking routes. Local food and sleep sites are preferred. **Settling Seconds** delays non-urgent climbing for newly placed animals (45 seconds by default); severe hunger, exhaustion, fleeing and a deliberate escape intention can override that caution. Gaps remain ordinary ground.
+
+| Fence | Health | Wooden climbing | Yurei phasing when very hungry | Creature strikes |
+| --- | --- | --- | --- | --- |
+| Wooden | 120 | Allowed for capable species | Allowed | Can destroy |
+| Spiked | 220 | Blocked | Allowed | Can destroy |
+| Heavy / reinforced | 800 | Blocked | Allowed | Immune |
+| Sanctified | 300 | Blocked | Blocked | Can destroy |
+
+Yurei's **Can Phase Fences** activates at **Phase Hunger Threshold**, initially **80 hunger**. This means very hungry, not well-fed. Phasing bypasses an eligible barrier without destroying it. Heavy fences stop creature strikes, including Oni, but do not stop Yurei phasing. Sanctified fences stop phasing, but physical strikes can still destroy them. Ordinary damaging creatures can attack vulnerable fences; Oni's **Can Break Fences** makes that an active means of reaching its goals. A fence at zero health disappears and its edge becomes traversable.
+
+Gate barriers inherit their fence type's protection. Ordinary animal/panic movement treats closed gates as barriers; authorized path travel retains its existing gate permission.
+
+## Escape intentions
+
+Hunger above 75, agitation and space pressure add to a rare base escape chance. The ordinary baseline is **0.05% per minute**; Hitotsume uses **12% per minute** because escaping to frighten people is a strong motivation. Successful purposeful pursuits can also involve barrier abilities independently of a random escape roll.
+
+The information panel shows current chance, contributing reasons, space pressure and attempt status. This is the chance of forming an intention, not of defeating a fence. Sleeping, urgent actions and cooldowns pause rolls. Probability accounts for elapsed time rather than frame count. Space pressure compares shared ordinary ground area with the combined minimum space needs of animals there, excluding visitors. Species do not acquire new abilities just because they want to escape.
+
+To add another profile, right-click the Creatures folder and choose **Create > Mythologicum > Creature species**. Existing rules and values are editable data; genuinely new abilities require code support. Leave **Manually Placeable** enabled to include a species in the creature menu.

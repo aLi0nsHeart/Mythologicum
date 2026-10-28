@@ -14,9 +14,9 @@ namespace Mythologicum
         public Text Status { get; }
         private readonly Dictionary<ConstructionCategory, GameObject> groups = new Dictionary<ConstructionCategory, GameObject>();
         private readonly List<KeyValuePair<BuildingDefinition, Button>> buildingButtons = new List<KeyValuePair<BuildingDefinition, Button>>();
-        private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, gateChoice;
+        private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
         private readonly Button creaturesCategory;
-        private readonly Button enclosuresCategory, treeChoice;
+        private readonly Button enclosuresCategory, treeChoice, gravestoneChoice;
         private readonly List<Button> creatureButtons = new List<Button>();
         private readonly Action categoryOpened;
         private bool hasEntrance;
@@ -24,7 +24,7 @@ namespace Mythologicum
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
-            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree)
+            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null)
         {
             this.categoryOpened = categoryOpened;
             Root = new GameObject("Construction Palette", typeof(RectTransform));
@@ -51,13 +51,16 @@ namespace Mythologicum
                 groups.Add(category, group);
                 group.SetActive(false);
             }
-            int ordinaryCount = 0, enrichmentCount = 1;
+            int ordinaryCount = 0, enrichmentCount = 2;
             foreach (BuildingDefinition definition in definitions)
                 if (definition.kind == BuildingKind.GoatDispenser) enrichmentCount++; else ordinaryCount++;
-            int ordinaryIndex = 0, enrichmentIndex = 1;
+            int ordinaryIndex = 0, enrichmentIndex = 2;
             treeChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "Place trees",
                 new Vector2(-(enrichmentCount - 1) / 2f * Mathf.Min(310f, 960f / enrichmentCount), 0f),
                 () => { Close(); selectTree(); }, true);
+            gravestoneChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "Place gravestones",
+                new Vector2((1f - (enrichmentCount - 1) / 2f) * Mathf.Min(310f, 960f / enrichmentCount), 0f),
+                () => { Close(); selectGravestone?.Invoke(); }, true);
             for (int i = 0; i < definitions.Length; i++)
             {
                 BuildingDefinition definition = definitions[i];
@@ -72,12 +75,16 @@ namespace Mythologicum
             }
             pathChoice = MakeButton(template, groups[ConstructionCategory.Paths].transform, "Basic path", Vector2.zero,
                 () => { Close(); selectPath(); }, true);
-            fenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Wooden fence", new Vector2(-320f, 0f),
-                () => { Close(); selectFence(FenceKind.Wooden); }, true);
-            spikedFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Spiked fence", Vector2.zero,
-                () => { Close(); selectFence(FenceKind.Spiked); }, true);
-            gateChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Staff gate", new Vector2(320f, 0f),
-                () => { Close(); selectGate(); }, true);
+            fenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Wooden fence", new Vector2(-380f, 0f),
+                () => { Close(); selectFence(FenceKind.Wooden); }, true, 180f);
+            spikedFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Spiked fence", new Vector2(-190f, 0f),
+                () => { Close(); selectFence(FenceKind.Spiked); }, true, 180f);
+            heavyFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Reinforced fence", Vector2.zero,
+                () => { Close(); selectFence(FenceKind.Heavy); }, true, 180f);
+            sanctifiedFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Sanctified fence", new Vector2(190f, 0f),
+                () => { Close(); selectFence(FenceKind.Sanctified); }, true, 180f);
+            gateChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "Staff gate", new Vector2(380f, 0f),
+                () => { Close(); selectGate(); }, true, 180f);
             var placeable = new List<CreatureDefinition>();
             foreach (CreatureDefinition creature in creatures) if (creature.manuallyPlaceable) placeable.Add(creature);
             for (int i = 0; i < placeable.Count; i++)
@@ -139,9 +146,9 @@ namespace Mythologicum
         {
             hasEntrance = entranceExists;
             pathsCategory.interactable = fencesCategory.interactable = pathChoice.interactable = fenceChoice.interactable
-                = spikedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
+                = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
-            enclosuresCategory.interactable = treeChoice.interactable = hasEntrance;
+            enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = hasEntrance;
             foreach (Button button in creatureButtons) button.interactable = hasEntrance;
             foreach (var pair in buildingButtons)
                 pair.Value.interactable = pair.Key.kind == BuildingKind.ParkEntrance ? !hasEntrance : hasEntrance;

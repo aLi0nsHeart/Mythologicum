@@ -20,10 +20,26 @@ namespace Mythologicum
         private readonly SquareBuildGrid grid;
         private readonly Dictionary<Vector2Int, float> forest = new Dictionary<Vector2Int, float>();
         private readonly HashSet<Vector2Int> trees = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> gravestones = new HashSet<Vector2Int>();
         public int Revision { get; private set; }
         public EnvironmentGrid(SquareBuildGrid grid) => this.grid = grid;
 
         public int TreesAt(Vector2Int cell) => trees.Contains(cell) ? 1 : 0;
+        public int GravestonesAt(Vector2Int cell) => gravestones.Contains(cell) ? 1 : 0;
+
+        public bool AddGravestone(Vector2Int cell)
+        {
+            if (!grid.Contains(cell) || trees.Contains(cell) || !gravestones.Add(cell)) return false;
+            Revision++;
+            return true;
+        }
+
+        public bool RemoveGravestone(Vector2Int cell)
+        {
+            if (!gravestones.Remove(cell)) return false;
+            Revision++;
+            return true;
+        }
 
         public int TreeCount(IEnumerable<Vector2Int> cells)
         {
@@ -36,7 +52,7 @@ namespace Mythologicum
 
         public bool AddTree(Vector2Int cell)
         {
-            if (!grid.Contains(cell) || !trees.Add(cell)) return false;
+            if (!grid.Contains(cell) || gravestones.Contains(cell) || !trees.Add(cell)) return false;
             Revision++;
             return true;
         }

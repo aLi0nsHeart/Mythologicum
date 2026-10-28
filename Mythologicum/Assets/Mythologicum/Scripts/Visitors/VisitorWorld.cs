@@ -42,6 +42,7 @@ namespace Mythologicum
             actorProfile = ScriptableObject.CreateInstance<CreatureDefinition>();
             actorProfile.name = "Visitor actor"; actorProfile.displayName = "Visitor";
             actorProfile.diet = CreatureDiet.None; actorProfile.tags = CreatureTags.Visitor;
+            actorProfile.maximumHealth = 60f; actorProfile.damage = 0f; actorProfile.threat = 10f; actorProfile.origin = "Human";
             actorProfile.fearedTags = CreatureTags.Predator; actorProfile.manuallyPlaceable = false;
             actorProfile.initialHunger = definition.initialHunger; actorProfile.initialEnergy = definition.initialEnergy;
             actorProfile.hungerPerSecond = definition.hungerPerSecond; actorProfile.energyDrainPerSecond = definition.energyDrainPerSecond;
@@ -177,7 +178,7 @@ namespace Mythologicum
             CreatureAgent best = null; float nearest = float.MaxValue;
             foreach (CreatureAgent other in creatures.Agents)
             {
-                if (!other.Alive || (other.Definition.tags & CreatureTags.Predator) == 0
+                if (!other.Alive || other.Definition.threat <= guest.Actor.Definition.threat
                     || !creatures.CanSee(guest.Actor, other, Definition.fearRange)) continue;
                 if (!GroundRegion(guest.Actor.Cell).Contains(other.Cell)) continue;
                 float distance = Distance(guest.Actor.transform.position, other.transform.position);
@@ -271,7 +272,8 @@ namespace Mythologicum
             List<Vector2Int> paths = navigation.Reachable(guest.Actor.Cell);
             foreach (CreatureAgent candidate in creatures.Agents)
             {
-                if (!candidate.Alive || candidate.ExternallyControlled) continue;
+                if (!candidate.Alive || candidate.ExternallyControlled
+                    || candidate.Definition.requiresGravestoneForSleep && candidate.Activity == CreatureActivity.Sleeping) continue;
                 if (guest.ViewedAt.TryGetValue(candidate, out float last) && time - last < 30f) continue;
                 foreach (Vector2Int path in paths)
                 {

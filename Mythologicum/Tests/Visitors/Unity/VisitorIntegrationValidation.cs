@@ -61,12 +61,16 @@ public static class VisitorIntegrationValidation
             Goat.displayName = "Exhibit goat"; Goat.diet = CreatureDiet.Herbivore; Goat.tags = CreatureTags.Goat;
             Goat.initialHunger = 0; Goat.hungerPerSecond = 0; Goat.walkSpeed = 0;
             Goat.energyDrainPerSecond = 0; Goat.initialEnergy = 100; Goat.fearedTags = CreatureTags.None;
+            Goat.threat = 5; Goat.maximumHealth = 40;
             Predator = ScriptableObject.CreateInstance<CreatureDefinition>();
             Predator.displayName = "Exhibit predator"; Predator.tags = CreatureTags.Predator;
             Predator.diet = CreatureDiet.Carnivore; Predator.preyTags = CreatureTags.Visitor;
             Predator.initialHunger = 100; Predator.hungerPerSecond = 0; Predator.energyDrainPerSecond = 0;
             Predator.initialEnergy = 100; Predator.runSpeed = 8; Predator.walkSpeed = 0;
             Predator.visionRange = 40; Predator.decisionInterval = .1f;
+            Predator.threat = 40; Predator.damage = 60; // One-hit visitor fixture; visitor health is 60.
+            Goat.randomEscapeChance = Goat.hungryEscapeChance = Goat.agitatedEscapeChance = Goat.crowdedEscapeChance = 0;
+            Predator.randomEscapeChance = Predator.hungryEscapeChance = Predator.agitatedEscapeChance = Predator.crowdedEscapeChance = 0;
             Creatures = new CreatureWorld(Grid, Fences, Network, camera,
                 new Material(Shader.Find("Standard")), new[] { Goat, Predator }, new EnvironmentGrid(Grid));
             Definition = ScriptableObject.CreateInstance<VisitorDefinition>();
@@ -106,9 +110,9 @@ public static class VisitorIntegrationValidation
         public void ContainPredator()
         {
             for (int x = 3; x <= 5; x++)
-            { Fences.TryAdd(new FenceEdge(V(x,2), true)); Fences.TryAdd(new FenceEdge(V(x,5), true)); }
+            { Fences.TryAdd(new FenceEdge(V(x,2), true), FenceKind.Heavy); Fences.TryAdd(new FenceEdge(V(x,5), true), FenceKind.Heavy); }
             for (int y = 2; y <= 4; y++)
-            { Fences.TryAdd(new FenceEdge(V(3,y), false)); Fences.TryAdd(new FenceEdge(V(6,y), false)); }
+            { Fences.TryAdd(new FenceEdge(V(3,y), false), FenceKind.Heavy); Fences.TryAdd(new FenceEdge(V(6,y), false), FenceKind.Heavy); }
         }
     }
 
@@ -229,17 +233,20 @@ public static class VisitorIntegrationValidation
         f.Entrance(); f.Predator.preyTags = CreatureTags.None;
         for (int x = 4; x <= 10; x++) f.Grid.TryRemove(V(x,1), BuildCellContent.Path);
         f.Network.Refresh();
-        f.Creatures.TrySpawn(f.Predator, V(1,3)); guest = f.Visitors.TrySpawn();
+        // Place danger beside the path; the entrance at (1,2) must not occlude this perception test.
+        f.Creatures.TrySpawn(f.Predator, V(3,3)); guest = f.Visitors.TrySpawn();
         Check(f.Until(() => guest.Activity == VisitorActivity.Fleeing && guest.Actor.Vitals.Fear > 0, 2),
             "Reachable nearby predator creates visitor fear and fleeing");
         Check(f.Until(() => f.Grid.ContentAt(guest.Actor.Cell) != BuildCellContent.Path, 8),
             "Panicked visitor can run off paths onto open ground");
         f.Predator.tags = CreatureTags.None; // The exit becomes safe after the escape is demonstrated.
+        f.Predator.threat = 0f;
         Check(f.Until(() => f.Visitors.DepartedCount == 1, 40), "Escaping guest rejoins paths and leaves through park entrance");
 
         f = new Fixture(def => { def.walkSpeed = .2f; def.runSpeed = .2f; def.fearRange = 10; });
         f.Entrance(); f.Predator.runSpeed = 10; f.Predator.attackSeconds = 1; f.Predator.feedingSeconds = 1;
-        f.Creatures.TrySpawn(f.Predator, V(2,2)); guest = f.Visitors.TrySpawn();
+        // A predator already on the public path has a clear line of sight to the arriving guest.
+        f.Creatures.TrySpawn(f.Predator, V(2,1)); guest = f.Visitors.TrySpawn();
         Check(f.Until(() => guest.Activity == VisitorActivity.Captured, 8), "Escaped hungry predator targets and catches visitor using shared creature system");
         Check(guest.Actor.Alive && f.Visitors.LostCount == 0, "Visible attack happens before visitor death is recorded");
         Check(f.Until(() => f.Visitors.LostCount == 1, 5), "Completed predator attack records one lost visitor");

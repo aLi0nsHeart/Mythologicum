@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum FenceKind { Wooden, Spiked }
+    public enum FenceKind { Wooden, Spiked, Heavy, Sanctified }
 
     /// <summary>A canonical grid edge, shared by the cells on either side.</summary>
     public readonly struct FenceEdge : IEquatable<FenceEdge>
@@ -56,6 +56,7 @@ namespace Mythologicum
         private readonly HashSet<FenceEdge> edges = new HashSet<FenceEdge>();
         private readonly HashSet<FenceEdge> gates = new HashSet<FenceEdge>();
         private readonly Dictionary<FenceEdge, FenceKind> kinds = new Dictionary<FenceEdge, FenceKind>();
+        private readonly Dictionary<FenceEdge, float> health = new Dictionary<FenceEdge, float>();
         public IEnumerable<FenceEdge> Edges => edges;
         public IEnumerable<FenceEdge> Gates => gates;
         public FenceLayout(SquareBuildGrid grid) => this.grid = grid;
@@ -67,11 +68,27 @@ namespace Mythologicum
         public bool IsGate(FenceEdge edge) => gates.Contains(edge);
         public FenceKind KindAt(FenceEdge edge) => kinds.TryGetValue(edge, out FenceKind kind) ? kind : FenceKind.Wooden;
         public bool CanClimb(FenceEdge edge) => HasFence(edge) && !IsGate(edge) && KindAt(edge) == FenceKind.Wooden;
+        public bool CanPhase(FenceEdge edge) => HasFence(edge) && KindAt(edge) != FenceKind.Sanctified;
+        public float HealthAt(FenceEdge edge) => health.TryGetValue(edge, out float remaining) ? remaining : 0f;
+        public float MaximumHealthAt(FenceEdge edge) => HasFence(edge) ? MaximumHealth(KindAt(edge)) : 0f;
+        public static float MaximumHealth(FenceKind kind) => kind == FenceKind.Heavy ? 800f
+            : kind == FenceKind.Sanctified ? 300f : kind == FenceKind.Spiked ? 220f : 120f;
+        /// <summary>Creature strikes cannot breach reinforced barriers. Destruction immediately releases the edge.</summary>
+        public float TryDamage(FenceEdge edge, float damage)
+        {
+            if (!HasFence(edge) || KindAt(edge) == FenceKind.Heavy || damage <= 0f
+                || float.IsNaN(damage) || float.IsInfinity(damage)) return 0f;
+            float dealt = Math.Min(HealthAt(edge), damage);
+            float remaining = HealthAt(edge) - dealt;
+            if (remaining <= 0f) TryRemove(edge);
+            else health[edge] = remaining;
+            return dealt;
+        }
         // Closed gates contain creatures, but provide an authorized staff/path connection.
         public bool BlocksPath(FenceEdge edge) => HasFence(edge) && !IsGate(edge);
         public bool TrySetGate(FenceEdge edge)
         {
-            if (!HasFence(edge) || KindAt(edge) != FenceKind.Wooden || !gates.Add(edge)) return false;
+            if (!HasFence(edge) || KindAt(edge) == FenceKind.Spiked || !gates.Add(edge)) return false;
             Revision++;
             return true;
         }
@@ -79,6 +96,7 @@ namespace Mythologicum
         {
             if (!Contains(edge) || !edges.Add(edge)) return false;
             kinds.Add(edge, kind);
+            health.Add(edge, MaximumHealth(kind));
             Revision++;
             return true;
         }
@@ -86,6 +104,7 @@ namespace Mythologicum
         {
             if (!HasFence(edge) || IsGate(edge) || KindAt(edge) == kind) return false;
             kinds[edge] = kind;
+            health[edge] = MaximumHealth(kind);
             Revision++;
             return true;
         }
@@ -94,6 +113,7 @@ namespace Mythologicum
             if (!edges.Remove(edge)) return false;
             gates.Remove(edge);
             kinds.Remove(edge);
+            health.Remove(edge);
             Revision++;
             return true;
         }

@@ -7,6 +7,7 @@ namespace Mythologicum
     {
         public const float Height = 1.6f;
         public const float SpikedHeight = 2.15f;
+        public const float HeavyHeight = 2.7f;
         public const float Thickness = 0.14f;
         public FenceLayout Layout { get; }
         private readonly SquareBuildGrid grid;
@@ -15,7 +16,10 @@ namespace Mythologicum
         private readonly Material gateMaterial;
         private readonly FenceVisualCatalog visuals;
         private readonly Dictionary<FenceEdge, GameObject> objects = new Dictionary<FenceEdge, GameObject>();
+        private readonly Dictionary<FenceEdge, TextMesh> healthLabels = new Dictionary<FenceEdge, TextMesh>();
         private static Mesh spikeMesh;
+        public static float HeightFor(FenceKind kind) => kind == FenceKind.Heavy ? HeavyHeight
+            : kind == FenceKind.Spiked || kind == FenceKind.Sanctified ? SpikedHeight : Height;
 
         public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null)
         {
@@ -32,7 +36,7 @@ namespace Mythologicum
             if (!Layout.Contains(edge)) return false;
             if (Layout.HasFence(edge)) return !Layout.IsGate(edge);
             if (Layout.WouldSplitPath(edge)) return false;
-            float height = kind == FenceKind.Spiked ? SpikedHeight : Height;
+            float height = HeightFor(kind);
             Vector3 half = edge.AlongX ? new Vector3(grid.CellSize / 2f - 0.01f, height / 2f - 0.01f, Thickness / 2f)
                 : new Vector3(Thickness / 2f, height / 2f - 0.01f, grid.CellSize / 2f - 0.01f);
             return !Physics.CheckBox(Layout.Center(edge) + Vector3.up * height / 2f, half,
@@ -54,7 +58,7 @@ namespace Mythologicum
         }
 
         public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge)
-            && Layout.KindAt(edge) == FenceKind.Wooden;
+            && Layout.KindAt(edge) != FenceKind.Spiked;
 
         public bool TryPlaceGate(FenceEdge edge)
         {
@@ -72,17 +76,47 @@ namespace Mythologicum
             old.SetActive(false);
             Object.Destroy(old);
             objects.Remove(edge);
+            healthLabels.Remove(edge);
+        }
+
+        /// <summary>Synchronizes simulation damage with visuals; partial damage does not rebuild imported models.</summary>
+        public void Refresh(Camera camera = null)
+        {
+            var removed = new List<FenceEdge>();
+            foreach (var pair in objects)
+            {
+                FenceEdge edge = pair.Key;
+                if (!Layout.HasFence(edge)) { removed.Add(edge); continue; }
+                float current = Layout.HealthAt(edge), maximum = Layout.MaximumHealthAt(edge);
+                if (current >= maximum) continue;
+                if (!healthLabels.TryGetValue(edge, out TextMesh label))
+                {
+                    var go = new GameObject("Fence health", typeof(TextMesh));
+                    go.transform.SetParent(pair.Value.transform, false);
+                    label = go.GetComponent<TextMesh>();
+                    label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
+                    label.fontSize = 48; label.characterSize = .08f;
+                    label.anchor = TextAnchor.LowerCenter; label.alignment = TextAlignment.Center;
+                    label.color = new Color(1f, .55f, .2f);
+                    healthLabels.Add(edge, label);
+                }
+                label.text = $"Fence {current:0}/{maximum:0}";
+                label.transform.position = Layout.Center(edge) + Vector3.up * (HeightFor(Layout.KindAt(edge)) + .25f);
+                if (camera != null) label.transform.rotation = camera.transform.rotation;
+            }
+            foreach (FenceEdge edge in removed) RemoveObject(edge);
         }
 
         private void CreateObject(FenceEdge edge, bool gate)
         {
-            bool spiked = !gate && Layout.KindAt(edge) == FenceKind.Spiked;
-            float height = spiked ? SpikedHeight : Height;
-            var root = new GameObject($"{(gate ? "Gate" : spiked ? "Spiked fence" : "Wooden fence")} [{edge.Start.x}, {edge.Start.y}] {(edge.AlongX ? "X" : "Z")}");
+            FenceKind kind = Layout.KindAt(edge);
+            float height = HeightFor(kind);
+            var root = new GameObject($"{kind} {(gate ? "gate" : "fence")} [{edge.Start.x}, {edge.Start.y}] {(edge.AlongX ? "X" : "Z")}");
             root.transform.SetParent(parent);
             root.transform.position = Layout.Center(edge);
             root.transform.rotation = Quaternion.Euler(0f, edge.AlongX ? 0f : 90f, 0f);
-            CreateVisual(root.transform, spiked ? FenceKind.Spiked : FenceKind.Wooden, gate);
+            CreateVisual(root.transform, kind, gate);
             var collider = root.AddComponent<BoxCollider>();
             collider.center = Vector3.up * height / 2f;
             collider.size = new Vector3(grid.CellSize, height, Thickness);
@@ -99,27 +133,32 @@ namespace Mythologicum
             {
                 Layout.TryRemove(edge);
                 objects.Remove(edge);
+                healthLabels.Remove(edge);
             });
         }
 
         public void CreateVisual(Transform parent, FenceKind kind, bool gate = false)
         {
             bool spiked = !gate && kind == FenceKind.Spiked;
-            float height = spiked ? SpikedHeight : Height;
-            GameObject prefab = visuals == null ? null : gate ? visuals.gate : spiked ? visuals.spiked : visuals.normal;
+            float height = HeightFor(kind);
+            // Protected gates retain their barrier's model and protection, rather than becoming a wooden opening.
+            GameObject prefab = visuals == null ? null : kind == FenceKind.Heavy ? visuals.heavy
+                : kind == FenceKind.Sanctified ? visuals.sanctified : gate ? visuals.gate
+                : spiked ? visuals.spiked : visuals.normal;
             if (prefab != null)
             {
-                float yaw = gate ? visuals.gateYaw : spiked ? visuals.spikedYaw : visuals.normalYaw;
+                float yaw = kind == FenceKind.Heavy ? visuals.heavyYaw : kind == FenceKind.Sanctified ? visuals.sanctifiedYaw
+                    : gate ? visuals.gateYaw : spiked ? visuals.spikedYaw : visuals.normalYaw;
                 CreateModel(parent, prefab, yaw, height);
             }
             else
             {
-                AddPart(parent, new Vector3(-grid.CellSize / 2f + Thickness / 2f, Height / 2f, 0f),
-                    new Vector3(Thickness, Height, Thickness));
-                AddPart(parent, new Vector3(grid.CellSize / 2f - Thickness / 2f, Height / 2f, 0f),
-                    new Vector3(Thickness, Height, Thickness));
-                AddPart(parent, new Vector3(0f, Height * 0.35f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
-                AddPart(parent, new Vector3(0f, Height * 0.8f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
+                AddPart(parent, new Vector3(-grid.CellSize / 2f + Thickness / 2f, height / 2f, 0f),
+                    new Vector3(Thickness, height, Thickness));
+                AddPart(parent, new Vector3(grid.CellSize / 2f - Thickness / 2f, height / 2f, 0f),
+                    new Vector3(Thickness, height, Thickness));
+                AddPart(parent, new Vector3(0f, height * 0.35f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
+                AddPart(parent, new Vector3(0f, height * 0.8f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
                 if (spiked)
                 {
                     int count = Mathf.Max(3, Mathf.CeilToInt(grid.CellSize / 0.3f));
@@ -137,8 +176,8 @@ namespace Mythologicum
                     leaf.name = "Staff gate";
                     leaf.GetComponent<Collider>().enabled = false;
                     leaf.transform.SetParent(parent, false);
-                    leaf.transform.localPosition = Vector3.up * Height / 2f;
-                    leaf.transform.localScale = new Vector3(grid.CellSize - Thickness * 2f, Height * 0.65f, 0.1f);
+                    leaf.transform.localPosition = Vector3.up * height / 2f;
+                    leaf.transform.localScale = new Vector3(grid.CellSize - Thickness * 2f, height * 0.65f, 0.1f);
                     leaf.GetComponent<MeshRenderer>().sharedMaterial = gateMaterial;
                 }
             }

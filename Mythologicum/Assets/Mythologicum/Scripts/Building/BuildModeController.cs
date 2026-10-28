@@ -32,6 +32,7 @@ namespace Mythologicum
         private CreatureDefinition selectedCreature;
         private CreatureWorld creatureWorld;
         private TreeConstruction trees;
+        private GravestoneConstruction graves;
         private GroundVegetation groundVegetation;
         private CreatureInspection creatureInspection;
         private VisitorWorld visitorWorld;
@@ -53,12 +54,13 @@ namespace Mythologicum
         private PathConstruction paths;
         private FenceConstruction fences;
         private FenceKind selectedFenceKind = FenceKind.Wooden;
+        private FenceKind? gatePreviewKind;
         private EnclosureMap enclosureMap;
         private EnclosurePresentation enclosurePresentation;
         public EnvironmentGrid Environment { get; private set; }
         public EnclosureMap Enclosures => enclosureMap;
         public FenceLayout Barriers => fences?.Layout;
-        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree }
+        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone }
         private Tool tool;
         private bool dragging;
         private readonly ConstructionRouteSelection<Vector2Int> pathSelection = new ConstructionRouteSelection<Vector2Int>();
@@ -131,6 +133,8 @@ namespace Mythologicum
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
             var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
+            var graveRoot = new GameObject("Graveyard gravestones"); graveRoot.transform.SetParent(buildings.transform);
+            graves = new GravestoneConstruction(grid, Environment, graveRoot.transform, buildingMaterial);
             groundVegetation = new GroundVegetation(grid, Environment, vegetation);
             entrancePreview = GameObject.CreatePrimitive(PrimitiveType.Cube);
             entrancePreview.name = "Building Entrance Preview";
@@ -156,7 +160,7 @@ namespace Mythologicum
                 () => SelectTool(Tool.Path), SelectFence,
                 () => SelectTool(Tool.Gate),
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
-                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree));
+                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone));
             status = palette.Status;
             var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             creditsObject.transform.SetParent(palette.Root.transform, false);
@@ -201,9 +205,10 @@ namespace Mythologicum
 
         private void SelectTool(Tool selected)
         {
-            if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree)
+            if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
+            gatePreviewKind = null;
             if (modelPreview != null) { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
             foreach (GameObject item in routePreviews)
                 if (item != null) { item.SetActive(false); Destroy(item); }
@@ -232,6 +237,7 @@ namespace Mythologicum
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
+            fences.Refresh(view);
             visitorWorld.Tick(Time.deltaTime);
             float operatingCost = 0f;
             foreach (ParkBuildingRecord building in buildingConstruction.Network.Records)
@@ -270,11 +276,12 @@ namespace Mythologicum
                 ? "Click: place building | R: rotate 90 degrees | Cyan tile: path entrance | Esc: cancel"
                 : tool == Tool.Creature ? "Click: place creature anywhere on clear ground | Esc: cancel"
                 : tool == Tool.Tree ? "Click: plant tree | X tool: remove trees | Esc: finish"
+                : tool == Tool.Gravestone ? "Click: place gravestone | X tool: remove gravestones | Esc: finish"
                 : tool == Tool.Path
                     ? "Startpunkt anklicken | Esc: Abbrechen"
                     : tool == Tool.Fence
                         ? "Startkante anklicken | Esc: Abbrechen"
-                        : tool == Tool.Gate ? "Click an existing wooden fence segment to replace it with a staff gate. | Esc: cancel"
+                        : tool == Tool.Gate ? "Click an eligible fence to add a gate with matching protection. | Esc: cancel"
                         : "Linksklick / Ziehen: Gebautes abreissen | Esc: Fertig";
             Mouse mouse = Mouse.current;
             if (mouse == null || (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
@@ -294,6 +301,7 @@ namespace Mythologicum
             if (tool == Tool.Path) { ApplyPathRoute(mouse, cell); return; }
             if (tool == Tool.Creature) { ApplyCreature(mouse, cell); return; }
             if (tool == Tool.Tree) { ApplyTree(mouse, cell); return; }
+            if (tool == Tool.Gravestone) { ApplyGravestone(mouse, cell); return; }
             ApplyBuilding(mouse, cell);
         }
 
@@ -301,7 +309,8 @@ namespace Mythologicum
         {
             var footprint = new BuildingFootprint(selectedBuilding, cell, buildingRotation);
             bool valid = buildingConstruction.CanPlace(footprint) && !creatureWorld.Occupies(footprint);
-            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied)) valid = false;
+            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)) valid = false;
+            if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)) valid = false;
             bool affordable = economy.CanAfford(selectedBuilding.constructionCost);
             previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(footprint.Center(grid), Quaternion.Euler(0f, -90f * buildingRotation, 0f),
@@ -325,6 +334,16 @@ namespace Mythologicum
             ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, trees.CreateVisual);
             if (!valid) status.text = "Choose clear natural ground without a tree, path or building.";
             if (valid && mouse.leftButton.wasPressedThisFrame && trees.TryPlace(cell))
+            { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+        }
+
+        private void ApplyGravestone(Mouse mouse, Vector2Int cell)
+        {
+            bool valid = graves.CanPlace(cell);
+            previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
+            ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, graves.CreateVisual);
+            if (!valid) status.text = "Choose clear ground without a tree, gravestone, path or building.";
+            if (valid && mouse.leftButton.wasPressedThisFrame && graves.TryPlace(cell))
             { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
         }
 
@@ -374,15 +393,21 @@ namespace Mythologicum
                 if (segment != null) edge = segment.Edge;
             }
             bool valid = fences.CanPlaceGate(edge);
+            FenceKind kind = fences.Layout.KindAt(edge);
+            if (gatePreviewKind != kind)
+            {
+                foreach (GameObject item in routePreviews) if (item != null) { item.SetActive(false); Destroy(item); }
+                routePreviews.Clear(); visiblePreviews = 0; gatePreviewKind = kind;
+            }
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowFencePreview(edge);
-            if (!valid) status.text = "Choose a wooden fence without a gate. Spiked fencing cannot become a gate. | Esc: cancel";
+            if (!valid) status.text = "Choose a wooden, reinforced or sanctified fence without a gate. | Esc: cancel";
             if (valid && mouse.leftButton.wasPressedThisFrame && fences.TryPlaceGate(edge)) SelectTool(Tool.None);
         }
 
         private bool CanPlace(Vector2Int cell)
         {
-            if (trees.Occupies(cell)) return false;
+            if (trees.Occupies(cell) || graves.Occupies(cell)) return false;
             Vector3 center = grid.CellCenter(cell) + Vector3.up * (buildingHeight / 2f);
             Vector3 halfExtents = new Vector3(cellSize / 2f - 0.01f, buildingHeight / 2f - 0.01f, cellSize / 2f - 0.01f);
             return grid.IsAvailable(cell) && !Physics.CheckBox(center, halfExtents,
@@ -505,7 +530,7 @@ namespace Mythologicum
 
         private void ShowFencePreview(FenceEdge edge) => ShowRoutePreview(
             fences.Layout.Center(edge), Quaternion.Euler(0f, edge.AlongX ? 0f : 90f, 0f),
-            parent => fences.CreateVisual(parent, selectedFenceKind, tool == Tool.Gate));
+            parent => fences.CreateVisual(parent, tool == Tool.Gate ? fences.Layout.KindAt(edge) : selectedFenceKind, tool == Tool.Gate));
 
         private DemolitionTarget TargetAt(Vector2 pointer)
         {
@@ -561,6 +586,7 @@ namespace Mythologicum
             creatureInspection?.Dispose();
             groundVegetation?.Dispose();
             trees?.Dispose();
+            graves?.Dispose();
             creatureWorld?.Dispose();
             enclosurePresentation?.Dispose();
             foreach (GameObject item in routePreviews)

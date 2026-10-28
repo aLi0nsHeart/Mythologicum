@@ -88,8 +88,9 @@ public static class FenceAssetValidation
                 Check(!dependencies.Any(p => p.StartsWith("Assets/BrokenVector/")), "Fence dependencies migrated");
                 Check(pair.Item1.GetComponentsInChildren<MonoBehaviour>(true).Length == 0, "No demo or missing scripts");
             }
-            Check(AssetDatabase.GetAssetPath(catalog.heavy).Contains("/Future/") && AssetDatabase.GetAssetPath(catalog.sanctified).Contains("/Future/"), "Heavy and sanctified fences reserved separately");
-            Check(Enum.GetValues(typeof(FenceKind)).Length == 2, "Future fence rules are not added to gameplay yet");
+            Check(catalog.heavy != catalog.normal && catalog.sanctified != catalog.spiked, "Protective fence types retain distinct imported prefabs");
+            Check(Enum.GetValues(typeof(FenceKind)).Length == 4 && (int)FenceKind.Wooden == 0 && (int)FenceKind.Spiked == 1,
+                "Four active fence types preserve original serialized kind values");
             var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
             foreach (float cellSize in new[] { 1f, 2f, 3.5f })
             {
@@ -131,6 +132,25 @@ public static class FenceAssetValidation
                 Check(creatures.CanCross(first.CellA, first.CellB), "Demolition restores creature crossing");
                 grid.TryRemove(first.CellA, BuildCellContent.Path); grid.TryRemove(first.CellB, BuildCellContent.Path);
                 Check(construction.TryPlace(first), "Fence can be rebuilt after demolition");
+                var heavyEdge = new FenceEdge(new Vector2Int(5, 3), true);
+                var sanctifiedEdge = new FenceEdge(new Vector2Int(7, 3), false);
+                Check(construction.TryPlace(heavyEdge, FenceKind.Heavy) && construction.TryPlace(sanctifiedEdge, FenceKind.Sanctified),
+                    "Both protective fence kinds can be built");
+                View(construction, heavyEdge, cellSize, FenceConstruction.HeightFor(FenceKind.Heavy), catalog.heavy);
+                View(construction, sanctifiedEdge, cellSize, FenceConstruction.HeightFor(FenceKind.Sanctified), catalog.sanctified);
+                Check(!climbers.CanCross(heavyEdge.CellA, heavyEdge.CellB) && !climbers.CanCross(sanctifiedEdge.CellA, sanctifiedEdge.CellB),
+                    "Protective fences do not silently inherit wooden climbing permission");
+                Check(construction.Layout.CanPhase(heavyEdge) && !construction.Layout.CanPhase(sanctifiedEdge),
+                    "Heavy permits phasing while sanctified blocks it");
+                float heavyHealth = construction.Layout.HealthAt(heavyEdge);
+                Check(construction.Layout.TryDamage(heavyEdge, 9999) == 0 && construction.Layout.HealthAt(heavyEdge) == heavyHealth,
+                    "Heavy fence retains health under creature attacks");
+                Check(construction.Layout.TryDamage(sanctifiedEdge, 20) > 0 && construction.Layout.HealthAt(sanctifiedEdge) < construction.Layout.MaximumHealthAt(sanctifiedEdge),
+                    "Sanctified fence retains phasing protection while taking physical damage");
+                Check(construction.TryPlaceGate(heavyEdge) && construction.Layout.KindAt(heavyEdge) == FenceKind.Heavy,
+                    "Reinforced gate inherits its fence protection");
+                Check(construction.TryPlaceGate(sanctifiedEdge) && !construction.Layout.CanPhase(sanctifiedEdge),
+                    "Sanctified gate does not create a phasing loophole");
             }
             var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
             var actual = Field<FenceConstruction>(controller, "fences");
@@ -138,10 +158,15 @@ public static class FenceAssetValidation
             var xEdge = new FenceEdge(new Vector2Int(4, 4), true);
             var zEdge = new FenceEdge(new Vector2Int(6, 4), false);
             var gateEdge = new FenceEdge(new Vector2Int(8, 4), true);
-            Check(actual.TryPlace(xEdge) && actual.TryPlace(zEdge, FenceKind.Spiked) && actual.TryPlace(gateEdge) && actual.TryPlaceGate(gateEdge), "All active fence models place in actual game scene");
+            var actualHeavy = new FenceEdge(new Vector2Int(10,4), true);
+            var actualSanctified = new FenceEdge(new Vector2Int(12,4), false);
+            Check(actual.TryPlace(xEdge) && actual.TryPlace(zEdge, FenceKind.Spiked) && actual.TryPlace(gateEdge) && actual.TryPlaceGate(gateEdge)
+                && actual.TryPlace(actualHeavy, FenceKind.Heavy) && actual.TryPlace(actualSanctified, FenceKind.Sanctified), "All active fence models place in actual game scene");
             View(actual, xEdge, 2f, FenceConstruction.Height, catalog.normal);
             View(actual, zEdge, 2f, FenceConstruction.SpikedHeight, catalog.spiked);
             View(actual, gateEdge, 2f, FenceConstruction.Height, catalog.gate);
+            View(actual, actualHeavy, 2f, FenceConstruction.HeightFor(FenceKind.Heavy), catalog.heavy);
+            View(actual, actualSanctified, 2f, FenceConstruction.HeightFor(FenceKind.Sanctified), catalog.sanctified);
             var fallback = new FenceConstruction(new SquareBuildGrid(Vector3.zero, 2f, 4, 4), new GameObject("Fallback fence").transform, material);
             Check(fallback.TryPlace(new FenceEdge(new Vector2Int(1, 1), true)), "Unconfigured callers retain primitive fallback");
             File.WriteAllText("FenceValidationResult.txt", "PASS: " + checks + " checks");

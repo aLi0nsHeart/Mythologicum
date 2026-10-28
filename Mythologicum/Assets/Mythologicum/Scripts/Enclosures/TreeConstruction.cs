@@ -30,7 +30,8 @@ namespace Mythologicum
 
         public bool CanPlace(Vector2Int cell)
         {
-            if (disposed || !grid.IsAvailable(cell) || Occupies(cell) || environment.TreesAt(cell) > 0) return false;
+            if (disposed || !grid.IsAvailable(cell) || Occupies(cell) || environment.TreesAt(cell) > 0
+                || environment.GravestonesAt(cell) > 0) return false;
             return !Physics.CheckBox(grid.CellCenter(cell) + Vector3.up * 1.5f,
                 new Vector3(Mathf.Max(0.01f, grid.CellSize / 2f - 0.08f), 1.49f,
                     Mathf.Max(0.01f, grid.CellSize / 2f - 0.08f)),

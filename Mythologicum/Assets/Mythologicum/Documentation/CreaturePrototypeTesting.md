@@ -1,59 +1,53 @@
-# Chupacabra prototype
+# Creature prototype testing
 
-Restart Play mode after importing the new scripts. Placeholder capsules stand in for creature art.
+Restart Play mode after scripts compile. The creature menu now contains **Goat**, **Chupacabra**, **Hitotsume**, **Yurei** and **Oni**. Chupacabra uses its capsule placeholder; the others use their available models. Unsupported character actions use animation fallbacks.
 
-## Quick test
+## Combat, fear and feeding
 
-1. Place the park entrance as before.
-2. Open **Creatures (C)** at the bottom. Select **Goat**, then click clear ground.
-3. Leave it alone: hunger rises, the goat grazes on natural ground, and hunger falls after its meal. A green patch marks grazing.
-4. Place a **Chupacabra** nearby. It detects prey within 14 metres; the goat starts fleeing when the predator closes to 3 metres. The goat seeks safety about 6 metres from the last perceived danger, then settles as fear fades.
-5. Watch a successful hunt: the Chupacabra briefly lunges, the captured goat shakes, then tips onto its side. The Chupacabra spends 4 seconds feeding before hunger drops. The brief corpse then disappears. These are procedural placeholder movements, not final character animations.
-6. Repeat with a complete wooden fence between them. They can see through it; the goat remains blocked, but the Chupacabra can approach and climb over to pursue prey. Attacks cannot pass through a fence. Closed staff gates block animals.
-7. Remove a fence segment to create a reachable route. The Chupacabra can now pursue its prey through the gap. When prey disappears from view, the hunter follows its last seen location for up to 5 seconds before giving up or choosing another visible target.
+1. Place the park entrance, then select **Creatures (C)** and place a goat on clear ground. It grazes as hunger rises.
+2. Place a hungry Chupacabra nearby. The goat fears it at close range and tries to flee. A successful 40-damage strike kills a full-health, 40-health goat; hunger relief follows feeding rather than target selection.
+3. Click creatures outside construction mode to compare **Origin**, **Health**, **Damage** and **Threat**. Non-lethal strikes reduce health instead of automatically killing their target. Zero health means death, not an awake pause.
+4. Compare species with different threat values. Visible higher-threat creatures can frighten lower-threat creatures within the relevant perception/fear range; equal-threat peers do not automatically frighten each other. Safely fenced exhibits should still be watchable.
+5. Connect visitor paths beside a Hitotsume exhibit. Let it reach a visitor, through an opening or a climbable wooden section. Its timed scare should frighten the visitor and relieve its own hunger without reducing visitor health. Hitotsume has zero damage and cannot damage a fence by striking it.
 
-Creatures can be placed inside or outside enclosures. They move according to barriers and food/threat perception, never an assigned enclosure ID. Small cardinal turns are expected from the current grid movement.
+## Species needs and groups
 
-## Trees and creature needs
+1. Give Chupacabras at least 100 square metres, two nearby trees and a group of 2-3. The information panel's group size includes the selected animal; the species Inspector's companion fields exclude it.
+2. Hitotsume prefers to be alone. Oni tolerates groups up to 3 and needs 500 square metres per animal. Yurei tolerates groups up to 20. Their environmental and space needs still apply even when social preferences are satisfied.
+3. Open **Enclosures (H)** and choose **Place gravestones**. Place at least two near a Yurei and watch its environment satisfaction respond. Gravestones can be removed using **Demolish (X)**.
+4. Outside construction mode, select each species and inspect happiness, health, origin, hunger, fear, energy, environment, group size, space pressure and escape chance.
 
-1. Open **Enclosures (H)** at the bottom and choose **Place trees**. Click empty ground to plant several trees; **Escape** finishes planting. Use **Demolish (X)** to remove them.
-2. Finish construction, then click a creature. The needs panel shows happiness, hunger, fear, energy, exhaustion, sleep requirements, environment, accessible space and herd satisfaction. Click elsewhere to deselect.
-3. A Chupacabra wants **2 reachable trees within 12 metres**, at least **100 square metres** of reachable space, and **no other Chupacabras within its 12-metre herd range**.
-4. Goats need at least **48 square metres** of reachable space and prefer **2-8 other goats within 12 metres**. The selected animal is not included in its companion count. Goats have no tree requirement.
-5. Build a small fenced area and compare space satisfaction with a larger one. Open a gap and observe that accessible area grows; creatures use reachable ground rather than an assigned enclosure.
-6. Plant or remove nearby trees and watch the Chupacabra's environment score change. Trees also change the forest coverage shown when inspecting an enclosure.
+Animals remain free to use any physically available ground. Enclosures describe land and barriers; they do not own a creature. Decorations and keeper intentions do not impose an invisible movement boundary.
 
-Happiness moves gradually toward a score combining hunger, fear, environment, space and herd satisfaction. Below **50 happiness**, agitation increases: the placeholder becomes redder, walks faster and takes shorter idle pauses. Roaming alternates between travel and rest rather than constantly choosing new destinations.
+## Fast sleep test
 
-Trees are walkable enrichment placeholders that now provide Chupacabra sleeping perches. Physical trunk avoidance and final species animations come later.
+1. Stop Play mode. Select a species under **Assets > Mythologicum > Resources > Creatures** and temporarily set **Initial Energy** to **15**.
+2. Restart Play mode and place it. Goat, Hitotsume and Oni can sleep on ground. Chupacabra must reach and climb a tree. Yurei must reach a gravestone and sleep there.
+3. Confirm actual sleeping restores energy toward the default wake threshold of 85. An awake **Resting** pause does not restore it.
+4. Remove an occupied tree or gravestone. Recovery must stop; the creature must seek another suitable site rather than continuing to recover at a removed object.
+5. Restore **Initial Energy** to **100** after testing.
 
-## Energy, sleep and climbing
+## Fences, phasing and destruction
 
-1. Select a creature and watch **Energy** fall while awake. **100 is rested, 0 is exhausted**; **Exhaustion** shows the inverse. Hunting and fleeing drain energy three times faster than normal, and socializing drains it twice as fast. An awake **Resting** pause does not restore energy.
-2. For a quicker test, stop Play mode and temporarily set a species asset's **Initial Energy** to **15**, below its default **Sleep Threshold** of 20. Restart Play mode and place that species. Restore **Initial Energy** to **100** when finished testing.
-3. A tired goat lies down and sleeps on the ground, recovering energy until the default **Wake Threshold** of **85**. A nearby threat can interrupt its rest.
-4. Give a tired Chupacabra a reachable tree: it approaches, visibly climbs up, sleeps above ground, then climbs down before resuming ground movement. Remove reachable trees and confirm it looks for a sleep site instead of recovering on the ground.
-5. With a hungry Chupacabra on one side of a wooden fence and a goat on the other, watch the Chupacabra climb up and over. Goats cannot climb fences.
-6. Choose **Fences > Spiked fence** to build the same barrier with spikes. The Chupacabra approaches, makes a short failed climb attempt, and remains on its original side. Attempts have a retry delay instead of playing every frame. Closed staff gates also prevent climbing.
-7. Place goats together, away from predators: occasional **Socializing** pauses should consume energy faster than idle roaming. Chupacabras are solitary and do not seek socializing.
+1. Build a complete wooden enclosure. A motivated Chupacabra or Hitotsume can climb it; casual wandering does not climb just because a route exists. Goats cannot climb.
+2. Replace a segment with **Spiked** and compare climbing. Spikes block climbing but can receive physical damage.
+3. Place an Oni with food outside a vulnerable barrier. It should approach, strike the fence over time, and cross only after the segment is destroyed. Fence health reaches zero before its visual and barrier disappear. Repeated attacks must not generate repeated demolition effects.
+4. Repeat with **Heavy / reinforced** fence. It is immune to creature strikes, including Oni. It still has a health value, but creature attacks cannot breach it.
+5. For a quick Yurei test, stop Play mode and temporarily set **Initial Hunger** to **85**. Restart and place it with prey beyond a barrier. Its default phasing threshold is **80**: only very hungry Yurei can phase. Its ordinary hunger rate is deliberately slow at 0.15 per second.
+6. Compare wooden, spiked, heavy and sanctified barriers. A very hungry Yurei can phase through the first three, but **Sanctified** blocks phasing. Phasing leaves the barrier intact.
+7. Sanctification does not make a fence physically indestructible: damaging creatures can still attack and destroy sanctified segments. Oni can break sanctified fences, while Yurei can phase through heavy ones. Use the appropriate protection for the animal.
+8. Test matching gate types too; replacing a segment with a gate must preserve that fence type's supernatural or reinforced protection. Restore Yurei's **Initial Hunger** to **20** afterwards.
 
-Climbing, lying down, breathing during sleep and failed climbing use procedural placeholder motions. Fence climbing uses the same physical barrier rules as pathfinding; it is a species ability rather than an enclosure escape switch. Spiked fences can still be bypassed through an open gap or a different reachable route.
+## Exploration and escape urge
 
-## Goat dispenser
+New animals normally explore walkable ground before effortful non-urgent crossings. **Settling Seconds** defaults to 45. Urgent needs, fleeing and deliberate escape intentions can override initial caution.
 
-- Choose **Enclosures > Goat dispenser**. It uses a rotatable 2 x 2 footprint and a dedicated entrance.
-- No path connection is required. The cyan tile marks the animal release point; position it inside the enclosure.
-- It tries to release a goat every **20 seconds** by default, through clear reachable ground near its release point.
-- Dispensers operate independently of the park's path network. Other buildings still need their path connections.
-- Each dispenser keeps at most **12 living released animals** by default. The prototype also caps the whole population at **100** to keep testing manageable.
-- Demolishing a dispenser stops production; its existing goats remain independent animals.
+The information panel shows **Escape urge** per minute, reasons, space pressure and the latest attempt status. Ordinary species have a 0.05% rare baseline per minute; Hitotsume uses 12%. Severe hunger, agitation and crowding add pressure. This is the chance of wanting to try, not of defeating a barrier. Sleeping, urgent actions and retry cooldowns pause attempts. Opening a gap provides an ordinary walking route regardless of enclosure identity.
 
-Dispenser timing, live limit and optional species override are in **Main Camera > Build Mode Controller > Building Catalog > Goat dispenser**. Stop Play mode before making lasting edits. Creature species assets are explained in [CreatureProfiles.md](CreatureProfiles.md).
+## Goat dispenser and prototype scope
 
-## Prototype scope
-
-- Overhead labels display species, current activity, happiness, hunger, fear and energy, plus agitation when applicable. Click a creature outside construction mode for the detailed needs panel.
-- Hunger and fear run from 0 to 100; reaching 100 hunger does not yet cause starvation death.
-- Natural, unpaved ground provides grass. A grazed tile recovers after 20 seconds; roads and buildings are not edible plants. Tree planting affects enrichment and forest coverage separately from grazing.
-- Attacking and feeding have short timed states with procedural placeholder animation. Feeding relief is delayed until the feeding state completes. There is no separate health pool, damage model or combat system yet.
-- Save/load of creatures and visitors comes later.
+- **Enclosures > Goat dispenser** uses the imported one-cell hatch. Rotate it with **R**; its release point must face usable ground. It does not require a path.
+- Defaults remain one release attempt every 20 seconds, up to 12 living goats from each dispenser. The shared simulation population cap is 100, including visitor actors.
+- Demolishing the dispenser stops production while its existing goats remain independent.
+- Hunger at 100 does not yet cause starvation death. A complete medical, breeding and save/load system is not included.
+- Visitor food/rest service and economy tests are described in [VisitorsPrototypeTesting.md](VisitorsPrototypeTesting.md). Species tuning is described in [CreatureProfiles.md](CreatureProfiles.md).

@@ -39,12 +39,16 @@ public static class MonsterAssetValidation
     {
         try
         {
-            var profile = Resources.Load<CreatureDefinition>("Creatures/Chupacabra");
-            Check(profile.visualPrefab != null && AssetDatabase.GetAssetPath(profile.visualPrefab) == "Assets/Mythologicum/Prefabs/Creatures/Hitotume/Hitotume.prefab", "Chupacabra uses Hitotume visual");
-            Check(profile.displayName == "Chupacabra" && profile.diet == CreatureDiet.Carnivore && profile.preyTags == (CreatureTags.Goat | CreatureTags.Visitor), "Species identity and predation rules preserved");
-            Check(profile.requiresTreeForSleep && profile.canClimbWoodenFences && profile.walkSpeed == 1.8f && profile.runSpeed == 5.5f, "Existing movement, climbing and sleep rules preserved");
-            Check(Resources.LoadAll<CreatureDefinition>("Creatures").Length == 2, "Reserved monsters are not added to gameplay catalog");
-            foreach (string name in new[] { "Hitotume", "Oni", "Kuchisakeonna" })
+            var chupacabra = Resources.Load<CreatureDefinition>("Creatures/Chupacabra");
+            var profile = Resources.Load<CreatureDefinition>("Creatures/Hitotsume");
+            Check(chupacabra != null && chupacabra.visualPrefab == null, "Chupacabra intentionally returns to the capsule placeholder");
+            Check(profile != null && profile.visualPrefab != null && AssetDatabase.GetAssetPath(profile.visualPrefab) == "Assets/Mythologicum/Prefabs/Creatures/Hitotume/Hitotume.prefab", "Hitotsume owns the imported Hitotume visual");
+            Check(chupacabra.displayName == "Chupacabra" && chupacabra.diet == CreatureDiet.Carnivore && chupacabra.preyTags == (CreatureTags.Goat | CreatureTags.Visitor), "Chupacabra identity and predation rules preserved");
+            Check(chupacabra.requiresTreeForSleep && chupacabra.canClimbWoodenFences && chupacabra.walkSpeed == 1.8f && chupacabra.runSpeed == 5.5f, "Chupacabra movement, climbing and sleep rules preserved");
+            var profiles = Resources.LoadAll<CreatureDefinition>("Creatures");
+            Check(profiles.Length == 5 && new[] { "Goat", "Chupacabra", "Hitotsume", "Yurei", "Oni" }.All(name => profiles.Any(p => p.displayName == name && p.manuallyPlaceable)), "Five intended species are active in the placement catalog");
+            Check(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mythologicum/Prefabs/Creatures/Kuchisakeonna/Kuchisakeonna.prefab") == null, "Old Kuchisakeonna prefab path is retired after rename");
+            foreach (string name in new[] { "Hitotume", "Oni", "Yurei" })
             {
                 string path = "Assets/Mythologicum/Prefabs/Creatures/" + name + "/" + name + ".prefab";
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -57,8 +61,8 @@ public static class MonsterAssetValidation
                         && m.GetTexture("_BaseMap") != null), "URP materials retain original textures");
                 var instance = UnityEngine.Object.Instantiate(prefab);
                 var animator = instance.GetComponentInChildren<Animator>();
-                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 Check(animator != null && animator.avatar.isValid && animator.avatar.isHuman && !animator.applyRootMotion, "Valid humanoid rig with root motion disabled");
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 foreach (string state in new[] { "idle", "walk_forward", "run_forward" })
                 {
                     Check(animator.HasState(0, Animator.StringToHash("Base Layer." + state)), "Locomotion state resolves: " + state);
@@ -77,13 +81,17 @@ public static class MonsterAssetValidation
             var network = new ParkBuildingNetwork(grid, fences);
             var camera = new GameObject("Camera").AddComponent<Camera>();
             var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            var world = new CreatureWorld(grid, fences, network, camera, material, new[] { profile });
-            Check(world.TrySpawn(profile, new Vector2Int(4, 4)), "Chupacabra spawns through normal creature system");
-            var actor = world.Agents[0];
+            var world = new CreatureWorld(grid, fences, network, camera, material, profiles);
+            Check(world.TrySpawn(chupacabra, new Vector2Int(1, 1)), "Chupacabra spawns through normal creature system");
+            var placeholder = world.Agents[0].transform.GetChild(0);
+            Check(placeholder.name == "Animated placeholder" && placeholder.GetComponent<MeshRenderer>() != null
+                && placeholder.GetComponentInChildren<Animator>() == null, "Chupacabra capsule is independent of all imported monster rigs");
+            Check(world.TrySpawn(profile, new Vector2Int(4, 4)), "Hitotsume spawns through normal creature system");
+            var actor = world.Agents[1];
             var visual = actor.transform.GetChild(0);
             var bodyAnimator = visual.GetComponentInChildren<Animator>();
             bodyAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            Check(visual.name.StartsWith(profile.visualPrefab.name), "Spawned visual is Hitotume");
+            Check(visual.name.StartsWith(profile.visualPrefab.name), "Spawned Hitotsume visual is Hitotume");
             Check(actor.GetComponent<Collider>().isTrigger && visual.GetComponentsInChildren<Collider>().All(c => !c.enabled), "Simulation selection and navigation colliders preserved");
             var animate = typeof(CreatureWorld).GetMethod("Animate", BindingFlags.NonPublic | BindingFlags.Instance);
             var route = (IList)typeof(CreatureAgent).GetField("Route", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(actor);
@@ -110,11 +118,26 @@ public static class MonsterAssetValidation
             Bounds bounds = renderers[0].bounds;
             foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
             Debug.Log("MONSTER MODEL BOUNDS: " + bounds);
-            Check(bounds.size.y > 1.2f && bounds.size.y < 2.2f, "Hitotume uses appropriate Chupacabra scale");
+            Check(bounds.size.y > 1.2f && bounds.size.y < 2.2f, "Hitotsume uses appropriate humanoid scale");
             Check(Mathf.Abs(bounds.min.y) < 0.2f, "Hitotume feet align to ground");
             typeof(CreatureAgent).GetProperty("Alive").SetValue(actor, false);
             animate.Invoke(world, new object[] { actor });
             Check(!bodyAnimator.enabled, "Monster without death clip stops animating when dead");
+            foreach (var pair in new[] { ("Yurei", new Vector2Int(7, 4)), ("Oni", new Vector2Int(9, 7)) })
+            {
+                var species = Resources.Load<CreatureDefinition>("Creatures/" + pair.Item1);
+                Check(species != null && species.visualPrefab != null, "Active species retains imported visual: " + pair.Item1);
+                Check(AssetDatabase.GetAssetPath(species.visualPrefab) == "Assets/Mythologicum/Prefabs/Creatures/" + pair.Item1 + "/" + pair.Item1 + ".prefab", "Species visual uses its intended prefab: " + pair.Item1);
+                Check(world.TrySpawn(species, pair.Item2), "Active species spawns its visual: " + pair.Item1);
+                var spawned = world.Agents[world.Agents.Count - 1];
+                var model = spawned.transform.GetChild(0);
+                var modelAnimator = model.GetComponentInChildren<Animator>();
+                Check(modelAnimator != null && modelAnimator.avatar.isValid && modelAnimator.avatar.isHuman && !modelAnimator.applyRootMotion, "Spawned rig remains animation compatible: " + pair.Item1);
+                Check(model.GetComponentsInChildren<Collider>(true).All(c => !c.enabled), "Spawned visual preserves simulation collider ownership: " + pair.Item1);
+                var skin = model.GetComponentsInChildren<Renderer>();
+                Check(skin.Length > 0 && skin.All(r => r.sharedMaterials.All(m => m != null && m.shader.name == "Universal Render Pipeline/Lit")), "Spawned renderers keep imported URP materials: " + pair.Item1);
+                Check(Mathf.Abs(model.localPosition.y + species.bodyScale.y) < .001f, "Spawned foot-origin model is aligned with simulation ground: " + pair.Item1);
+            }
             File.WriteAllText("MonsterValidationResult.txt", "PASS: " + checks + " checks");
             Debug.Log("MONSTER VALIDATION PASSED: " + checks + " checks");
             EditorApplication.Exit(0);

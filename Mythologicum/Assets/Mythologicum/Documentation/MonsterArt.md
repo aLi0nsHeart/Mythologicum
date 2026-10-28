@@ -1,14 +1,31 @@
 # Yokai monster art
 
-The Chupacabra currently uses **Hitotume** from tt-3d's Low Poly Japanese Yokai Stater pack (Asset Store product 386276). Its name, diet, prey tags, needs, movement, climbing and sleep rules remain unchanged. Only `visualPrefab` and `visualScale` were added to the Chupacabra definition.
+The three supplied models from tt-3d's **Low Poly Japanese Yokai Stater pack**, Asset Store product 386276, now represent independent playable species:
 
-All three supplied creatures are retained in species folders under `Prefabs/Creatures`, `Models/Creatures`, `Materials/Creatures` and `Textures/Creatures`:
+| Gameplay species | Visual prefab | Gameplay definition |
+| --- | --- | --- |
+| Hitotsume | `Prefabs/Creatures/Hitotume/Hitotume.prefab` | `Resources/Creatures/Hitotsume.asset` |
+| Yurei | `Prefabs/Creatures/Yurei/Yurei.prefab` | `Resources/Creatures/Yurei.asset` |
+| Oni | `Prefabs/Creatures/Oni/Oni.prefab` | `Resources/Creatures/Oni.asset` |
 
-- **Hitotume**: assigned to `Resources/Creatures/Chupacabra.asset`, scaled to approximately the existing 1.7-metre body height.
-- **Oni** and **Kuchisakeonna**: prefabs reserved for future species. They have no gameplay definitions and do not appear in the creature placement catalog.
+Chupacabra has returned to the capsule placeholder: its species asset has no visual prefab. Its climbing, tree sleep and hunter identity remain independent of the humanoid models.
 
-The imported assets retain their original GUIDs. Original textures/colors are preserved while materials are converted from Standard to URP Lit. Publisher documentation remains in `Documentation/ThirdParty/tt-3d`. The original pack folder and demonstration scene were removed after dependency checks.
+## Yurei rename and source assets
 
-The pack contains humanoid rigs but no animation clips. `Animations/Creatures/Yokai/Yokai.controller` is a separate copy of the civilian humanoid locomotion controller, sharing the existing idle/walk/run clips in `Animations/People`. All three monster prefabs use it with root motion disabled. Chupacabra AI still controls movement and chooses idle/walk/run as appropriate. Dedicated attack, eating, sleep and climbing clips are not supplied; unsupported actions use the existing idle fallback. Death uses the existing stopped-animation/lying-down fallback.
+The former Kuchisakeonna folders and asset filenames under **Models**, **Prefabs**, **Materials** and **Textures** were renamed to **Yurei**. Prefab and material display names were updated. All original `.meta` GUIDs were preserved, keeping mesh, material, texture, avatar and prefab references intact.
 
-`Tests/Creatures/Unity/MonsterAssetValidation.cs` passes 89 isolated Unity 6000.0.74f1 Play-mode checks. It checks the three retained prefabs, URP textures, humanoid rigs, actual retargeted bone movement, Chupacabra profile identity and spawning, movement-state animation selection, safe action fallbacks, scale/ground alignment, colliders and exclusion of future species from gameplay. The headless harness disables animation culling on its temporary instances to evaluate bone motion without a rendered camera. Run it using the established isolated-project workflow with `-executeMethod MonsterAssetValidation.Start` and without `-quit`.
+Original source FBX embedded material identifiers and `AssetOrigin` publisher paths still contain the source name. They are retained for correct source material matching and provenance; changing them is not required to rename the playable species. Publisher documentation remains in `Documentation/ThirdParty/tt-3d`. The Hitotume source folder spelling is retained while the playable profile uses Hitotsume.
+
+Original textures/colors remain intact. The imported materials use URP Lit, and imported visual colliders are disabled so gameplay owns movement, collisions and barrier permissions. Each species' **visualScale** controls art size independently of **bodyScale**, which describes the simulation body.
+
+## Animation coverage
+
+The source pack contains humanoid rigs but no dedicated animation clips. All three prefabs use `Animations/Creatures/Yokai/Yokai.controller`, sharing civilian idle/walk/run clips from `Animations/People`, with root motion disabled. Gameplay chooses the supported locomotion state.
+
+Dedicated attack, scare, eating, grave sleep, phasing and fence-breaking character clips are not supplied. Unsupported actions therefore use safe animation fallbacks while the simulation performs its timed action and movement. Death stops unsupported animation and uses a lying-down fallback. These limitations affect visual polish, not species identity or fence permissions.
+
+## Validation
+
+`Tests/Creatures/RunChecks.ps1` compiles current runtime code and runs logic suites, including health checks. Separate Unity harnesses under `Tests/Creatures/Unity` exercise imported art and gameplay in an isolated project. Asset validations written for the previous Chupacabra-to-Hitotume mapping must use the current independent species and Yurei paths; older validation totals are not evidence for the new gameplay rules.
+
+Check the game visually for individual model scale, ground alignment, locomotion, death fallback and preserved materials. Creature gameplay testing is described in [CreaturePrototypeTesting.md](CreaturePrototypeTesting.md).
