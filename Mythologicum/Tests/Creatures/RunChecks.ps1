@@ -38,6 +38,8 @@ try {
     $checks = @('CreatureModelChecks', 'CreatureNavigationTests', 'GrazingFieldChecks', 'BuildingOperatingChecks',
         'CreatureWellbeingChecks', 'EnvironmentTreeChecks', 'CreatureEnergyChecks', 'FenceClimbingChecks', 'CreatureExplorationChecks', 'CreatureEscapeChecks')
     $checks += @('..\Visitors\VisitorModelChecks', '..\Visitors\VisitorNavigationChecks', '..\Visitors\EconomyChecks')
+    $checks += @('CreatureHealthChecks', 'FenceHealthChecks', 'FenceCapabilityChecks', 'GraveEnvironmentChecks')
+    $checks += @('FenceRepairChecks', '..\Buildings\BuildingAccountChecks', '..\Staff\StaffNavigationChecks', '..\Staff\ResearchChecks')
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force
     $env:MONO_PATH = $unityAssemblies

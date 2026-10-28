@@ -90,7 +90,7 @@ public static class BuildingAssetValidation
         try
         {
             var catalog = Resources.Load<BuildingVisualCatalog>("Buildings/BuildingVisuals");
-            Check(catalog != null && catalog.activeBuildings.Length == 5, "Five active building visuals configured");
+            Check(catalog != null && catalog.activeBuildings.Length == 5, "Five original building visual mappings remain configured");
             var expected = new Dictionary<BuildingKind, string> {
                 { BuildingKind.RestArea, "Env_CommercialBuilding_04" }, { BuildingKind.Kiosk, "Env_CommercialBuilding_03" },
                 { BuildingKind.ParkEntrance, "Env_CommercialBuilding_02" }, { BuildingKind.ExpeditionCentre, "Env_CommercialBuilding_01" },
@@ -102,26 +102,45 @@ public static class BuildingAssetValidation
                 Check(dependencies.Contains("Assets/Mythologicum/Models/Buildings/" + expected[entry.kind] + ".fbx"), "Requested model assigned: " + entry.kind);
                 Check(!dependencies.Any(p => p.StartsWith("Assets/Pandazole_Ultimate_Pack/")), "Dependencies organized");
             }
-            var reserved = new[] { (catalog.researchCentre, "Env_Motel_04"), (catalog.mercenary, "Env_ResidentBuilding_02"), (catalog.zookeeper, "Env_ResidentBuilding_05") };
-            foreach (var pair in reserved)
+            var employeeModels = new[] { (BuildingKind.ResearchCentre,catalog.researchCentre,"Env_Motel_04"),
+                (BuildingKind.MercenaryHQ,catalog.mercenary,"Env_ResidentBuilding_02"),
+                (BuildingKind.ZookeeperHut,catalog.zookeeper,"Env_ResidentBuilding_05") };
+            var employeeDefinitions = BuildingDefinition.Defaults(); catalog.ApplyTo(employeeDefinitions);
+            foreach (var assignment in employeeModels)
             {
-                Check(pair.Item1 != null && AssetDatabase.GetAssetPath(pair.Item1).Contains("/Future/"), "Future building retained separately");
-                Check(AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(pair.Item1), true).Contains("Assets/Mythologicum/Models/Buildings/" + pair.Item2 + ".fbx"), "Future role matches requested model");
-                Check(!catalog.activeBuildings.Any(e => e.prefab == pair.Item1), "Future building excluded from active catalog");
+                Check(assignment.Item2 != null, "Employee building model is available: " + assignment.Item1);
+                Check(AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(assignment.Item2), true).Contains("Assets/Mythologicum/Models/Buildings/" + assignment.Item3 + ".fbx"), "Employee role matches requested model");
+                BuildingDefinition employee = employeeDefinitions.Single(definition => definition.kind == assignment.Item1);
+                Check(employee.IsEmployeeBuilding && employee.visualPrefab == assignment.Item2, "Employee building is active and uses its assigned imported model");
+                Check(!catalog.activeBuildings.Any(e => e.prefab == assignment.Item2), "Employee catalogue fallback preserves the original visual entries");
             }
-            Check(Enum.GetValues(typeof(BuildingKind)).Length == 5, "No future gameplay building kinds introduced");
+            Check(Enum.GetValues(typeof(BuildingKind)).Length == 8 && (int)BuildingKind.RestArea == 4,
+                "Three employee building kinds append to the five original serialized values");
             var custom = BuildingDefinition.Defaults();
             custom[2].constructionCost = 1234f; custom[2].foodPrice = 19f;
             catalog.ApplyTo(custom);
             Check(custom[2].constructionCost == 1234f && custom[2].foodPrice == 19f, "Applying visuals preserves economic tuning");
+            var existingKeeper=custom.Single(d=>d.kind==BuildingKind.ZookeeperHut);
+            existingKeeper.width=4; existingKeeper.depth=4; existingKeeper.staffSalaryPerSecond=7;
+            catalog.ApplyTo(custom);
+            Check(existingKeeper.width==4 && existingKeeper.depth==2 && existingKeeper.staffSalaryPerSecond==7,
+                "Visual catalogue updates previous staff footprints while preserving salary tuning");
             var goat = custom.Single(d => d.kind == BuildingKind.GoatDispenser);
             Check(goat.width == 1 && goat.depth == 1, "Goat dispenser occupies exactly one cell");
+            Check(custom.Single(d=>d.kind==BuildingKind.ZookeeperHut).width==4
+                && custom.Single(d=>d.kind==BuildingKind.ZookeeperHut).depth==2,"Zookeeper station uses a four-by-two footprint");
+            Check(custom.Single(d=>d.kind==BuildingKind.ResearchCentre).width==12
+                && custom.Single(d=>d.kind==BuildingKind.ResearchCentre).depth==10
+                && custom.Single(d=>d.kind==BuildingKind.ResearchCentre).height==10,"Research centre reserves space for its doubled model");
+            Check(custom.Single(d=>d.kind==BuildingKind.MercenaryHQ).width==10
+                && custom.Single(d=>d.kind==BuildingKind.MercenaryHQ).depth==8
+                && custom.Single(d=>d.kind==BuildingKind.MercenaryHQ).height==8,"Mercenary station reserves space for its doubled model");
             var camera = new GameObject("Validation camera").AddComponent<Camera>();
             var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
             var markerMaterial = new Material(material) { color = Color.cyan };
             for (int rotation = 0; rotation < 4; rotation++)
             {
-                var grid = new SquareBuildGrid(new Vector3(200 + rotation * 200, 3, 200), 2, 80, 30);
+                var grid = new SquareBuildGrid(new Vector3(200 + rotation * 300, 3, 200), 2, 120, 30);
                 var fences = new FenceLayout(grid);
                 var parent = new GameObject("Rotation " + rotation);
                 var construction = new BuildingConstruction(grid, fences, parent.transform, material, markerMaterial);
@@ -136,6 +155,7 @@ public static class BuildingAssetValidation
                     Check(footprint.Cells().Count() == definition.width * definition.depth
                         && footprint.Cells().All(c => grid.ContentAt(c) == BuildCellContent.Building), "Whole footprint reserved");
                     var record = construction.Network.Records.Last();
+                    Check(root.GetComponent<BuildingSelection>().Record == record, "Building selection points to this placed building's accounts");
                     Check(record.IsOpen == (definition.kind == BuildingKind.GoatDispenser), "Path requirement preserved");
                     Check(!construction.TryPlace(footprint), "Overlapping placement rejected");
                 }
@@ -151,7 +171,7 @@ public static class BuildingAssetValidation
             }
             var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
             var actualDefinitions = Field<BuildingDefinition[]>(controller, "buildingCatalog");
-            Check(actualDefinitions.Length == 5 && actualDefinitions.All(d => d.visualPrefab != null), "Actual game loads mapped models before creating construction palette");
+            Check(actualDefinitions.Length == 8 && actualDefinitions.All(d => d.visualPrefab != null), "Actual game loads all eight mapped models before creating construction palette");
             var actualGrid = Field<SquareBuildGrid>(controller, "grid");
             var builder = Field<BuildingConstruction>(controller, "buildingConstruction");
             var roots = Field<GameObject>(controller, "buildings");
@@ -162,7 +182,10 @@ public static class BuildingAssetValidation
             var anchors = new Dictionary<BuildingKind, Vector2Int> {
                 { BuildingKind.ParkEntrance, new Vector2Int(2, 3) }, { BuildingKind.ExpeditionCentre, new Vector2Int(12, 10) },
                 { BuildingKind.Kiosk, new Vector2Int(32, 8) }, { BuildingKind.RestArea, new Vector2Int(35, 30) },
-                { BuildingKind.GoatDispenser, new Vector2Int(42, 42) }
+                { BuildingKind.GoatDispenser, new Vector2Int(42, 42) },
+                { BuildingKind.ResearchCentre, new Vector2Int(2, 30) }, { BuildingKind.MercenaryHQ, new Vector2Int(16, 30) },
+                // Keep the staff building and its entrance clear of the scene's landmarks.
+                { BuildingKind.ZookeeperHut, new Vector2Int(28, 40) }
             };
             foreach (var definition in actualDefinitions)
             {

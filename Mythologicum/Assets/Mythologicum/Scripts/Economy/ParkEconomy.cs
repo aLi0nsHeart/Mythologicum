@@ -9,6 +9,10 @@ namespace Mythologicum
         public float Income { get; private set; }
         public float Expenses { get; private set; }
         public bool UnlimitedFunds { get; set; }
+        public void Restore(float balance, float income, float expenses, bool unlimited)
+        {
+            Balance = balance; Income = income; Expenses = expenses; UnlimitedFunds = unlimited;
+        }
 
         public ParkEconomy(float startingBalance = 5000f)
         {

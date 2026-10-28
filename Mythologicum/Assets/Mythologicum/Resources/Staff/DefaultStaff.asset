@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e952283910f48df99ea8c958f308c5d, type: 3}
+  m_Name: DefaultStaff
+  m_EditorClassIdentifier: 
+  walkSpeed: 2.2
+  runSpeed: 4
+  perceptionRange: 14
+  threatFleeRange: 3
+  shootingRange: 8
+  shotInterval: 1
+  mercenaryDamage: 35
+  mercenaryStrength: 35
+  regroupDistance: 3
+  sedationSeconds: 90
+  healPerSecond: 20
+  repairPerSecond: 30
+  restockSeconds: 3
+  studyRange: 10
+  researchPerSecond: 1

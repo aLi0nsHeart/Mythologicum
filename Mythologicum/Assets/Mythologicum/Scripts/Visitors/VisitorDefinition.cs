@@ -12,7 +12,7 @@ namespace Mythologicum
         [Header("Arrivals")]
         [Min(.1f)] public float spawnInterval = 8f;
         [Min(0)] public int maximumVisitors = 30;
-        [Min(0f)] public float ticketPrice = 15f;
+        [HideInInspector] public float ticketPrice = 15f; // Legacy data; the entrance now owns its editable price.
 
         [Header("Needs")]
         [Range(0f, 100f)] public float initialHunger = 20f;

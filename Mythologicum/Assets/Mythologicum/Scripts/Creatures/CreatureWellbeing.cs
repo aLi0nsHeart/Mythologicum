@@ -24,6 +24,7 @@ namespace Mythologicum
     {
         public float Happiness { get; private set; } = 75f;
         public float Agitation { get; private set; }
+        public void Restore(float happiness, float agitation) { Happiness = ClampScore(happiness); Agitation = Math.Max(0f, Math.Min(1f, agitation)); }
         public CreatureNeedScores Scores { get; private set; }
 
         public static CreatureNeedScores Evaluate(float hunger, float fear, float accessibleArea,

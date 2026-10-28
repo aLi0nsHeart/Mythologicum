@@ -62,6 +62,7 @@ namespace Mythologicum
             int seconds = Mathf.Max(0, Mathf.FloorToInt(selected.TimeInPark));
             details.text = $"Visitor - {Readable(selected.Activity.ToString())}\n"
                 + $"Satisfaction: {selected.Mood.Satisfaction:0}/100\n"
+                + $"Health: {actor.Health.Current:0}/{actor.Health.Maximum:0}\n"
                 + $"Hunger: {actor.Vitals.Hunger:0}/100\n"
                 + $"Fear: {actor.Vitals.Fear:0}/100\n"
                 + $"Energy: {actor.Energy.Energy:0}/100\n"

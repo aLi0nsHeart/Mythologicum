@@ -48,6 +48,7 @@ namespace Mythologicum
             if (record == null) return false;
             BuildingDefinition definition = footprint.Definition;
             var root = new GameObject(definition.displayName);
+            root.AddComponent<BuildingSelection>().Initialize(record);
             root.transform.SetParent(parent);
             root.transform.position = footprint.Center(grid);
             root.transform.rotation = Quaternion.Euler(0f, -90f * footprint.Rotation, 0f);
@@ -165,6 +166,12 @@ namespace Mythologicum
                 ParkBuildingRecord record = pair.Key;
                 View view = pair.Value;
                 view.Label.transform.rotation = camera.transform.rotation;
+                string state = record.IsOpen ? "Open" : "Closed: no path connection";
+                if (record.Footprint.Definition.kind == BuildingKind.GoatDispenser)
+                    state += record.FeedStock > 0 ? $" | Stock {record.FeedStock}/{record.Footprint.Definition.feederCapacity}"
+                        : " | Empty: waiting for zookeeper";
+                if (record.Footprint.Definition.IsEmployeeBuilding) state += $" | Personnel {record.HiredCount}/{ParkBuildingRecord.EmployeeCapacity}";
+                view.Label.text = record.Footprint.Definition.displayName + "\n" + state;
                 if (view.LastOpen == record.IsOpen) continue;
                 view.LastOpen = record.IsOpen;
                 Color color = record.IsOpen ? record.Footprint.Definition.openColor : new Color(0.85f, 0.12f, 0.1f);
@@ -178,7 +185,6 @@ namespace Mythologicum
                 view.Marker.SetPropertyBlock(properties);
                 view.Marker.enabled = record.Footprint.Definition.RequiresPathConnection && !record.IsOpen;
                 view.Label.color = record.IsOpen ? Color.white : new Color(1f, 0.45f, 0.35f);
-                view.Label.text = record.Footprint.Definition.displayName + (record.IsOpen ? "\nOpen" : "\nClosed: no path connection");
             }
         }
     }

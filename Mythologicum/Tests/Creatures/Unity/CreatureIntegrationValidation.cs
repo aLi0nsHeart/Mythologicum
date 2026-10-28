@@ -68,11 +68,16 @@ public static class CreatureIntegrationValidation
             Goat.tags = CreatureTags.Goat; Goat.fearedTags = CreatureTags.None;
             Goat.initialHunger = 0; Goat.hungerPerSecond = 0; Goat.walkSpeed = 0;
             Goat.runSpeed = 4.5f; Goat.decisionInterval = 0.1f; Goat.visionRange = 100;
+            Goat.threat = 5; Goat.maximumHealth = 40;
             Predator = ScriptableObject.CreateInstance<CreatureDefinition>();
             Predator.displayName = "Test Chupacabra"; Predator.diet = CreatureDiet.Carnivore;
             Predator.tags = CreatureTags.Predator; Predator.preyTags = CreatureTags.Goat;
             Predator.initialHunger = 100; Predator.hungerPerSecond = 0;
             Predator.runSpeed = 5.5f; Predator.visionRange = 100; Predator.decisionInterval = 0.1f;
+            Predator.threat = 40; Predator.damage = 40;
+            // Escape probabilities have their own suites; keep these timing regressions deterministic.
+            Goat.randomEscapeChance = Goat.hungryEscapeChance = Goat.agitatedEscapeChance = Goat.crowdedEscapeChance = 0;
+            Predator.randomEscapeChance = Predator.hungryEscapeChance = Predator.agitatedEscapeChance = Predator.crowdedEscapeChance = 0;
             // Regression scenarios keep fatigue disabled unless a test explicitly enables it.
             Goat.initialEnergy = Predator.initialEnergy = 100;
             Goat.energyDrainPerSecond = Predator.energyDrainPerSecond = 0;
@@ -206,6 +211,7 @@ public static class CreatureIntegrationValidation
 
         f = new Fixture(6,3);
         f.Predator.canClimbWoodenFences = true; f.Predator.failedClimbSeconds = 1;
+        f.Predator.damage = 0; // This case isolates climbing rejection, not destructible fence combat.
         f.Predator.climbRetrySeconds = 5;
         for (int y = 0; y < 3; y++) f.Fences.TryAdd(new FenceEdge(V(3,y), false), FenceKind.Spiked);
         f.World.TrySpawn(f.Predator, V(2,1)); f.World.TrySpawn(f.Goat, V(4,1));
@@ -249,6 +255,7 @@ public static class CreatureIntegrationValidation
 
         f = new Fixture(6,3);
         f.Predator.canClimbWoodenFences = true; f.Predator.fenceClimbSeconds = 2;
+        f.Predator.damage = 0; // Keep testing upgrade containment after the interrupted climb.
         for (int y = 0; y < 3; y++) f.Fences.TryAdd(new FenceEdge(V(3,y), false));
         f.World.TrySpawn(f.Predator, V(2,1)); f.World.TrySpawn(f.Goat, V(4,1));
         predator = f.Agent("Test Chupacabra");
@@ -264,6 +271,7 @@ public static class CreatureIntegrationValidation
 
         f = new Fixture(7,3);
         f.Predator.canClimbWoodenFences = true; f.Predator.walkSpeed = 0;
+        f.Predator.damage = 0; // This case tests target selection across unrelated barriers.
         for (int y = 0; y < 3; y++)
         {
             f.Fences.TryAdd(new FenceEdge(V(2,y), false), FenceKind.Spiked);
@@ -382,7 +390,7 @@ public static class CreatureIntegrationValidation
         try
         {
             CreatureDefinition[] loadedProfiles = Resources.LoadAll<CreatureDefinition>("Creatures");
-            Check(loadedProfiles.Length == 2, "Resources.LoadAll finds exactly two creature profiles");
+            Check(loadedProfiles.Length == 5, "Resources.LoadAll finds five intended creature profiles");
             Check(Array.Exists(loadedProfiles, profile => profile.diet == CreatureDiet.Carnivore
                 && profile.displayName == "Chupacabra" && profile.preyTags.HasFlag(CreatureTags.Goat)),
                 "Loaded Chupacabra profile is a goat-hunting carnivore");
@@ -396,6 +404,9 @@ public static class CreatureIntegrationValidation
             Check(Resources.Load<CreatureDefinition>("Creatures/Chupacabra").requiresTreeForSleep
                 && Resources.Load<CreatureDefinition>("Creatures/Chupacabra").canClimbWoodenFences,
                 "Authored Chupacabra profile requires tree sleep and enables fence climbing");
+            Check(Resources.Load<CreatureDefinition>("Creatures/Chupacabra").minimumCompanions == 1
+                && Resources.Load<CreatureDefinition>("Creatures/Chupacabra").maximumCompanions == 2,
+                "Authored Chupacabra herd preference is two to three total animals");
             Check(!Resources.Load<CreatureDefinition>("Creatures/Goat").requiresTreeForSleep
                 && !Resources.Load<CreatureDefinition>("Creatures/Goat").canClimbWoodenFences,
                 "Authored goat profile sleeps on ground and cannot climb fences");
@@ -403,12 +414,12 @@ public static class CreatureIntegrationValidation
             CheckSleepAndClimbing();
             CheckConstructionDuringTraversal();
             var f = new Fixture();
+            f.Goat.fearRange = 3f; // Match the authored goat now that numeric threat drives flight.
             Check(f.World.TrySpawn(f.Predator, V(1,1)), "CreatureWorld spawns predator on empty natural ground");
             Check(!f.World.CanSpawn(V(1,1)), "Spawn rejects occupied creature position");
             Check(f.World.TrySpawn(f.Goat, V(3,1)), "CreatureWorld spawns goat independently of enclosures");
-            f.Tick(9);
-            Check(f.World.Population == 1, "Hungry predator hunts and consumes reachable goat");
-            Check(f.Agent("Test Chupacabra").Vitals.Hunger < 50, "Successful hunting reduces hunger");
+            Check(f.Until(() => f.World.Population == 1, 20), "Hungry predator hunts and consumes reachable goat");
+            Check(f.Until(() => f.Agent("Test Chupacabra").Vitals.Hunger < 50, 6), "Finishing the meal after a successful hunt reduces hunger");
 
             f = new Fixture();
             f.Goat.initialHunger = 90; f.Goat.grazeSeconds = 0.2f;
@@ -439,13 +450,14 @@ public static class CreatureIntegrationValidation
             Check(calm.Vitals.Fear > 0 && calm.Activity == CreatureActivity.Fleeing, "Predator at two metres frightens goat");
 
             f = new Fixture(5,3);
+            f.Predator.damage = 0; // Closed-gate movement test excludes deliberate fence destruction.
             for (int y = 0; y < 3; y++) f.Fences.TryAdd(new FenceEdge(V(2,y), false));
             f.Fences.TrySetGate(new FenceEdge(V(2,1), false));
             f.World.TrySpawn(f.Predator, V(1,1)); f.World.TrySpawn(f.Goat, V(2,1)); f.Tick(8);
             Check(f.World.Population == 2, "Closed staff gate prevents predation through a fence");
             Check(f.Agent("Test Chupacabra").Cell.x < 2 && f.Agent("Test goat").Cell.x >= 2,
                 "Creature movement stays on respective sides of closed barrier");
-            f.Fences.TryRemove(new FenceEdge(V(2,1), false)); f.Tick(10);
+            f.Fences.TryRemove(new FenceEdge(V(2,1), false)); f.Predator.damage = 40; f.Tick(10);
             Check(f.World.Population == 1, "Opening fence gap makes prey reachable for hunting");
 
             f = new Fixture(8,5);

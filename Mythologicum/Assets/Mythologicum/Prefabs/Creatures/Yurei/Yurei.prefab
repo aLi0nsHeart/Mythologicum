@@ -107,7 +107,7 @@ GameObject:
   - component: {fileID: 98660547407361071}
   - component: {fileID: 4390654340129060983}
   m_Layer: 0
-  m_Name: Kuchisakeonna
+  m_Name: Yurei
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -866,7 +866,7 @@ GameObject:
   - component: {fileID: 3223249364769111365}
   - component: {fileID: 3866797586295047030}
   m_Layer: 0
-  m_Name: Kuchisakeonna
+  m_Name: Yurei
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1118,7 +1118,7 @@ GameObject:
   - component: {fileID: 1336143668535035248}
   - component: {fileID: 8569314473081494630}
   m_Layer: 0
-  m_Name: Kuchisakeonna_hair
+  m_Name: Yurei_hair
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

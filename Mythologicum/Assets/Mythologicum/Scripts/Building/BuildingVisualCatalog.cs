@@ -19,13 +19,29 @@ namespace Mythologicum
     public sealed class BuildingVisualCatalog : ScriptableObject
     {
         public BuildingVisual[] activeBuildings = new BuildingVisual[0];
-        [Header("Reserved for future systems")]
+        [Header("Employee building models")]
         public GameObject researchCentre;
         public GameObject mercenary;
         public GameObject zookeeper;
 
         public void ApplyTo(BuildingDefinition[] definitions)
         {
+            BuildingDefinition[] appearanceDefaults = BuildingDefinition.Defaults();
+            foreach (BuildingDefinition definition in definitions)
+            {
+                // Reuse the imported models without rewriting the existing visual catalogue asset.
+                GameObject staffModel = definition.kind == BuildingKind.ResearchCentre ? researchCentre
+                    : definition.kind == BuildingKind.MercenaryHQ ? mercenary
+                    : definition.kind == BuildingKind.ZookeeperHut ? zookeeper : null;
+                if (staffModel != null && definition.visualPrefab == null)
+                { definition.visualPrefab = staffModel; definition.visualYaw = 180f; }
+                if (staffModel != null)
+                {
+                    // Existing Inspector catalogues may still contain the previous placeholder sizes.
+                    BuildingDefinition appearance = Array.Find(appearanceDefaults, item => item.kind == definition.kind);
+                    definition.width = appearance.width; definition.depth = appearance.depth; definition.height = appearance.height;
+                }
+            }
             foreach (BuildingVisual visual in activeBuildings)
                 foreach (BuildingDefinition definition in definitions)
                     if (definition.kind == visual.kind)

@@ -50,7 +50,8 @@ namespace Mythologicum
             if (gridRevision == grid.Revision && environmentRevision == environment.Revision) return;
             foreach (var pair in cells)
             {
-                bool visible = grid.IsAvailable(pair.Key) && environment.TreesAt(pair.Key) == 0;
+                bool visible = grid.IsAvailable(pair.Key) && environment.TreesAt(pair.Key) == 0
+                    && environment.GravestonesAt(pair.Key) == 0;
                 if (pair.Value.activeSelf != visible) pair.Value.SetActive(visible);
             }
             gridRevision = grid.Revision;

@@ -18,14 +18,18 @@ namespace Mythologicum
         private readonly FenceLayout fences;
         private readonly Predicate<Vector2Int> physicalCellClear;
         private readonly bool canClimbWoodenFences;
+        private readonly bool canPhaseFences, canAttackFences;
 
         public CreatureNavigation(SquareBuildGrid grid, FenceLayout fences,
-            Predicate<Vector2Int> physicalCellClear = null, bool canClimbWoodenFences = false)
+            Predicate<Vector2Int> physicalCellClear = null, bool canClimbWoodenFences = false,
+            bool canPhaseFences = false, bool canAttackFences = false)
         {
             this.grid = grid ?? throw new ArgumentNullException(nameof(grid));
             this.fences = fences ?? throw new ArgumentNullException(nameof(fences));
             this.physicalCellClear = physicalCellClear;
             this.canClimbWoodenFences = canClimbWoodenFences;
+            this.canPhaseFences = canPhaseFences;
+            this.canAttackFences = canAttackFences;
         }
 
         public bool IsWalkable(Vector2Int cell) => grid.Contains(cell)
@@ -38,7 +42,9 @@ namespace Mythologicum
             var edge = from.x != to.x
                 ? new FenceEdge(new Vector2Int(Math.Max(from.x, to.x), from.y), false)
                 : new FenceEdge(new Vector2Int(from.x, Math.Max(from.y, to.y)), true);
-            return !fences.HasFence(edge) || (canClimbWoodenFences && fences.CanClimb(edge));
+            return !fences.HasFence(edge) || (canClimbWoodenFences && fences.CanClimb(edge))
+                || (canPhaseFences && fences.CanPhase(edge))
+                || (canAttackFences && fences.KindAt(edge) != FenceKind.Heavy);
         }
 
         public IEnumerable<Vector2Int> Neighbors(Vector2Int cell)

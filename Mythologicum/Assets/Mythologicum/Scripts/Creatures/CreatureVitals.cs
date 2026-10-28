@@ -7,6 +7,7 @@ namespace Mythologicum
     {
         public float Hunger { get; private set; }
         public float Fear { get; private set; }
+        public void Restore(float hunger, float fear) { Hunger = ClampStat(hunger); Fear = ClampStat(fear); }
 
         public CreatureVitals(float initialHunger)
         {

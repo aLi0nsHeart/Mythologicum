@@ -3,10 +3,10 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum CreatureDiet { Carnivore, Herbivore, None }
+    public enum CreatureDiet { Carnivore, Herbivore, None, Fear }
 
     [Flags]
-    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4 }
+    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8 }
 
     /// <summary>Editable species rules. Individual needs live in CreatureVitals and CreatureEnergy.</summary>
     [CreateAssetMenu(menuName = "Mythologicum/Creature species", fileName = "NewCreature")]
@@ -19,9 +19,23 @@ namespace Mythologicum
         public CreatureTags tags;
         [Tooltip("A carnivore can hunt agents with any matching tag.")]
         public CreatureTags preyTags;
-        [Tooltip("Agents with any matching tag cause fear.")]
+        [Tooltip("Legacy tag setting retained for existing profiles. Fear now compares threat values.")]
         public CreatureTags fearedTags;
         public bool manuallyPlaceable = true;
+
+        [Header("Health, combat and origin")]
+        public string origin = "Unknown";
+        [Min(1f)] public float maximumHealth = 100f;
+        [Min(0f)] public float damage = 40f;
+        [Tooltip("Visible creatures with a higher threat cause fear, subject to perception and safe barriers.")]
+        [Min(0f)] public float threat = 30f;
+
+        [Header("Fear feeding")]
+        [Tooltip("Relieves hunger by successfully frightening people rather than dealing damage.")]
+        public bool feedsOnFear;
+        [Min(0.1f)] public float scareRange = 3f;
+        [Min(0.1f)] public float scareSeconds = 1.5f;
+        [Min(0.1f)] public float scareCooldownSeconds = 8f;
 
         [Header("Hunger (0 = full; 100 = starving)")]
         [Range(0f, 100f)] public float initialHunger = 35f;
@@ -50,6 +64,13 @@ namespace Mythologicum
         public bool requiresTreeForSleep;
         [Tooltip("Can cross ordinary wooden fences by climbing. Spiked fences resist climbing.")]
         public bool canClimbWoodenFences;
+        [Tooltip("Can phase through ordinary barriers while very hungry. Sanctified barriers still stop phasing.")]
+        public bool canPhaseFences;
+        [Range(0f, 100f)] public float phaseHungerThreshold = 80f;
+        [Tooltip("Actively seeks to break vulnerable fences when a barrier obstructs its goal.")]
+        public bool canBreakFences;
+        [Tooltip("Must reach a gravestone before sleeping.")]
+        public bool requiresGravestoneForSleep;
         [Min(0.1f)] public float treeClimbSeconds = 1.5f;
         [Min(0.1f)] public float fenceClimbSeconds = 2f;
         [Min(0.1f)] public float failedClimbSeconds = 1.2f;
@@ -77,6 +98,7 @@ namespace Mythologicum
         [Min(0f)] public float minimumSpace = 48f;
         [Tooltip("Trees needed nearby for environmental satisfaction.")]
         [Min(0)] public int requiredTrees;
+        [Min(0)] public int requiredGravestones;
         [Min(0.1f)] public float environmentRadius = 12f;
 
         [Header("Social needs")]

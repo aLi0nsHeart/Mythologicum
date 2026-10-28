@@ -67,3 +67,16 @@ MonoBehaviour:
   agitatedSpeedMultiplier: 1.35
   color: {r: 0.88, g: 0.83, b: 0.7, a: 1}
   bodyScale: {x: 0.7, y: 0.7, z: 1}
+  canBreakFences: 0
+  origin: Domestic
+  scareRange: 3
+  scareCooldownSeconds: 8
+  requiresGravestoneForSleep: 0
+  damage: 5
+  threat: 5
+  phaseHungerThreshold: 80
+  feedsOnFear: 0
+  requiredGravestones: 0
+  maximumHealth: 40
+  scareSeconds: 1.5
+  canPhaseFences: 0

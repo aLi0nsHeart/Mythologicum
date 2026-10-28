@@ -49,8 +49,8 @@ MonoBehaviour:
   minimumSpace: 100
   requiredTrees: 2
   environmentRadius: 12
-  minimumCompanions: 0
-  maximumCompanions: 0
+  minimumCompanions: 1
+  maximumCompanions: 2
   herdRange: 12
   socializingSeconds: 3
   socializingEnergyMultiplier: 2
@@ -63,7 +63,20 @@ MonoBehaviour:
   feedingSeconds: 4
   fleeSafeDistance: 6
   agitatedSpeedMultiplier: 1.35
-  visualPrefab: {fileID: 2502577079734589765, guid: cd3c5470a547d794b81364f77ce3ccef, type: 3}
-  visualScale: {x: 1.0488691, y: 1.0488691, z: 1.0488691}
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
   color: {r: 0.46, g: 0.65, b: 0.32, a: 1}
   bodyScale: {x: 0.85, y: 0.85, z: 1.2}
+  phaseHungerThreshold: 80
+  damage: 40
+  origin: Southern New World
+  feedsOnFear: 0
+  threat: 40
+  requiredGravestones: 0
+  scareSeconds: 1.5
+  requiresGravestoneForSleep: 0
+  scareCooldownSeconds: 8
+  canPhaseFences: 0
+  canBreakFences: 0
+  scareRange: 3
+  maximumHealth: 120

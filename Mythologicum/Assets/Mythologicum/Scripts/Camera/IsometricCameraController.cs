@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Mythologicum
 {
@@ -30,8 +32,11 @@ namespace Mythologicum
 
         private void Update()
         {
+            if (GameSaveMenu.IsOpen) return;
             Keyboard keys = Keyboard.current;
-            if (keys != null)
+            InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
+                ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
+            if (keys != null && (input == null || !input.isFocused))
             {
                 float horizontal = (keys.dKey.isPressed || keys.rightArrowKey.isPressed ? 1 : 0)
                     - (keys.aKey.isPressed || keys.leftArrowKey.isPressed ? 1 : 0);
@@ -42,13 +47,22 @@ namespace Mythologicum
                 yaw += ((keys.eKey.isPressed ? 1 : 0) - (keys.qKey.isPressed ? 1 : 0))
                     * rotationSpeed * Time.deltaTime;
             }
-            if (Mouse.current != null)
+            if (Mouse.current != null && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
                 zoomLevel = Mathf.Clamp(zoomLevel
                     - Mouse.current.scroll.ReadValue().y * zoomSpeed, minimumZoom, maximumZoom);
 
             focusPoint.x = Mathf.Clamp(focusPoint.x, mapMinimum.x, mapMaximum.x);
             focusPoint.z = Mathf.Clamp(focusPoint.z, mapMinimum.y, mapMaximum.y);
             ApplyPose();
+        }
+
+        public Vector3 SavedFocus => focusPoint;
+        public float SavedYaw => yaw;
+        public float SavedZoom => zoomLevel;
+        public void RestorePose(Vector3 focus, float heading, float zoom)
+        {
+            focusPoint = focus; yaw = heading;
+            zoomLevel = Mathf.Clamp(zoom, minimumZoom, maximumZoom); ApplyPose();
         }
 
         private void ApplyPose()

@@ -11,8 +11,10 @@ namespace Mythologicum
         public float normalYaw;
         public float spikedYaw;
         public float gateYaw;
-        [Header("Reserved for future fence types")]
+        [Header("Specialized fences")]
         public GameObject heavy;
         public GameObject sanctified;
+        public float heavyYaw;
+        public float sanctifiedYaw;
     }
 }
