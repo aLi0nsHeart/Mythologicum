@@ -24,6 +24,8 @@ namespace Mythologicum
         public float UpkeepPerSecond => Bounded((double)Amount(Footprint.Definition.operatingCostPerSecond)
             + HiredCount * (double)Amount(Footprint.Definition.staffSalaryPerSecond));
         public int FeedStock { get; private set; }
+        public void RestoreAccounts(float price, float revenue, float expenses, int stock)
+        { SetPrice(price); Revenue = Amount(revenue); Expenses = Amount(expenses); FeedStock = Math.Max(0, Math.Min(Footprint.Definition.feederCapacity, stock)); }
         public ParkBuildingRecord(BuildingFootprint footprint)
         {
             Footprint = footprint;
@@ -62,6 +64,7 @@ namespace Mythologicum
         public IReadOnlyList<ParkBuildingRecord> Records => records;
         public ParkBuildingRecord Entrance { get; private set; }
         public bool HasEntrance => Entrance != null;
+        internal bool RestoringSave { get; set; }
         private int lastGridRevision = -1, lastFenceRevision = -1;
         private readonly HashSet<Vector2Int> connected = new HashSet<Vector2Int>();
         public bool IsPathConnected(Vector2Int cell) => connected.Contains(cell);
@@ -72,7 +75,11 @@ namespace Mythologicum
 
         public bool CanPlace(BuildingFootprint footprint)
         {
-            if ((footprint.Definition.kind == BuildingKind.ParkEntrance) == HasEntrance) return false;
+            if (RestoringSave)
+            {
+                if (footprint.Definition.kind == BuildingKind.ParkEntrance && HasEntrance) return false;
+            }
+            else if ((footprint.Definition.kind == BuildingKind.ParkEntrance) == HasEntrance) return false;
             if (!grid.Contains(footprint.AccessCell) || grid.ContentAt(footprint.AccessCell) == BuildCellContent.Building) return false;
             foreach (Vector2Int cell in footprint.Cells()) if (!grid.IsAvailable(cell)) return false;
             foreach (ParkBuildingRecord existing in records)

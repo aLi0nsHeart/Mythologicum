@@ -25,6 +25,7 @@ namespace Mythologicum
         public int Population => visitors.Count;
         public int DepartedCount { get; private set; }
         public int LostCount { get; private set; }
+        internal void RestoreCounts(int departed, int lost) { DepartedCount = Math.Max(0, departed); LostCount = Math.Max(0, lost); }
         public int StrandedCount { get { int count = 0; foreach (var guest in visitors) if (guest.Activity == VisitorActivity.Stranded) count++; return count; } }
         public float AverageSatisfaction
         {
@@ -68,6 +69,18 @@ namespace Mythologicum
             float ticket = buildings.Entrance.Price;
             buildings.Entrance.RecordRevenue(ticket); economy.Earn(ticket);
             return visitor;
+        }
+
+        internal VisitorAgent RestoreGuest(Vector2Int cell)
+        {
+            if (!grid.Contains(cell)) return null;
+            GameObject model = null;
+            if (Definition.people != null && Definition.people.civilians != null && Definition.people.civilians.Length > 0)
+                model = Definition.people.civilians[appearanceRandom.Next(Definition.people.civilians.Length)];
+            var actor = creatures.SpawnExternal(actorProfile, cell, model);
+            if (actor == null) return null;
+            var guest = actor.gameObject.AddComponent<VisitorAgent>();
+            guest.Actor = actor; guest.Activity = VisitorActivity.Arriving; visitors.Add(guest); return guest;
         }
 
         public void Tick(float deltaTime)

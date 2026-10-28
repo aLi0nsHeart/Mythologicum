@@ -62,6 +62,18 @@ namespace Mythologicum
             return true;
         }
 
+        internal StaffAgent RestoreEmployee(ParkBuildingRecord home, Vector2Int cell)
+        {
+            if (!Buildings.Contains(home) || !home.Footprint.Definition.IsEmployeeBuilding || home.HiredCount >= 5 || !grid.Contains(cell)) return null;
+            StaffRole role = RoleFor(home.Footprint.Definition.kind);
+            GameObject model = people == null ? null : role == StaffRole.Mercenary ? people.police : role == StaffRole.Researcher ? people.doctor : people.worker;
+            var actor = creatures.SpawnExternal(Profile(role), cell, model);
+            if (actor == null) return null;
+            var worker = actor.gameObject.AddComponent<StaffAgent>();
+            worker.Actor = actor; worker.Home = home; worker.Role = role;
+            home.HiredCount++; workers.Add(worker); UseLocomotionController(actor); return worker;
+        }
+
         public bool Fire(ParkBuildingRecord home)
         {
             for (int i = workers.Count - 1; i >= 0; i--)

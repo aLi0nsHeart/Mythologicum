@@ -26,6 +26,7 @@ namespace Mythologicum
         private int gridRevision = -1, fenceRevision = -1;
         private float time;
         public int PopulationLimit { get; set; } = 100;
+        internal bool RestoringSave { get; set; }
         public int Population { get { int count = 0; foreach (var agent in agents) if (agent.Alive) count++; return count; } }
         public IReadOnlyList<CreatureAgent> Agents => agents;
 
@@ -159,7 +160,7 @@ namespace Mythologicum
 
         public bool TrySpawn(CreatureDefinition definition, Vector2Int cell, ParkBuildingRecord dispenser = null, GameObject visualPrefab = null)
         {
-            if (definition == null || !CanSpawn(cell)) return false;
+            if (definition == null || (RestoringSave ? !grid.Contains(cell) : !CanSpawn(cell))) return false;
             var go = new GameObject(definition.displayName);
             go.name = definition.displayName;
             go.transform.SetParent(root.transform);

@@ -60,6 +60,14 @@ namespace Mythologicum
         public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge)
             && Layout.KindAt(edge) != FenceKind.Spiked;
 
+        internal bool RestoreSegment(FenceEdge edge, FenceKind kind, bool gate, float health)
+        {
+            if (!Layout.TryAdd(edge, kind)) return false;
+            if (gate && !Layout.TrySetGate(edge)) { Layout.TryRemove(edge); return false; }
+            Layout.TryDamage(edge, Mathf.Max(0f, Layout.MaximumHealthAt(edge) - health));
+            CreateObject(edge, gate); return true;
+        }
+
         public bool TryPlaceGate(FenceEdge edge)
         {
             if (!CanPlaceGate(edge) || !Layout.TrySetGate(edge)) return false;

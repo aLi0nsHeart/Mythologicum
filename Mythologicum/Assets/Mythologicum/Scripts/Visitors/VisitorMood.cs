@@ -14,6 +14,8 @@ namespace Mythologicum
         /// <summary>Remaining willingness to stay, from zero to one.</summary>
         public float Willingness => (1f - VisitProgress) * Satisfaction / 100f;
         public bool ShouldLeave { get; private set; }
+        public void Restore(float satisfaction, float age, float progress, bool leaving)
+        { Satisfaction = Score(satisfaction); Age = Math.Max(0f, age); VisitProgress = Math.Max(0f, Math.Min(1f, progress)); ShouldLeave = leaving; }
 
         public VisitorMood(float initialSatisfaction = 60f) => Satisfaction = Score(initialSatisfaction);
 

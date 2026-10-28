@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace Mythologicum
 {
     [RequireComponent(typeof(Camera))]
-    public sealed class BuildModeController : MonoBehaviour
+    public sealed partial class BuildModeController : MonoBehaviour
     {
         [SerializeField] private Collider ground;
         [SerializeField] private GameObject pathTilePrefab;
@@ -160,6 +160,13 @@ namespace Mythologicum
             SelectTool(Tool.None);
             foreach (BuildingDefinition definition in buildingCatalog)
                 if (definition.kind == BuildingKind.ParkEntrance) { SelectBuilding(definition); break; }
+            GameSaveMenu.Attach(this);
+            if (ParkSaveStore.Pending != null)
+            {
+                ParkSaveData saved = ParkSaveStore.Pending;
+                ParkSaveStore.Pending = null;
+                RestorePark(saved);
+            }
         }
 
         private void CreateUI()
@@ -252,6 +259,7 @@ namespace Mythologicum
         // After camera movement, so the preview follows the final camera pose.
         private void LateUpdate()
         {
+            if (GameSaveMenu.IsOpen) return;
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);

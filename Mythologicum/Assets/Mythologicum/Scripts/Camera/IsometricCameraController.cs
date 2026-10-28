@@ -32,6 +32,7 @@ namespace Mythologicum
 
         private void Update()
         {
+            if (GameSaveMenu.IsOpen) return;
             Keyboard keys = Keyboard.current;
             InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
@@ -53,6 +54,15 @@ namespace Mythologicum
             focusPoint.x = Mathf.Clamp(focusPoint.x, mapMinimum.x, mapMaximum.x);
             focusPoint.z = Mathf.Clamp(focusPoint.z, mapMinimum.y, mapMaximum.y);
             ApplyPose();
+        }
+
+        public Vector3 SavedFocus => focusPoint;
+        public float SavedYaw => yaw;
+        public float SavedZoom => zoomLevel;
+        public void RestorePose(Vector3 focus, float heading, float zoom)
+        {
+            focusPoint = focus; yaw = heading;
+            zoomLevel = Mathf.Clamp(zoom, minimumZoom, maximumZoom); ApplyPose();
         }
 
         private void ApplyPose()
