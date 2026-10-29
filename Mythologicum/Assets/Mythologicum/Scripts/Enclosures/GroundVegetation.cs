@@ -13,11 +13,13 @@ namespace Mythologicum
         private readonly Dictionary<Vector2Int, GameObject> cells = new Dictionary<Vector2Int, GameObject>();
         private int gridRevision = -1, environmentRevision = -1;
         private readonly Dictionary<Transform,float> baseHeights=new Dictionary<Transform,float>();
+        private readonly Predicate<Vector2Int> blocked;
 
-        public GroundVegetation(SquareBuildGrid grid, EnvironmentGrid environment, VegetationDefinition definition)
+        public GroundVegetation(SquareBuildGrid grid, EnvironmentGrid environment, VegetationDefinition definition,Predicate<Vector2Int> blocked=null)
         {
             this.grid = grid;
             this.environment = environment;
+            this.blocked=blocked;
             root = new GameObject("Ground vegetation");
             if (definition == null) return;
             var random = new System.Random(definition.scatterSeed);
@@ -56,7 +58,7 @@ namespace Mythologicum
                 foreach(Transform plant in pair.Value.transform)
                 {var p=plant.localPosition;p.y=baseHeights[plant]+grid.GroundHeight(plant.position)-pair.Value.transform.position.y;plant.localPosition=p;}
                 bool visible = grid.IsAvailable(pair.Key) && environment.TreesAt(pair.Key) == 0
-                    && environment.GravestonesAt(pair.Key) == 0;
+                    && environment.GravestonesAt(pair.Key) == 0 && !(blocked?.Invoke(pair.Key)??false);
                 if (pair.Value.activeSelf != visible) pair.Value.SetActive(visible);
             }
             gridRevision = grid.Revision;

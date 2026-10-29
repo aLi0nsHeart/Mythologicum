@@ -14,7 +14,7 @@ namespace Mythologicum
     [CreateAssetMenu(menuName="Mythologicum/Terrain art",fileName="TerrainArt")]
     public sealed class TerrainArtDefinition : ScriptableObject
     {
-        public Material grass,cliff;
+        public Material grass,cliff,soil;
         public GameObject[] borderTrees = Array.Empty<GameObject>();
         public ForestBorderSettings forest = new ForestBorderSettings();
     }

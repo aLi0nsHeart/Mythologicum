@@ -9,6 +9,8 @@ namespace Mythologicum
         public int version = 3, width, depth, departedVisitors, lostVisitors;
         public SavedTerrain terrain;
         public List<SavedTreeVisual> treeVisuals;
+        public MapGenerationOptions generation;
+        public List<Vector2Int> rocks;
         public ProgressionSave progression;
         public float cellSize, balance, income, expenses;
         public bool unlimited;
@@ -61,7 +63,8 @@ namespace Mythologicum
         internal static ParkSaveData ReadFile(string path)
         {
             var data = JsonUtility.FromJson<ParkSaveData>(File.ReadAllText(path));
-            if (data == null || data.version<1 || data.version>3 || data.width < 1 || data.depth < 1 || data.cellSize <= 0
+            if (data == null || data.version<1 || data.version>3 || data.width < 1 || data.depth < 1 || data.width>128||data.depth>128
+                ||float.IsNaN(data.cellSize)||float.IsInfinity(data.cellSize)||data.cellSize<.25f||data.cellSize>16f
                 || data.buildings == null || data.paths == null || data.fences == null || data.creatures == null
                 || data.trees == null || data.graves == null || data.staff == null || data.visitors == null || data.research == null)
                 throw new InvalidDataException("This save is invalid or uses an unsupported version.");

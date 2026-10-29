@@ -64,7 +64,7 @@ namespace Mythologicum
         public EnvironmentGrid Environment { get; private set; }
         public EnclosureMap Enclosures => enclosureMap;
         public FenceLayout Barriers => fences?.Layout;
-        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone, MoveCreature }
+        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone, MoveCreature, Terraform }
         private Tool tool;
         private bool dragging;
         private readonly ConstructionRouteSelection<Vector2Int> pathSelection = new ConstructionRouteSelection<Vector2Int>();
@@ -96,8 +96,7 @@ namespace Mythologicum
             creatureCatalog = Resources.LoadAll<CreatureDefinition>("Creatures");
             Array.Sort(creatureCatalog, (a, b) => string.CompareOrdinal(a.displayName, b.displayName));
             Bounds bounds = ground.bounds;
-            var origin = new Vector3(bounds.min.x, bounds.max.y, bounds.min.z);
-            int mapWidth=Mathf.FloorToInt(bounds.size.x/cellSize),mapDepth=Mathf.FloorToInt(bounds.size.z/cellSize);
+            ChooseMap(bounds,out int mapWidth,out int mapDepth,out Vector3 origin);
             grid = new SquareBuildGrid(origin,cellSize,mapWidth,mapDepth,CreateTerrain(mapWidth,mapDepth));
             Material groundMaterial = ground.GetComponent<Renderer>().sharedMaterial;
             CreateTerrainSurface(groundMaterial);
@@ -143,8 +142,12 @@ namespace Mythologicum
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
             var graveRoot = new GameObject("Graveyard gravestones"); graveRoot.transform.SetParent(buildings.transform);
             graves = new GravestoneConstruction(grid, Environment, graveRoot.transform, buildingMaterial);
+            var rockRoot=new GameObject("Natural rocks");rockRoot.transform.SetParent(buildings.transform);
+            rocks=new RockConstruction(grid,rockRoot.transform,terrainArt!=null&&terrainArt.cliff!=null?terrainArt.cliff:buildingMaterial,
+                mapOptions?.seed??ParkSaveStore.Pending?.terrain?.seed??grid.Terrain.Seed,cell=>trees.Occupies(cell)||graves.Occupies(cell));
+            rocks.Changed+=grid.NotifyPhysicalChange;
             SeedBorderForest();
-            groundVegetation = new GroundVegetation(grid, Environment, vegetation);
+            groundVegetation = new GroundVegetation(grid, Environment, vegetation,rocks.Occupies);
             entrancePreview = GameObject.CreatePrimitive(PrimitiveType.Cube);
             entrancePreview.name = "Building Entrance Preview";
             entrancePreview.GetComponent<Collider>().enabled = false;
@@ -181,8 +184,9 @@ namespace Mythologicum
                 () => SelectTool(Tool.Path), SelectFence,
                 () => SelectTool(Tool.Gate),
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
-                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone));
+                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),SelectTerrainBrush);
             status = palette.Status;
+            CreateTerrainEditingUI(canvas);
             var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             creditsObject.transform.SetParent(palette.Root.transform, false);
             var credits = creditsObject.GetComponent<Text>();
@@ -246,6 +250,8 @@ namespace Mythologicum
             if (gridObject != null) gridObject.SetActive(tool != Tool.None && tool != Tool.Creature);
             if (preview != null) preview.SetActive(false);
             if (entrancePreview != null) entrancePreview.SetActive(false);
+            terrainEditing?.SetActive(tool==Tool.Terraform);
+            if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);
             enclosurePresentation?.SetInspecting(tool == Tool.None);
             creatureInspection?.SetInspecting(tool == Tool.None);
             visitorPresentation?.SetInspecting(tool == Tool.None);
@@ -266,7 +272,7 @@ namespace Mythologicum
         // After camera movement, so the preview follows the final camera pose.
         private void LateUpdate()
         {
-            if (GameSaveMenu.IsOpen) return;
+            if (GameSaveMenu.IsOpen) {ResetTerrainStroke();if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);return;}
             RefreshTerrainAttachments();
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
@@ -285,6 +291,7 @@ namespace Mythologicum
             management.Refresh();
             notifications.Refresh();
             if (ManagementOpen) return;
+            if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);
             Keyboard keyboard = Keyboard.current;
             InputField focusedInput = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
@@ -296,6 +303,7 @@ namespace Mythologicum
                 if (keyboard.fKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Fences);
                 if (keyboard.cKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Creatures);
                 if (keyboard.hKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Enclosures);
+                if (keyboard.tKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Terrain);
                 if (keyboard.xKey.wasPressedThisFrame) SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish);
                 if (keyboard.gKey.wasPressedThisFrame) SelectTool(tool == Tool.Gate ? Tool.None : Tool.Gate);
                 if (tool == Tool.Building && keyboard.rKey.wasPressedThisFrame) buildingRotation = (buildingRotation + 1) % 4;
@@ -325,7 +333,7 @@ namespace Mythologicum
                         : "Linksklick / Ziehen: Gebautes abreissen | Esc: Fertig";
             Mouse mouse = Mouse.current;
             if (mouse == null || (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
-            { ResetStroke(); return; }
+            { ResetStroke();ResetTerrainStroke(); return; }
             Vector2 pointer = mouse.position.ReadValue();
             if (!view.pixelRect.Contains(pointer)) { ResetStroke(); return; }
             if (tool == Tool.Demolish) { ApplyDemolition(mouse, pointer); return; }
@@ -338,6 +346,7 @@ namespace Mythologicum
             if (tool == Tool.Gate) { ApplyGate(mouse, hit.point); return; }
             Vector2Int cell = grid.WorldToCell(hit.point);
             if (!grid.Contains(cell)) { ResetStroke(); return; }
+            if(tool==Tool.Terraform){ApplyTerrainBrush(mouse,hit.point);return;}
             if (tool == Tool.Path) { ApplyPathRoute(mouse, cell); return; }
             if (tool == Tool.Creature) { ApplyCreature(mouse, cell); return; }
             if (tool == Tool.Tree) { ApplyTree(mouse, cell); return; }
@@ -363,8 +372,8 @@ namespace Mythologicum
             if (!Progression.BuildingUnlocked(selectedBuilding.kind)) { SelectTool(Tool.None); return; }
             var footprint = new BuildingFootprint(selectedBuilding, cell, buildingRotation);
             bool valid = buildingConstruction.CanPlace(footprint) && !creatureWorld.Occupies(footprint);
-            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)) valid = false;
-            if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)) valid = false;
+            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)||rocks.Occupies(occupied)) valid = false;
+            if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)||rocks.Occupies(footprint.AccessCell)) valid = false;
             bool affordable = economy.CanAfford(selectedBuilding.constructionCost);
             previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             Vector3 platform=buildingConstruction.PreviewPosition(footprint);
@@ -477,7 +486,7 @@ namespace Mythologicum
         private bool CanPlace(Vector2Int cell)
         {
             if(!grid.GroundWalkable(cell,true))return false;
-            if (trees.Occupies(cell) || graves.Occupies(cell)) return false;
+            if (trees.Occupies(cell) || graves.Occupies(cell)||rocks.Occupies(cell)) return false;
             Vector3 center = grid.CellCenter(cell) + Vector3.up * (buildingHeight / 2f);
             Vector3 halfExtents = new Vector3(cellSize / 2f - 0.01f, buildingHeight / 2f - 0.01f, cellSize / 2f - 0.01f);
             return grid.IsAvailable(cell) && !Physics.CheckBox(center, halfExtents,
@@ -655,6 +664,9 @@ namespace Mythologicum
         private void OnDestroy()
         {
             DisposeTerrain();fences?.Dispose();
+            terrainEditing?.Dispose();rocks?.Dispose();
+            if(terrainCursor!=null)Destroy(terrainCursor.gameObject);
+            if(terrainCursorMaterial!=null)Destroy(terrainCursorMaterial);
             management?.Dispose();
             notifications?.Dispose();
             buildingInspection?.Dispose();

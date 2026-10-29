@@ -58,6 +58,11 @@ namespace Mythologicum
 
         public Vector3 SavedFocus => focusPoint;
         public void FocusOn(Vector3 point) { focusPoint = point; ApplyPose(); }
+        public void SetMapBounds(Vector3 origin,float width,float depth)
+        {
+            mapMinimum=new Vector2(origin.x+2f,origin.z+2f);mapMaximum=new Vector2(origin.x+width-2f,origin.z+depth-2f);
+            maximumZoom=Mathf.Max(maximumZoom,Mathf.Max(width,depth)*.4f);
+        }
         public float SavedYaw => yaw;
         public float SavedZoom => zoomLevel;
         public void RestorePose(Vector3 focus, float heading, float zoom)

@@ -15,6 +15,7 @@ namespace Mythologicum
                 departedVisitors = visitorWorld.DepartedCount, lostVisitors = visitorWorld.LostCount };
             data.terrain=grid.Terrain?.Capture();
             data.treeVisuals=trees.CaptureVisuals();
+            data.generation=mapOptions?.Clone();data.rocks=rocks.Capture();
             var camera = GetComponent<IsometricCameraController>();
             if (camera != null) { data.focus = camera.SavedFocus; data.yaw = camera.SavedYaw; data.zoom = camera.SavedZoom; }
             for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
@@ -73,17 +74,19 @@ namespace Mythologicum
         }
         public void ValidateSave(ParkSaveData data)
         {
-            if (data.width != grid.Width || data.depth != grid.Depth || !Mathf.Approximately(data.cellSize, grid.CellSize))
-                throw new InvalidDataException("This save was made with a different map size.");
+            if(data.width<1||data.depth<1||data.width>128||data.depth>128||!Finite(data.cellSize)||data.cellSize<.25f||data.cellSize>16f)
+                throw new InvalidDataException("Unsupported saved map dimensions.");
+            if(data.generation!=null&&(!data.generation.Validate(out _)||data.generation.width!=data.width||data.generation.depth!=data.depth))
+                throw new InvalidDataException("Invalid saved generation settings.");
             GridHeightField checkTerrain=null;
-            if(data.version>=3){checkTerrain=new GridHeightField(grid.Width,grid.Depth,grid.CellSize);checkTerrain.Restore(data.terrain);}
-            var checkGrid = new SquareBuildGrid(grid.Origin, grid.CellSize, grid.Width, grid.Depth,checkTerrain);
+            if(data.version>=3){checkTerrain=new GridHeightField(data.width,data.depth,data.cellSize);checkTerrain.Restore(data.terrain);}
+            var checkGrid = new SquareBuildGrid(grid.Origin, data.cellSize, data.width, data.depth,checkTerrain);
             var checkFences = new FenceLayout(checkGrid);
             var network = new ParkBuildingNetwork(checkGrid, checkFences);
             network.RestoringSave = true;
             foreach (var saved in data.buildings)
             {
-                var definition = SavedDefinition(saved);
+                var definition = SavedDefinition(saved,data.width,data.depth);
                 var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation);
                 var record=network.TryPlace(footprint);
                 if (record == null)
@@ -100,6 +103,12 @@ namespace Mythologicum
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved tree.");
             foreach (var cell in data.graves)
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved gravestone.");
+            var rockCells=new HashSet<Vector2Int>();
+            if(data.rocks!=null)foreach(var cell in data.rocks)
+            {
+                if(!checkGrid.IsAvailable(cell)||!rockCells.Add(cell)||!enrichment.Add(cell))throw new InvalidDataException("Invalid saved rock.");
+                foreach(var record in network.Records)if(record.Footprint.AccessCell==cell)throw new InvalidDataException("Rock blocks a saved entrance.");
+            }
             if(data.treeVisuals!=null)
             {
                 var ids=new HashSet<Vector2Int>();var treeCells=new HashSet<Vector2Int>(data.trees);
@@ -107,16 +116,16 @@ namespace Mythologicum
                     throw new InvalidDataException("Invalid saved tree appearance.");
             }
             foreach (var saved in data.creatures)
-                if (Species(saved.species) == null || !ValidActor(saved, checkGrid)) throw new InvalidDataException("A saved creature is unavailable or invalid.");
+                if (Species(saved.species) == null || !ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException("A saved creature is unavailable or invalid.");
             var hired = new Dictionary<int,int>();
             foreach (var saved in data.staff)
             {
                 if (!ValidActor(saved, checkGrid) || saved.building < 0 || saved.building >= data.buildings.Count
-                    || !SavedDefinition(data.buildings[saved.building]).IsEmployeeBuilding) throw new InvalidDataException("Invalid staff home or employee.");
+                    ||rockCells.Contains(saved.cell)|| !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException("Invalid staff home or employee.");
                 hired.TryGetValue(saved.building, out int count); hired[saved.building] = count + 1;
                 if (count >= ParkBuildingRecord.EmployeeCapacity) throw new InvalidDataException("Too many saved employees.");
             }
-            foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)) throw new InvalidDataException("Invalid saved visitor.");
+            foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException("Invalid saved visitor.");
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException("Invalid species research.");
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
                 || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException("Invalid saved finances or camera.");
@@ -128,10 +137,10 @@ namespace Mythologicum
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
             && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored);
         private CreatureDefinition Species(string name) => Array.Find(creatureCatalog, d => d.name == name);
-        private BuildingDefinition SavedDefinition(SavedBuilding saved)
+        private BuildingDefinition SavedDefinition(SavedBuilding saved,int mapWidth=-1,int mapDepth=-1)
         {
             var source = Array.Find(buildingCatalog, d => d.kind == saved.kind);
-            if (source == null || saved.width < 1 || saved.depth < 1 || saved.width > grid.Width || saved.depth > grid.Depth
+            if (source == null || saved.width < 1 || saved.depth < 1 || saved.width > (mapWidth<0?grid.Width:mapWidth) || saved.depth > (mapDepth<0?grid.Depth:mapDepth)
                 || !Finite(saved.height) || saved.height <= 0f || !Finite(saved.price) || !Finite(saved.revenue) || !Finite(saved.expenses))
                 throw new InvalidDataException("A saved building type is unavailable or invalid.");
             // Clone settings so loading a footprint never changes the player's catalogue.
@@ -167,6 +176,7 @@ namespace Mythologicum
                 }
                 foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException("Could not restore tree.");
                 foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException("Could not restore gravestone.");
+                if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException("Could not restore rock.");
                 buildingConstruction.Network.Refresh();
                 // Restore staff without charging hiring fees, including temporarily disconnected homes.
                 foreach (var saved in data.staff)

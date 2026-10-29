@@ -5,29 +5,42 @@ namespace Mythologicum
 {
     public static class GroundMeshBuilder
     {
-        public static Mesh Surface(SquareBuildGrid grid,int startX,int startZ,int width,int depth,Vector3 origin,float lift=0,bool skirts=false,bool separateSkirts=false)
+        public static Mesh Surface(SquareBuildGrid grid,int startX,int startZ,int width,int depth,Vector3 origin,float lift=0,bool skirts=false,bool separateSkirts=false,bool naturalSoil=false)
         {
-            var v=new List<Vector3>();var t=new List<int>();
-            for(int z=startZ;z<startZ+depth;z++)for(int x=startX;x<startX+width;x++)AddCell(grid,new Vector2Int(x,z),origin,lift,v,t);
+            var v=new List<Vector3>();var t=new List<int>();var soilTriangles=new List<int>();var soilVertices=new List<int>();
+            for(int z=startZ;z<startZ+depth;z++)for(int x=startX;x<startX+width;x++)
+            {
+                int firstTriangle=t.Count,firstVertex=v.Count;
+                AddCell(grid,new Vector2Int(x,z),origin,lift,v,t);
+                if(naturalSoil&&NatureGeneration.GroundIsSoil(x+.5f,z+.5f,grid.Terrain?.Seed??0))
+                {
+                    soilTriangles.AddRange(t.GetRange(firstTriangle,t.Count-firstTriangle));t.RemoveRange(firstTriangle,t.Count-firstTriangle);
+                    for(int i=firstVertex;i<v.Count;i+=4)soilVertices.Add(i);
+                }
+            }
             int topTriangles=t.Count,topVertices=v.Count;
             if(skirts)
             {
                 void Skirt(Vector2Int first,Vector2Int second)
                 {
                     var a=grid.NodePosition(first)-origin;var d=grid.NodePosition(second)-origin;var b=a;var c=d;
-                    b.y=c.y=grid.Origin.y-origin.y-3f;AddQuad(v,t,a,b,c,d);
+                    b.y=c.y=Mathf.Min(grid.Origin.y-origin.y-3f,Mathf.Min(a.y,d.y)-3f);AddQuad(v,t,a,b,c,d);
                 }
                 for(int z=startZ;z<startZ+depth;z++)
                 {if(startX==0)Skirt(new Vector2Int(0,z),new Vector2Int(0,z+1));if(startX+width==grid.Width)Skirt(new Vector2Int(grid.Width,z+1),new Vector2Int(grid.Width,z));}
                 for(int x=startX;x<startX+width;x++)
                 {if(startZ==0)Skirt(new Vector2Int(x+1,0),new Vector2Int(x,0));if(startZ+depth==grid.Depth)Skirt(new Vector2Int(x,grid.Depth),new Vector2Int(x+1,grid.Depth));}
             }
-            var mesh=Finish("Terrain surface",v,t);
-            if(separateSkirts)
+            var combined=new List<int>(t);combined.AddRange(soilTriangles);
+            var mesh=Finish("Terrain surface",v,combined);
+            if(separateSkirts||naturalSoil)
             {
-                mesh.subMeshCount=2;mesh.SetTriangles(t.GetRange(0,topTriangles),0);mesh.SetTriangles(t.GetRange(topTriangles,t.Count-topTriangles),1);
+                mesh.subMeshCount=naturalSoil?3:2;
+                mesh.SetTriangles(t.GetRange(0,topTriangles),0);mesh.SetTriangles(t.GetRange(topTriangles,t.Count-topTriangles),1);
+                if(naturalSoil)mesh.SetTriangles(soilTriangles,2);
                 var uv=mesh.uv;
                 for(int i=topVertices;i<uv.Length;i+=4){uv[i]=new Vector2(0,1);uv[i+1]=new Vector2(0,0);uv[i+2]=new Vector2(1,0);uv[i+3]=new Vector2(1,1);}
+                foreach(int i in soilVertices){uv[i]=new Vector2(0,0);uv[i+1]=new Vector2(0,1);uv[i+2]=new Vector2(1,1);uv[i+3]=new Vector2(1,0);}
                 mesh.uv=uv;
             }
             return mesh;
@@ -74,17 +87,18 @@ namespace Mythologicum
         private readonly GameObject root;
         private readonly List<RuntimeGroundMesh> chunks=new List<RuntimeGroundMesh>();
         private readonly bool separateSkirts;
+        private readonly bool naturalSoil;
         public GameObject Root=>root;
-        public ParkTerrainSurface(SquareBuildGrid grid,Material material,Material cliff=null)
+        public ParkTerrainSurface(SquareBuildGrid grid,Material material,Material cliff=null,Material soil=null)
         {
             this.grid=grid;root=new GameObject("Park terrain");
-            separateSkirts=cliff!=null;
+            separateSkirts=cliff!=null;naturalSoil=soil!=null;
             for(int z=0;z<grid.Depth;z+=16)for(int x=0;x<grid.Width;x+=16)
             {
                 var go=new GameObject($"Terrain [{x}, {z}]",typeof(MeshFilter),typeof(MeshRenderer),typeof(MeshCollider),typeof(RuntimeGroundMesh)){layer=2};
-                go.transform.SetParent(root.transform,false);go.GetComponent<MeshRenderer>().sharedMaterials=cliff!=null?new[]{material,cliff}:new[]{material};
+                go.transform.SetParent(root.transform,false);go.GetComponent<MeshRenderer>().sharedMaterials=soil!=null?new[]{material,cliff!=null?cliff:material,soil}:cliff!=null?new[]{material,cliff}:new[]{material};
                 var chunk=go.GetComponent<RuntimeGroundMesh>();chunks.Add(chunk);
-                chunk.Set(GroundMeshBuilder.Surface(grid,x,z,Mathf.Min(16,grid.Width-x),Mathf.Min(16,grid.Depth-z),Vector3.zero,skirts:true,separateSkirts:separateSkirts));
+                chunk.Set(GroundMeshBuilder.Surface(grid,x,z,Mathf.Min(16,grid.Width-x),Mathf.Min(16,grid.Depth-z),Vector3.zero,skirts:true,separateSkirts:separateSkirts,naturalSoil:naturalSoil));
             }
             grid.Terrain.Changed+=Rebuild;
         }
@@ -92,7 +106,7 @@ namespace Mythologicum
         {
             int index=0;
             for(int z=0;z<grid.Depth;z+=16)for(int x=0;x<grid.Width;x+=16)
-                chunks[index++].Set(GroundMeshBuilder.Surface(grid,x,z,Mathf.Min(16,grid.Width-x),Mathf.Min(16,grid.Depth-z),Vector3.zero,skirts:true,separateSkirts:separateSkirts));
+                chunks[index++].Set(GroundMeshBuilder.Surface(grid,x,z,Mathf.Min(16,grid.Width-x),Mathf.Min(16,grid.Depth-z),Vector3.zero,skirts:true,separateSkirts:separateSkirts,naturalSoil:naturalSoil));
         }
         public bool Raycast(Ray ray,out RaycastHit hit,float distance)
         {

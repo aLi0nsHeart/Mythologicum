@@ -15,6 +15,7 @@ namespace Mythologicum
         public int Depth { get; }
         public int Revision { get; private set; }
         public GridHeightField Terrain { get; }
+        public void NotifyPhysicalChange()=>Revision++;
         private readonly Dictionary<Vector2Int, BuildCellContent> occupied = new Dictionary<Vector2Int, BuildCellContent>();
 
         public SquareBuildGrid(Vector3 origin, float cellSize, int width, int depth, GridHeightField terrain = null)

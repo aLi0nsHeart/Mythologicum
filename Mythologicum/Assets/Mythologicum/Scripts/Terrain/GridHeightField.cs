@@ -90,6 +90,107 @@ namespace Mythologicum
         }
         private void Recalculate()
         {for(int z=0;z<Depth;z++)for(int x=0;x<Width;x++)slopes[z*Width+x]=Slope(x,z);Revision++;Changed?.Invoke();}
+
+        /// <summary>Tests positive brush influence against protected foundation corners for cursor feedback.</summary>
+        public bool BrushTouchesFoundation(Vector2 center, float radius)
+        {
+            if (!Finite(center.x) || !Finite(center.y) || !Finite(radius) || radius <= 0f) return false;
+            foreach (int index in locks.Keys)
+            {
+                float dx = index % (Width + 1) - center.x, dz = index / (Width + 1) - center.y;
+                if (TerrainBrushRules.Falloff((float)Math.Sqrt(dx * dx + dz * dz), radius) > 0f) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Applies one bounded, circular terrain edit. Coordinates and radius are in grid cells;
+        /// amount and the flatten target are metres relative to the grid's origin.
+        /// A rejected edit leaves all heights and foundation reservations untouched.
+        /// </summary>
+        public bool TryEdit(SquareBuildGrid grid, Vector2 center, float radius, float amount,
+            TerrainBrushMode mode, float targetHeight, out string reason)
+        {
+            reason = "";
+            if (grid == null || grid.Terrain != this)
+            { reason = "The terrain editor is not attached to this map."; return false; }
+            if (!Finite(center.x) || !Finite(center.y) || !Finite(radius) || radius <= 0f
+                || radius > Math.Max(Width, Depth) * 2f || !Finite(amount) || amount < 0f
+                || !Finite(targetHeight) || Math.Abs(targetHeight) > 10000f || !Enum.IsDefined(typeof(TerrainBrushMode), mode))
+            { reason = "Choose a valid terrain tool, brush size and strength."; return false; }
+            if (center.x < 0f || center.y < 0f || center.x > Width || center.y > Depth)
+            { reason = "Choose a point inside the map."; return false; }
+            if (amount == 0f) return false;
+
+            var proposed = new Dictionary<int, float>();
+            int firstX = Math.Max(0, (int)Math.Ceiling(center.x - radius));
+            int lastX = Math.Min(Width, (int)Math.Floor(center.x + radius));
+            int firstZ = Math.Max(0, (int)Math.Ceiling(center.y - radius));
+            int lastZ = Math.Min(Depth, (int)Math.Floor(center.y + radius));
+            for (int z = firstZ; z <= lastZ; z++)
+            for (int x = firstX; x <= lastX; x++)
+            {
+                float dx = x - center.x, dz = z - center.y;
+                float weight = TerrainBrushRules.Falloff((float)Math.Sqrt(dx * dx + dz * dz), radius);
+                if (weight <= 0f) continue;
+                int index = Index(x, z);
+                if (locks.ContainsKey(index))
+                { reason = "Buildings and their entrance foundations cannot be reshaped."; return false; }
+
+                float current = heights[index], step = amount * weight, next;
+                if (mode == TerrainBrushMode.Raise) next = current + step;
+                else if (mode == TerrainBrushMode.Lower) next = current - step;
+                else
+                {
+                    float target = targetHeight;
+                    if (mode == TerrainBrushMode.Smooth)
+                    {
+                        // Read the original field for every node, so edit order cannot bias smoothing.
+                        double total = 0d; int count = 0;
+                        for (int nz = Math.Max(0, z - 1); nz <= Math.Min(Depth, z + 1); nz++)
+                        for (int nx = Math.Max(0, x - 1); nx <= Math.Min(Width, x + 1); nx++)
+                        { total += heights[Index(nx, nz)]; count++; }
+                        target = (float)(total / count);
+                    }
+                    next = TerrainBrushRules.MoveTowards(current, target, step);
+                }
+                if (!Finite(next) || Math.Abs(next) > 10000f)
+                { reason = "The terrain would exceed the supported elevation range."; return false; }
+                if (Math.Abs(next - current) > .00001f) proposed[index] = next;
+            }
+            if (proposed.Count == 0) return false;
+
+            foreach (int index in AffectedCells(proposed.Keys))
+            {
+                var cell = new Vector2Int(index % Width, index / Width);
+                if (grid.ContentAt(cell) == BuildCellContent.Building)
+                { reason = "Terrain beneath an existing building cannot be reshaped."; return false; }
+                float before = slopes[index], after = Slope(cell.x, cell.y, proposed);
+                if (grid.ContentAt(cell) == BuildCellContent.Path && after > MaximumPathSlope + .001f
+                    && (before <= MaximumPathSlope + .001f || after > before + .001f))
+                { reason = "This edit would make an existing path too steep. Use a wider brush or a gentler change."; return false; }
+                if (before <= MaximumWalkSlope + .001f && after > MaximumWalkSlope + .001f)
+                { reason = "This edit would make walkable ground too steep. Use a wider brush or smooth the slope."; return false; }
+            }
+
+            foreach (var change in proposed) heights[change.Key] = change.Value;
+            Recalculate();
+            return true;
+        }
+
+        private HashSet<int> AffectedCells(IEnumerable<int> nodes)
+        {
+            var result = new HashSet<int>();
+            foreach (int index in nodes)
+            {
+                int x = index % (Width + 1), z = index / (Width + 1);
+                for (int dx = -1; dx <= 0; dx++)
+                for (int dz = -1; dz <= 0; dz++)
+                    if (x + dx >= 0 && z + dz >= 0 && x + dx < Width && z + dz < Depth)
+                        result.Add((z + dz) * Width + x + dx);
+            }
+            return result;
+        }
         private HashSet<int> FoundationNodes(BuildingFootprint footprint)
         {
             var result=new HashSet<int>();
@@ -129,14 +230,7 @@ namespace Mythologicum
                     p.Changes[neighbor]=(heights[neighbor]+p.Level)*.5f;
                 }
             }
-            var affected=new HashSet<int>();
-            foreach(int i in p.Changes.Keys)
-            {
-                int nx=i%(Width+1),nz=i/(Width+1);
-                for(int dx=-1;dx<=0;dx++)for(int dz=-1;dz<=0;dz++)
-                    if(nx+dx>=0&&nz+dz>=0&&nx+dx<Width&&nz+dz<Depth)affected.Add((nz+dz)*Width+nx+dx);
-            }
-            foreach(int i in affected)
+            foreach(int i in AffectedCells(p.Changes.Keys))
             {
                 var cell=new Vector2Int(i%Width,i/Width);float slope=Slope(cell.x,cell.y,p.Changes);
                 if(Walkable(cell)&&slope>MaximumWalkSlope+.001f)return false;
