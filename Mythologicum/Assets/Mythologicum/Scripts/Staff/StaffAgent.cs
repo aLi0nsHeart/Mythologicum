@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum StaffTask { Idle, Patrolling, Researching, Healing, Repairing, Restocking, Regrouping,
-        Hunting, Retiring, Sedating, FetchingCreature, CarryingCreature, Returning, Blocked, Fleeing }
+        Hunting, Retiring, Sedating, FetchingCreature, CarryingCreature, Returning, Blocked, Fleeing, TechnologyResearch }
 
     public sealed class StaffAgent : MonoBehaviour
     {

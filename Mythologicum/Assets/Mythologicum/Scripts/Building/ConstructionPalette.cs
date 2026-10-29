@@ -17,7 +17,9 @@ namespace Mythologicum
         private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
         private readonly Button creaturesCategory;
         private readonly Button enclosuresCategory, treeChoice, gravestoneChoice;
-        private readonly List<Button> creatureButtons = new List<Button>();
+        private readonly List<KeyValuePair<CreatureDefinition,Button>> creatureButtons = new List<KeyValuePair<CreatureDefinition,Button>>();
+        private ParkProgression progression;
+        public void ConfigureProgression(ParkProgression value) { progression=value; Refresh(hasEntrance); }
         private readonly Action categoryOpened;
         private bool hasEntrance;
         private ConstructionCategory? expanded;
@@ -98,9 +100,9 @@ namespace Mythologicum
             for (int i = 0; i < placeable.Count; i++)
             {
                 CreatureDefinition creature = placeable[i];
-                creatureButtons.Add(MakeButton(template, groups[ConstructionCategory.Creatures].transform, creature.displayName,
+                creatureButtons.Add(new KeyValuePair<CreatureDefinition,Button>(creature,MakeButton(template, groups[ConstructionCategory.Creatures].transform, creature.displayName,
                     new Vector2((i - (placeable.Count - 1) / 2f) * Mathf.Min(310f, 960f / placeable.Count), 0f),
-                    () => { Close(); selectCreature(creature); }, true, Mathf.Min(290f, 960f / placeable.Count - 10f)));
+                    () => { Close(); selectCreature(creature); }, true, Mathf.Min(290f, 960f / placeable.Count - 10f))));
             }
             var statusObject = new GameObject("Construction status", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             statusObject.transform.SetParent(Root.transform, false);
@@ -157,9 +159,27 @@ namespace Mythologicum
                 = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
             enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = hasEntrance;
-            foreach (Button button in creatureButtons) button.interactable = hasEntrance;
+            spikedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Spiked) ?? true;
+            heavyFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Heavy) ?? true;
+            sanctifiedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Sanctified) ?? true;
+            SetFenceLabel(spikedFenceChoice,"Spiked fence",FenceKind.Spiked);
+            SetFenceLabel(heavyFenceChoice,"Reinforced fence",FenceKind.Heavy);
+            SetFenceLabel(sanctifiedFenceChoice,"Sanctified fence",FenceKind.Sanctified);
+            foreach (var pair in creatureButtons)
+            {
+                pair.Value.interactable = hasEntrance && (progression==null || progression.Stock(pair.Key.name)>0);
+                if(progression!=null) pair.Value.GetComponentInChildren<Text>().text=pair.Key.displayName
+                    +(pair.Key.origin=="Domestic"?"\nUse the goat dispenser":$" x{progression.Stock(pair.Key.name)} | Rating {pair.Key.rating}/5");
+            }
             foreach (var pair in buildingButtons)
-                pair.Value.interactable = pair.Key.kind == BuildingKind.ParkEntrance ? !hasEntrance : hasEntrance;
+            {
+                bool unlocked=progression?.BuildingUnlocked(pair.Key.kind)??true;
+                pair.Value.interactable = unlocked && (pair.Key.kind == BuildingKind.ParkEntrance ? !hasEntrance : hasEntrance);
+                pair.Value.GetComponentInChildren<Text>().text=unlocked?$"{pair.Key.displayName}\n{pair.Key.width} x {pair.Key.depth} tiles | Cost {pair.Key.constructionCost:0}"
+                    :pair.Key.displayName+" [locked]\nResearch: "+progression.BuildingResearch(pair.Key.kind);
+            }
         }
+        private void SetFenceLabel(Button button,string title,FenceKind kind)
+        {button.GetComponentInChildren<Text>().text=title+((progression?.FenceUnlocked(kind)??true)?"":"\nResearch required");}
     }
 }

@@ -20,6 +20,7 @@ namespace Mythologicum
     /// <summary>Park-wide species knowledge earned through employee observation; separate from future technology research.</summary>
     public sealed class SpeciesResearch
     {
+        public event Action<CreatureDefinition> Finished;
         public const int StageCount = 4;
         private readonly Dictionary<CreatureDefinition,ResearchProgress> progress = new Dictionary<CreatureDefinition,ResearchProgress>();
 
@@ -34,7 +35,10 @@ namespace Mythologicum
         public int UnlockedStages(CreatureDefinition species) => Math.Min(StageCount,(int)(Progress(species)/25f));
         public bool Study(CreatureDefinition species,float amount)
         {
-            return species != null && progress.TryGetValue(species,out ResearchProgress value) && value.Study(amount);
+            if (species == null || !progress.TryGetValue(species,out ResearchProgress value)) return false;
+            bool changed = value.Study(amount);
+            if (changed && value.Progress >= 100f) Finished?.Invoke(species);
+            return changed;
         }
 
         public string Description(CreatureDefinition species)

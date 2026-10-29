@@ -126,7 +126,7 @@ namespace Mythologicum
             if (selected.Wellbeing.Agitation > 0f) reasons += ", agitation";
             if (selected.Crowding > 0f) reasons += ", space pressure";
             text.text = $"{definition.displayName} - {selected.Activity}\n"
-                + $"Origin: {definition.origin}\n"
+                + $"Origin: {definition.origin} | Rating: {definition.rating}/5\n"
                 + $"Health: {selected.Health.Current:0}/{selected.Health.Maximum:0}\n"
                 + $"Damage: {definition.damage:0} | Threat: {definition.threat:0}\n"
                 + $"Happiness: {selected.Wellbeing.Happiness:0}/100"

@@ -51,6 +51,7 @@ namespace Mythologicum
 
     public sealed class FenceLayout
     {
+        public event Action<FenceEdge> Opened;
         public int Revision { get; private set; }
         private readonly SquareBuildGrid grid;
         private readonly HashSet<FenceEdge> edges = new HashSet<FenceEdge>();
@@ -123,6 +124,7 @@ namespace Mythologicum
             kinds.Remove(edge);
             health.Remove(edge);
             Revision++;
+            Opened?.Invoke(edge);
             return true;
         }
 

@@ -136,6 +136,7 @@ namespace Mythologicum
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy);
             staffWorld = new StaffWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, economy,
                 visitorSettings.people != null ? visitorSettings.people : Resources.Load<PeopleDefinition>("People/People"), creatureCatalog);
+            InitializeProgression();
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
             var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
@@ -160,6 +161,7 @@ namespace Mythologicum
             SelectTool(Tool.None);
             foreach (BuildingDefinition definition in buildingCatalog)
                 if (definition.kind == BuildingKind.ParkEntrance) { SelectBuilding(definition); break; }
+            CreateManagementUI();
             GameSaveMenu.Attach(this);
             if (ParkSaveStore.Pending != null)
             {
@@ -202,6 +204,7 @@ namespace Mythologicum
 
         private void SelectBuilding(BuildingDefinition definition)
         {
+            if (!Progression.BuildingUnlocked(definition.kind)) return;
             if ((definition.kind == BuildingKind.ParkEntrance) == buildingConstruction.Network.HasEntrance) return;
             selectedBuilding = definition;
             buildingRotation = 0;
@@ -210,12 +213,14 @@ namespace Mythologicum
 
         private void SelectCreature(CreatureDefinition definition)
         {
+            if (Progression.Stock(definition.name) < 1) return;
             selectedCreature = definition;
             SelectTool(Tool.Creature);
         }
 
         private void SelectFence(FenceKind kind)
         {
+            if (!Progression.FenceUnlocked(kind)) return;
             selectedFenceKind = kind;
             SelectTool(Tool.Fence);
         }
@@ -264,6 +269,7 @@ namespace Mythologicum
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
             staffWorld.Tick(Time.deltaTime);
+            Progression.Tick(Time.deltaTime);
             fences.Refresh(view);
             visitorWorld.Tick(Time.deltaTime);
             BuildingEconomy.Tick(buildingConstruction.Network,economy,Time.deltaTime);
@@ -273,6 +279,9 @@ namespace Mythologicum
             palette.Refresh(buildingConstruction.Network.HasEntrance);
             enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
             enclosurePresentation.Refresh();
+            management.Refresh();
+            notifications.Refresh();
+            if (ManagementOpen) return;
             Keyboard keyboard = Keyboard.current;
             InputField focusedInput = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
@@ -348,6 +357,7 @@ namespace Mythologicum
 
         private void ApplyBuilding(Mouse mouse, Vector2Int cell)
         {
+            if (!Progression.BuildingUnlocked(selectedBuilding.kind)) { SelectTool(Tool.None); return; }
             var footprint = new BuildingFootprint(selectedBuilding, cell, buildingRotation);
             bool valid = buildingConstruction.CanPlace(footprint) && !creatureWorld.Occupies(footprint);
             foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)) valid = false;
@@ -390,12 +400,14 @@ namespace Mythologicum
 
         private void ApplyCreature(Mouse mouse, Vector2Int cell)
         {
+            if (Progression.Stock(selectedCreature.name) < 1) { SelectTool(Tool.None); return; }
             bool valid = creatureWorld.CanSpawn(cell);
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
                 parent => creatureWorld.CreateVisual(parent, selectedCreature, selectedCreature.visualPrefab, out _));
             if (!valid) status.text = "Choose clear ground away from another creature (or population limit reached).";
-            if (valid && mouse.leftButton.wasPressedThisFrame && creatureWorld.TrySpawn(selectedCreature, cell)) SelectTool(Tool.None);
+            if (valid && mouse.leftButton.wasPressedThisFrame && Progression.TryPlace(selectedCreature.name,
+                () => creatureWorld.TrySpawn(selectedCreature, cell))) SelectTool(Tool.None);
         }
 
         private void InspectEnclosure()
@@ -422,7 +434,9 @@ namespace Mythologicum
                 if (selected != null)
                 {
                     buildingInspection.Select(selected.Record); creatureInspection.Select(null);
-                    visitorPresentation.Select(null); enclosurePresentation.Select(null); return;
+                    visitorPresentation.Select(null); enclosurePresentation.Select(null);
+                    if (selected.Record.Footprint.Definition.kind == BuildingKind.ExpeditionCentre) OpenExpeditions(selected.Record);
+                    return;
                 }
             }
             buildingInspection.Select(null);
@@ -475,6 +489,7 @@ namespace Mythologicum
 
         private void ApplyFenceRoute(Mouse mouse, Vector3 point)
         {
+            if (!Progression.FenceUnlocked(selectedFenceKind)) { SelectTool(Tool.None); return; }
             FenceEdge edge = fences.Layout.NearestEdge(point);
             ApplyRoute(mouse, edge, fenceSelection,
                 node => ConstructionRouteGraph.FenceNeighbors(node, fences.Layout),
@@ -631,6 +646,8 @@ namespace Mythologicum
 
         private void OnDestroy()
         {
+            management?.Dispose();
+            notifications?.Dispose();
             buildingInspection?.Dispose();
             staffWorld?.Dispose();
             visitorPresentation?.Dispose();

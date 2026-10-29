@@ -13,6 +13,11 @@ namespace Mythologicum
         {
             if (worker.Role == StaffRole.Researcher)
             {
+                if (Progression?.ActiveProject(worker.Home) != null)
+                {
+                    SetGoal(worker, worker.Home.Footprint.AccessCell);
+                    SetStatus(worker, StaffTask.TechnologyResearch, "Returning to the laboratory"); return;
+                }
                 CreatureDefinition species = ResearchTarget(worker.Home);
                 if (species == null)
                     foreach (CreatureAgent creature in creatures.Agents)
@@ -71,13 +76,24 @@ namespace Mythologicum
 
         private void Work(StaffAgent worker, float dt)
         {
-            if (worker.Task == StaffTask.Researching)
+            if (worker.Task == StaffTask.TechnologyResearch)
+            {
+                var project = Progression?.ActiveProject(worker.Home);
+                if (project == null) { ClearJob(worker); return; }
+                if (!SetGoal(worker,worker.Home.Footprint.AccessCell)) { Block(worker,"Laboratory cannot be reached"); return; }
+                if (AtNode(worker) && worker.Actor.Route.Count == 0)
+                {
+                    worker.Status = "Developing " + project.Definition.name;
+                    Progression.AdvanceResearch(worker.Home, dt * Efficiency);
+                }
+            }
+            else if (worker.Task == StaffTask.Researching)
             {
                 if (!ValidCreature(worker.Target) || worker.Target.Definition != ResearchTarget(worker.Home)
                     || Research.Progress(worker.Target.Definition) >= 100f) { ClearJob(worker); return; }
                 if (ApproachRanged(worker,worker.Target,tuning.studyRange))
                 {
-                    Research.Study(worker.Target.Definition, tuning.researchPerSecond * dt);
+                    Research.Study(worker.Target.Definition, tuning.researchPerSecond * dt * Efficiency);
                     worker.Status = "Studying " + worker.Target.Definition.displayName;
                 }
             }
@@ -104,7 +120,7 @@ namespace Mythologicum
                     return;
                 }
                 if (ApproachHandsOn(worker,target))
-                { target.Health.Restore(tuning.healPerSecond * dt); worker.Status = "Treating " + target.Definition.displayName; }
+                { target.Health.Restore(tuning.healPerSecond * dt * Efficiency); worker.Status = "Treating " + target.Definition.displayName; }
             }
             else if (worker.Task == StaffTask.Repairing)
             {
@@ -113,7 +129,7 @@ namespace Mythologicum
                 Vector2Int? approach = FenceApproach(worker,worker.Fence.Value);
                 if (!approach.HasValue || !SetGoal(worker,approach.Value)) { Block(worker,"Fence cannot be reached: add staff access"); return; }
                 if (AtNode(worker) && worker.Actor.Route.Count == 0)
-                { fences.TryRepair(worker.Fence.Value, tuning.repairPerSecond * dt); worker.Status = "Repairing fence"; }
+                { fences.TryRepair(worker.Fence.Value, tuning.repairPerSecond * dt * Efficiency); worker.Status = "Repairing fence"; }
             }
             else if (worker.Task == StaffTask.Restocking)
             {

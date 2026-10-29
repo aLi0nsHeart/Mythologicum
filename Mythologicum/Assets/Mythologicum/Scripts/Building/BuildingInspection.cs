@@ -13,6 +13,8 @@ namespace Mythologicum
         private readonly InputField price;
         private readonly Button hire, fire;
         private readonly Dropdown researchChoice;
+        private readonly Button management;
+        private Action<ParkBuildingRecord> openExpeditions, openTechnology;
         private readonly StaffWorld staff;
         private readonly SpeciesResearch research;
         private readonly CreatureDefinition[] species;
@@ -24,20 +26,28 @@ namespace Mythologicum
             this.staff = staff; this.research = research; this.species = species ?? Array.Empty<CreatureDefinition>();
             panel = Box(canvas.transform, "Building information", new Vector2(1f,1f), new Vector2(-15f,-140f), new Vector2(430f,650f));
             title = Label(panel.transform, "Building name", font, 22, new Vector2(12f,10f), new Vector2(406f,48f));
-            accounts = Label(panel.transform, "Operating accounts", font, 18, new Vector2(12f,63f), new Vector2(406f,168f));
-            message = Label(panel.transform, "Action result", font, 16, new Vector2(12f,284f), new Vector2(406f,36f));
+            management = MakeButton(panel.transform,"Technology research",font,new Vector2(12f,62f),new Vector2(406f,36f),()=>
+            {
+                if(selected?.Footprint.Definition.kind==BuildingKind.ExpeditionCentre)openExpeditions?.Invoke(selected);
+                else if(selected?.Footprint.Definition.kind==BuildingKind.ResearchCentre)openTechnology?.Invoke(selected);
+            });
+            var content=ManagementWidgets.Scroll(panel.transform,"Building details - scroll",new Vector2(8f,106f),new Vector2(414f,534f),590f);
+            var scrollRect=(RectTransform)content.parent.parent;scrollRect.anchorMin=Vector2.zero;scrollRect.anchorMax=Vector2.one;
+            scrollRect.offsetMin=new Vector2(8,10);scrollRect.offsetMax=new Vector2(-8,-106);
+            accounts = Label(content, "Operating accounts", font, 18, Vector2.zero, new Vector2(406f,168f));
+            message = Label(content, "Action result", font, 16, new Vector2(0f,221f), new Vector2(406f,36f));
 
-            priceGroup = Group(panel.transform, "Price controls", new Vector2(12f,235f), new Vector2(406f,45f));
+            priceGroup = Group(content, "Price controls", new Vector2(0f,172f), new Vector2(406f,45f));
             priceCaption = Label(priceGroup.transform, "Price type", font, 17, Vector2.zero, new Vector2(150f,38f));
             price = PriceInput(priceGroup.transform, font, new Vector2(155f,0f), new Vector2(120f,36f));
             MakeButton(priceGroup.transform, "Apply price", font, new Vector2(285f,0f), new Vector2(112f,36f), ApplyPrice);
 
-            staffGroup = Group(panel.transform, "Personnel controls", new Vector2(12f,325f), new Vector2(406f,118f));
+            staffGroup = Group(content, "Personnel controls", new Vector2(0f,262f), new Vector2(406f,118f));
             hire = MakeButton(staffGroup.transform, "Hire", font, Vector2.zero, new Vector2(194f,36f), Hire);
             fire = MakeButton(staffGroup.transform, "Dismiss one", font, new Vector2(208f,0f), new Vector2(194f,36f), Fire);
             employees = Label(staffGroup.transform, "Personnel activity", font, 16, new Vector2(0f,43f), new Vector2(406f,100f));
 
-            researchGroup = Group(panel.transform, "Creature research", new Vector2(12f,478f), new Vector2(406f,160f));
+            researchGroup = Group(content, "Creature research", new Vector2(0f,415f), new Vector2(406f,160f));
             researchChoice = ResearchDropdown(researchGroup.transform, font, this.species);
             researchChoice.onValueChanged.AddListener(index =>
             {
@@ -59,13 +69,19 @@ namespace Mythologicum
             Refresh();
         }
         public void SetInspecting(bool value) { inspecting = value; Refresh(); }
+        public void ConfigureManagement(Action<ParkBuildingRecord> expeditions,Action<ParkBuildingRecord> technology)
+        {openExpeditions=expeditions;openTechnology=technology;}
         public void Refresh()
         {
             if (panel == null) return;
             bool show = inspecting && selected != null && staff.Buildings.Contains(selected);
             panel.SetActive(show);
             if (!show) return;
+            var parent=(RectTransform)panel.transform.parent;
+            ((RectTransform)panel.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,Mathf.Min(650f,Mathf.Max(280f,parent.rect.height-240f)));
             BuildingDefinition definition = selected.Footprint.Definition;
+            management.gameObject.SetActive(definition.kind==BuildingKind.ExpeditionCentre||definition.kind==BuildingKind.ResearchCentre);
+            management.GetComponentInChildren<Text>().text=definition.kind==BuildingKind.ExpeditionCentre?"Open expedition world map":"Technology research";
             title.text = definition.displayName;
             accounts.text = (selected.IsOpen ? "Open" : "Closed: reconnect its entrance path") + "\n"
                 + $"Base upkeep: {definition.operatingCostPerSecond * 60f:0.##} / minute\n"
@@ -112,6 +128,7 @@ namespace Mythologicum
                 researchChoice.SetValueWithoutNotify(Math.Max(0,index));
                 researchNotes.text = target == null ? "Choose a creature species to study."
                     : "Care notes (scroll to read)\n" + research.Description(target);
+                if(staff.Progression?.ActiveProject(selected)!=null)researchNotes.text="Technology project active. Creature observation resumes when it finishes.\n"+researchNotes.text;
                 researchNotes.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(110f,researchNotes.preferredHeight));
             }
         }

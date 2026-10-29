@@ -24,6 +24,14 @@ namespace Mythologicum
         public ParkBuildingNetwork Buildings { get; }
         public SpeciesResearch Research { get; }
         public IReadOnlyList<StaffAgent> Staff => workers;
+        public ParkProgression Progression { get; set; }
+        private float Efficiency => Progression?.StaffEfficiency ?? 1f;
+        public bool StartTechnology(ParkBuildingRecord home, string id)
+        {
+            if (Progression == null || !Progression.StartResearch(home, id)) return false;
+            foreach (var worker in workers) if (worker.Home == home) { ClearJob(worker); worker.DecisionTimer = 0f; }
+            return true;
+        }
 
         public StaffWorld(SquareBuildGrid grid, FenceLayout fences, ParkBuildingNetwork buildings,
             CreatureWorld creatures, ParkEconomy economy, PeopleDefinition people, CreatureDefinition[] species, StaffDefinition tuning = null)

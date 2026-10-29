@@ -18,6 +18,7 @@ MonoBehaviour:
   preyTags: 5
   fearedTags: 0
   manuallyPlaceable: 1
+  rating: 3
   initialHunger: 20
   hungerPerSecond: 0.15
   huntThreshold: 50

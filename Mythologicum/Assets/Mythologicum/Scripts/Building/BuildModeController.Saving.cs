@@ -23,6 +23,7 @@ namespace Mythologicum
                 if (Environment.GravestonesAt(cell) > 0) data.graves.Add(cell);
             }
             var records = buildingConstruction.Network.Records;
+            data.progression = Progression.Capture(records);
             foreach (var record in records)
             {
                 var f = record.Footprint; var d = f.Definition;
@@ -107,6 +108,7 @@ namespace Mythologicum
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException("Invalid species research.");
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
                 || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException("Invalid saved finances or camera.");
+            if(data.version>=2)Progression.Validate(data.progression,network.Records);
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid) => saved != null && checkGrid.Contains(saved.cell)
@@ -182,6 +184,8 @@ namespace Mythologicum
                 }
                 economy.Restore(data.balance, data.income, data.expenses, data.unlimited);
                 visitorWorld.RestoreCounts(data.departedVisitors, data.lostVisitors);
+                if(data.version>=2) Progression.Restore(data.progression,restored);
+                else Progression.AdoptLegacyPark(restored,fences.Layout.Edges,fences.Layout);
                 GetComponent<IsometricCameraController>()?.RestorePose(data.focus, data.yaw, data.zoom);
                 GameSaveMenu.ShowMessage("Game loaded.");
             }

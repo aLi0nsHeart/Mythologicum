@@ -88,7 +88,11 @@ namespace Mythologicum
         }
         private void Update()
         {
-            if (park != null && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) Toggle();
+            if (park != null && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                if (!IsOpen && park.CloseManagementWindow()) return;
+                Toggle();
+            }
         }
         private void Toggle()
         {

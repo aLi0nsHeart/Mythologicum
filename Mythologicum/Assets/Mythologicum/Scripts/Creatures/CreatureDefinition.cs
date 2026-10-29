@@ -22,6 +22,8 @@ namespace Mythologicum
         [Tooltip("Legacy tag setting retained for existing profiles. Fear now compares threat values.")]
         public CreatureTags fearedTags;
         public bool manuallyPlaceable = true;
+        [Tooltip("Expedition rarity and difficulty tier, independent of combat threat.")]
+        [Range(1, 5)] public int rating = 1;
 
         [Header("Health, combat and origin")]
         public string origin = "Unknown";

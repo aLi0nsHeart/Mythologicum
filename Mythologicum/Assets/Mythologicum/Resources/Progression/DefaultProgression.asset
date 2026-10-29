@@ -1,0 +1,193 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2f80e2593da470eb1e749f265c3fbc3, type: 3}
+  m_Name: DefaultProgression
+  m_EditorClassIdentifier: 
+  rules:
+    teamCost: 250
+    additionalTeamCost: 100
+    extraTeamSuccess: 0.12
+    maximumSuccess: 0.95
+    maximumTeams: 12
+    regions:
+    - id: north-america
+      name: North America
+      accessCost: 350
+      mapPosition: {x: 0.19, y: 0.68}
+      species:
+      - Chupacabra
+    - id: south-america
+      name: South America
+      accessCost: 350
+      mapPosition: {x: 0.31, y: 0.27}
+      species:
+      - Chupacabra
+    - id: west-africa
+      name: West Africa
+      accessCost: 350
+      mapPosition: {x: 0.49, y: 0.43}
+      species: []
+    - id: east-africa
+      name: East Africa
+      accessCost: 350
+      mapPosition: {x: 0.59, y: 0.36}
+      species: []
+    - id: south-africa
+      name: Southern Africa
+      accessCost: 350
+      mapPosition: {x: 0.55, y: 0.14}
+      species: []
+    - id: china
+      name: China
+      accessCost: 350
+      mapPosition: {x: 0.77, y: 0.65}
+      species: []
+    - id: middle-east
+      name: Middle East
+      accessCost: 350
+      mapPosition: {x: 0.62, y: 0.52}
+      species: []
+    - id: japan
+      name: Japan
+      accessCost: 350
+      mapPosition: {x: 0.92, y: 0.57}
+      species:
+      - Hitotsume
+      - Yurei
+      - Oni
+    - id: central-europe
+      name: Central Europe
+      accessCost: 350
+      mapPosition: {x: 0.49, y: 0.73}
+      species: []
+    - id: northern-europe
+      name: Northern Europe
+      accessCost: 350
+      mapPosition: {x: 0.56, y: 0.9}
+      species: []
+    difficulties:
+    - id: survey
+      name: Survey
+      costPerTeam: 120
+      seconds: 60
+      successChance: 0.8
+      minimumRating: 1
+      maximumRating: 2
+      creaturesFound: 2
+    - id: capture
+      name: Capture
+      costPerTeam: 200
+      seconds: 120
+      successChance: 0.6
+      minimumRating: 2
+      maximumRating: 3
+      creaturesFound: 2
+    - id: dangerous
+      name: Dangerous
+      costPerTeam: 350
+      seconds: 180
+      successChance: 0.35
+      minimumRating: 3
+      maximumRating: 5
+      creaturesFound: 2
+    technologies:
+    - id: food-service
+      name: Food services
+      description: Unlock kiosks to sell food to hungry visitors.
+      cost: 200
+      workSeconds: 30
+      prerequisites: []
+      fences: 
+      buildings: 02000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: visitor-rest
+      name: Visitor comfort
+      description: Unlock rest areas for tired visitors.
+      cost: 150
+      workSeconds: 25
+      prerequisites: []
+      fences: 
+      buildings: 04000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: spiked-fences
+      name: Spiked fences
+      description: Prevent creatures climbing out over wooden barriers.
+      cost: 250
+      workSeconds: 45
+      prerequisites: []
+      fences: 01000000
+      buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: reinforced-fences
+      name: Reinforced fences
+      description: Heavy barriers resist creature attacks.
+      cost: 600
+      workSeconds: 90
+      prerequisites:
+      - spiked-fences
+      fences: 02000000
+      buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: sanctified-fences
+      name: Sanctified fences
+      description: Block a spirit's ability to phase through barriers.
+      cost: 700
+      workSeconds: 100
+      prerequisites:
+      - spiked-fences
+      fences: 03000000
+      buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: staff-training
+      name: Staff training
+      description: Research, healing and fence repairs are 25% faster.
+      cost: 450
+      workSeconds: 60
+      prerequisites: []
+      fences: 
+      buildings: 
+      staffEfficiency: 1.25
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: field-equipment
+      name: Expedition equipment
+      description: Add 10 percentage points to expedition success chances.
+      cost: 350
+      workSeconds: 45
+      prerequisites: []
+      fences: 
+      buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0.1
+      expeditionDurationMultiplier: 1
+    - id: field-logistics
+      name: Expedition logistics
+      description: Expeditions take 25% less time.
+      cost: 500
+      workSeconds: 60
+      prerequisites:
+      - field-equipment
+      fences: 
+      buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 0.75

@@ -1,5 +1,6 @@
 param(
-    [string]$UnityEditorData = 'D:\MeineProgramme\Unity\6000.0.74f1\Editor\Data'
+    [string]$UnityEditorData = 'D:\MeineProgramme\Unity\6000.0.74f1\Editor\Data',
+    [string[]]$CheckNames = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +41,8 @@ try {
     $checks += @('..\Visitors\VisitorModelChecks', '..\Visitors\VisitorNavigationChecks', '..\Visitors\EconomyChecks')
     $checks += @('CreatureHealthChecks', 'FenceHealthChecks', 'FenceCapabilityChecks', 'GraveEnvironmentChecks')
     $checks += @('FenceRepairChecks', '..\Buildings\BuildingAccountChecks', '..\Staff\StaffNavigationChecks', '..\Staff\ResearchChecks')
+    $checks += @('..\Progression\ProgressionChecks')
+    if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force
     $env:MONO_PATH = $unityAssemblies

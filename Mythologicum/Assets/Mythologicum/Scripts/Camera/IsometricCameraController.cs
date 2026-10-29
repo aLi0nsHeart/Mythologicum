@@ -32,7 +32,7 @@ namespace Mythologicum
 
         private void Update()
         {
-            if (GameSaveMenu.IsOpen) return;
+            if (GameSaveMenu.IsOpen || GetComponent<BuildModeController>()?.ManagementOpen == true) return;
             Keyboard keys = Keyboard.current;
             InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
@@ -57,6 +57,7 @@ namespace Mythologicum
         }
 
         public Vector3 SavedFocus => focusPoint;
+        public void FocusOn(Vector3 point) { focusPoint = point; ApplyPose(); }
         public float SavedYaw => yaw;
         public float SavedZoom => zoomLevel;
         public void RestorePose(Vector3 focus, float heading, float zoom)
