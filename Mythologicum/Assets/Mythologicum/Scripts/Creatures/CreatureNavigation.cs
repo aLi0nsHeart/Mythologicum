@@ -33,12 +33,13 @@ namespace Mythologicum
         }
 
         public bool IsWalkable(Vector2Int cell) => grid.Contains(cell)
+            && grid.GroundWalkable(cell)
             && grid.ContentAt(cell) != BuildCellContent.Building
             && (physicalCellClear == null || physicalCellClear(cell));
 
         public bool CanCross(Vector2Int from, Vector2Int to)
         {
-            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to)) return false;
+            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to) || !grid.CanTraverse(from,to)) return false;
             var edge = from.x != to.x
                 ? new FenceEdge(new Vector2Int(Math.Max(from.x, to.x), from.y), false)
                 : new FenceEdge(new Vector2Int(from.x, Math.Max(from.y, to.y)), true);
@@ -58,7 +59,7 @@ namespace Mythologicum
 
         /// <summary>Returns a cardinal route including both endpoints; empty means unreachable.</summary>
         public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal) =>
-            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance);
+            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance,grid.MovementCost);
 
         /// <summary>Returns clear cells within the movement budget, including the starting cell.</summary>
         public List<Vector2Int> Reachable(Vector2Int start, int maxSteps)
@@ -92,7 +93,7 @@ namespace Mythologicum
         /// </summary>
         public bool HasLineOfSight(Vector2Int start, Vector2Int end)
         {
-            if (!IsWalkable(start) || !IsWalkable(end)) return false;
+            if (!IsWalkable(start) || !IsWalkable(end) || !grid.GroundLineOfSight(start,end)) return false;
             int dx = end.x - start.x, dy = end.y - start.y;
             int nx = Math.Abs(dx), ny = Math.Abs(dy);
             int sx = Math.Sign(dx), sy = Math.Sign(dy);

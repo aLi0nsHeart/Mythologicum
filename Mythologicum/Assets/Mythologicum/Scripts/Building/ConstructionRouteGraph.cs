@@ -17,7 +17,7 @@ namespace Mythologicum
                 var separatingEdge = direction.x != 0
                     ? new FenceEdge(new Vector2Int(Math.Max(cell.x, next.x), cell.y), false)
                     : new FenceEdge(new Vector2Int(cell.x, Math.Max(cell.y, next.y)), true);
-                if (grid.Contains(next) && !fences.BlocksPath(separatingEdge)) yield return next;
+                if (grid.Contains(next) && grid.CanTraverse(cell,next,true) && !fences.BlocksPath(separatingEdge)) yield return next;
             }
         }
 

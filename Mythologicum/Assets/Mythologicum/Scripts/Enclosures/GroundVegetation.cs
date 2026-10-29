@@ -12,6 +12,7 @@ namespace Mythologicum
         private readonly GameObject root;
         private readonly Dictionary<Vector2Int, GameObject> cells = new Dictionary<Vector2Int, GameObject>();
         private int gridRevision = -1, environmentRevision = -1;
+        private readonly Dictionary<Transform,float> baseHeights=new Dictionary<Transform,float>();
 
         public GroundVegetation(SquareBuildGrid grid, EnvironmentGrid environment, VegetationDefinition definition)
         {
@@ -40,6 +41,7 @@ namespace Mythologicum
                             (float)random.NextDouble() * 360f, false);
                         plant.transform.localPosition += new Vector3((float)(random.NextDouble() - 0.5) * grid.CellSize * 0.65f,
                             0.005f, (float)(random.NextDouble() - 0.5) * grid.CellSize * 0.65f);
+                        baseHeights[plant.transform]=plant.transform.localPosition.y;
                     }
                 }
             Refresh();
@@ -50,6 +52,9 @@ namespace Mythologicum
             if (gridRevision == grid.Revision && environmentRevision == environment.Revision) return;
             foreach (var pair in cells)
             {
+                pair.Value.transform.position=grid.CellCenter(pair.Key);
+                foreach(Transform plant in pair.Value.transform)
+                {var p=plant.localPosition;p.y=baseHeights[plant]+grid.GroundHeight(plant.position)-pair.Value.transform.position.y;plant.localPosition=p;}
                 bool visible = grid.IsAvailable(pair.Key) && environment.TreesAt(pair.Key) == 0
                     && environment.GravestonesAt(pair.Key) == 0;
                 if (pair.Value.activeSelf != visible) pair.Value.SetActive(visible);

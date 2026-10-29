@@ -21,6 +21,7 @@ namespace Mythologicum
         }
 
         public bool Occupies(Vector2Int cell) => stones.ContainsKey(cell);
+        public void RefreshTerrain(){foreach(var pair in stones)pair.Value.transform.position=grid.CellCenter(pair.Key);}
         public bool CanPlace(Vector2Int cell)
         {
             if (disposed || !grid.IsAvailable(cell) || Occupies(cell) || environment.GravestonesAt(cell) > 0

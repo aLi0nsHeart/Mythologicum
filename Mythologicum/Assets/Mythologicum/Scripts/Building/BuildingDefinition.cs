@@ -109,7 +109,10 @@ namespace Mythologicum
             for (int z = 0; z < Depth; z++) yield return Anchor + new Vector2Int(x, z);
         }
 
-        public Vector3 Center(SquareBuildGrid grid) => grid.Origin + new Vector3(
-            (Anchor.x + Width / 2f) * grid.CellSize, 0f, (Anchor.y + Depth / 2f) * grid.CellSize);
+        public Vector3 Center(SquareBuildGrid grid)
+        {
+            var p=grid.Origin+new Vector3((Anchor.x+Width/2f)*grid.CellSize,0,(Anchor.y+Depth/2f)*grid.CellSize);
+            p.y=grid.GroundHeight(p);return p;
+        }
     }
 }

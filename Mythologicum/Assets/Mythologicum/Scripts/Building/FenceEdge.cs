@@ -97,7 +97,7 @@ namespace Mythologicum
         public bool BlocksPath(FenceEdge edge) => HasFence(edge) && !IsGate(edge);
         public bool TrySetGate(FenceEdge edge)
         {
-            if (!HasFence(edge) || KindAt(edge) == FenceKind.Spiked || !gates.Add(edge)) return false;
+            if (!HasFence(edge) || !gates.Add(edge)) return false;
             Revision++;
             return true;
         }
@@ -139,9 +139,12 @@ namespace Mythologicum
             return new FenceEdge(new Vector2Int(nx, Math.Max(0, Math.Min(grid.Depth - 1, (int)Math.Floor(z)))), false);
         }
 
-        public Vector3 Center(FenceEdge edge) => grid.Origin + new Vector3(
-            (edge.Start.x + (edge.AlongX ? 0.5f : 0f)) * grid.CellSize, 0f,
-            (edge.Start.y + (edge.AlongX ? 0f : 0.5f)) * grid.CellSize);
+        public Vector3 Center(FenceEdge edge)
+        {
+            var p=grid.Origin+new Vector3((edge.Start.x+(edge.AlongX?.5f:0))*grid.CellSize,0,
+                (edge.Start.y+(edge.AlongX?0:.5f))*grid.CellSize);
+            p.y=grid.GroundHeight(p);return p;
+        }
 
         public bool WouldSplitPath(FenceEdge edge) => grid.ContentAt(edge.CellA) == BuildCellContent.Path
             && grid.ContentAt(edge.CellB) == BuildCellContent.Path;

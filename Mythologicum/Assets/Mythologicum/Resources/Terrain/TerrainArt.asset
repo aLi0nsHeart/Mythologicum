@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2d65be7137947e1910040c456d11c50, type: 3}
+  m_Name: TerrainArt
+  m_EditorClassIdentifier: 
+  grass: {fileID: 2100000, guid: 3c65e2373b6af284f847827134285b8d, type: 2}
+  cliff: {fileID: 2100000, guid: 6dd3ae3c3670a6f4e9cbee9bb51e8ab3, type: 2}
+  borderTrees:
+  - {fileID: 1542750965012025651, guid: 9e32f9589a1126343a06a9db454cd605, type: 3}
+  forest:
+    enabled: 1
+    widthInCells: 3
+    density: 0.88
+    minimumHeight: 5
+    maximumHeight: 7
+    seed: 819

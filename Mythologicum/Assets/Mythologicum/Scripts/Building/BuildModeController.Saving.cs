@@ -13,6 +13,8 @@ namespace Mythologicum
                 balance = economy.Balance, income = economy.Income, expenses = economy.Expenses,
                 unlimited = economy.UnlimitedFunds, savedAt = DateTime.UtcNow.ToString("O"),
                 departedVisitors = visitorWorld.DepartedCount, lostVisitors = visitorWorld.LostCount };
+            data.terrain=grid.Terrain?.Capture();
+            data.treeVisuals=trees.CaptureVisuals();
             var camera = GetComponent<IsometricCameraController>();
             if (camera != null) { data.focus = camera.SavedFocus; data.yaw = camera.SavedYaw; data.zoom = camera.SavedZoom; }
             for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
@@ -63,7 +65,7 @@ namespace Mythologicum
         private void RestoreActor(CreatureAgent actor, SavedActor saved)
         {
             actor.Cell = saved.cell;
-            actor.transform.position = grid.CellCenter(saved.cell) + Vector3.up * actor.Definition.bodyScale.y;
+            actor.transform.position = grid.ActorPosition(saved.cell,actor.Definition.bodyScale.y);
             actor.Vitals.Restore(saved.hunger, saved.fear); actor.Energy = new CreatureEnergy(saved.energy);
             actor.Health.Damage(Mathf.Max(0f, actor.Health.Maximum - Mathf.Max(1f, saved.health)));
             actor.Wellbeing.Restore(saved.happiness, saved.agitation); actor.Exploration.Tick(saved.explored);
@@ -73,20 +75,24 @@ namespace Mythologicum
         {
             if (data.width != grid.Width || data.depth != grid.Depth || !Mathf.Approximately(data.cellSize, grid.CellSize))
                 throw new InvalidDataException("This save was made with a different map size.");
-            var checkGrid = new SquareBuildGrid(grid.Origin, grid.CellSize, grid.Width, grid.Depth);
+            GridHeightField checkTerrain=null;
+            if(data.version>=3){checkTerrain=new GridHeightField(grid.Width,grid.Depth,grid.CellSize);checkTerrain.Restore(data.terrain);}
+            var checkGrid = new SquareBuildGrid(grid.Origin, grid.CellSize, grid.Width, grid.Depth,checkTerrain);
             var checkFences = new FenceLayout(checkGrid);
             var network = new ParkBuildingNetwork(checkGrid, checkFences);
             network.RestoringSave = true;
             foreach (var saved in data.buildings)
             {
                 var definition = SavedDefinition(saved);
-                if (network.TryPlace(new BuildingFootprint(definition, saved.cell, saved.rotation)) == null)
+                var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation);
+                var record=network.TryPlace(footprint);
+                if (record == null)
                     throw new InvalidDataException("A saved building has an invalid footprint.");
+                if(checkTerrain!=null&&!checkTerrain.RegisterFoundation(record,footprint))throw new InvalidDataException("A saved building foundation is not flat.");
             }
-            foreach (var cell in data.paths) if (!checkGrid.TryOccupy(cell, BuildCellContent.Path)) throw new InvalidDataException("Invalid saved path.");
+            foreach (var cell in data.paths) if (!checkGrid.GroundWalkable(cell,true)||!checkGrid.TryOccupy(cell, BuildCellContent.Path)) throw new InvalidDataException("Invalid saved path.");
             foreach (var fence in data.fences)
                 if (!Enum.IsDefined(typeof(FenceKind), fence.kind) || fence.health <= 0f || !Finite(fence.health)
-                    || (fence.gate && fence.kind == FenceKind.Spiked)
                     || !checkFences.TryAdd(new FenceEdge(fence.cell, fence.alongX), fence.kind))
                     throw new InvalidDataException("Invalid saved fence.");
             var enrichment = new HashSet<Vector2Int>();
@@ -94,6 +100,12 @@ namespace Mythologicum
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved tree.");
             foreach (var cell in data.graves)
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved gravestone.");
+            if(data.treeVisuals!=null)
+            {
+                var ids=new HashSet<Vector2Int>();var treeCells=new HashSet<Vector2Int>(data.trees);
+                foreach(var item in data.treeVisuals)if(item==null||!treeCells.Contains(item.cell)||!ids.Add(item.cell)||!Finite(item.height)||item.height<.1f||item.height>100||!Finite(item.yaw))
+                    throw new InvalidDataException("Invalid saved tree appearance.");
+            }
             foreach (var saved in data.creatures)
                 if (Species(saved.species) == null || !ValidActor(saved, checkGrid)) throw new InvalidDataException("A saved creature is unavailable or invalid.");
             var hired = new Dictionary<int,int>();
@@ -135,6 +147,11 @@ namespace Mythologicum
                 ValidateSave(data);
                 creatureWorld.RestoringSave = true;
                 buildingConstruction.Network.RestoringSave = true;
+                if(grid.Terrain!=null)
+                {
+                    if(data.version>=3)grid.Terrain.Restore(data.terrain);
+                    else grid.Terrain.ImportHeights(new float[(grid.Width+1)*(grid.Depth+1)]);
+                }
                 SelectTool(Tool.None);
                 var restored = new List<ParkBuildingRecord>();
                 foreach (var saved in data.buildings)
@@ -148,7 +165,7 @@ namespace Mythologicum
                     var edge = new FenceEdge(saved.cell, saved.alongX);
                     if (!fences.RestoreSegment(edge, saved.kind, saved.gate, saved.health)) throw new InvalidDataException("Could not restore fence.");
                 }
-                foreach (var cell in data.trees) if (!trees.TryPlace(cell)) throw new InvalidDataException("Could not restore tree.");
+                foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException("Could not restore tree.");
                 foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException("Could not restore gravestone.");
                 buildingConstruction.Network.Refresh();
                 // Restore staff without charging hiring fees, including temporarily disconnected homes.
@@ -187,6 +204,7 @@ namespace Mythologicum
                 if(data.version>=2) Progression.Restore(data.progression,restored);
                 else Progression.AdoptLegacyPark(restored,fences.Layout.Edges,fences.Layout);
                 GetComponent<IsometricCameraController>()?.RestorePose(data.focus, data.yaw, data.zoom);
+                RefreshTerrainAttachments();groundVegetation.Refresh();
                 GameSaveMenu.ShowMessage("Game loaded.");
             }
             catch (Exception error)

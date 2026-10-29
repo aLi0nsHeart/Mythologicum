@@ -158,6 +158,7 @@ namespace Mythologicum
                 }
                 agent.transform.position = Vector3.Lerp(GroundPosition(agent, agent.TraversalFrom), GroundPosition(agent, agent.TraversalTo), progress)
                     + Vector3.up * Mathf.Sin(progress * Mathf.PI) * .12f;
+                if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,agent.Definition.bodyScale.y+Mathf.Sin(progress*Mathf.PI)*.12f);
                 if (agent.StateTimer <= 0f)
                 {
                     agent.Cell = agent.TraversalTo; agent.transform.position = GroundPosition(agent, agent.Cell);

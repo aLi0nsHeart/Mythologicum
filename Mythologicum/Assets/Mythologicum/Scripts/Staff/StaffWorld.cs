@@ -259,9 +259,10 @@ namespace Mythologicum
             float speed = worker.Task == StaffTask.Fleeing || worker.Task == StaffTask.Hunting || worker.Task == StaffTask.Retiring
                 ? tuning.runSpeed : tuning.walkSpeed;
             actor.transform.position = Vector3.MoveTowards(actor.transform.position, goal, Mathf.Max(.1f,speed)*dt);
+            if(grid.Terrain!=null)actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y);
             if ((actor.transform.position-goal).sqrMagnitude < .0001f) { actor.Cell=next; actor.Route.RemoveAt(0); }
         }
-        private Vector3 Position(CreatureAgent actor, Vector2Int cell) => grid.CellCenter(cell) + Vector3.up * actor.Definition.bodyScale.y;
+        private Vector3 Position(CreatureAgent actor, Vector2Int cell) => grid.ActorPosition(cell,actor.Definition.bodyScale.y);
         private static float Distance(Vector3 a, Vector3 b) => new Vector2(a.x-b.x,a.z-b.z).magnitude;
         public void Dispose()
         {

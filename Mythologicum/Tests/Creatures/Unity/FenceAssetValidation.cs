@@ -115,8 +115,9 @@ public static class FenceAssetValidation
                 Check(!old.activeSelf && old.GetComponentsInChildren<Collider>(true).All(co => !co.enabled), "Upgrade retires old collision geometry");
                 View(construction, first, cellSize, FenceConstruction.SpikedHeight, catalog.spiked);
                 Check(!climbers.CanCross(first.CellA, first.CellB) && !construction.Layout.CanClimb(first), "Spiked fence deters climbing");
-                Check(!construction.TryPlaceGate(first), "Spiked fence cannot become a gate directly");
-                Check(construction.TryPlace(first, FenceKind.Wooden), "Spiked fence can be replaced with normal fence");
+                Check(construction.TryPlaceGate(first) && construction.Layout.KindAt(first)==FenceKind.Spiked, "Spiked fence becomes a gate without losing its protection");
+                View(construction,first,cellSize,FenceConstruction.SpikedHeight,catalog.gate);
+                Check(Root(construction,first).GetComponent<DemolitionTarget>().Demolish() && construction.TryPlace(first,FenceKind.Wooden), "Gate can be rebuilt as a wooden segment");
                 Check(construction.TryPlaceGate(first), "Normal fence becomes requested gate model");
                 View(construction, first, cellSize, FenceConstruction.Height, catalog.gate);
                 Check(construction.Layout.IsGate(first) && !construction.Layout.BlocksPath(first), "Gate retains authorized path access");

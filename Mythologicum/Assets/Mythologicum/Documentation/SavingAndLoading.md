@@ -16,6 +16,10 @@ Staff and creatures choose fresh actions after loading. Carried creatures are pl
 
 Format 2 also saves expedition teams and permits, in-flight missions and their outcomes, acquired creature stock, technology unlocks and partial projects, plus inbox letters and read state. Version 1 parks remain loadable and adopt unlocks needed for their existing buildings and fences. See `ProgressionPrototype.md` for the acquisition and research controls.
 
+Format 3 adds terrain corner heights and movement limits, preserving hills and flattened building foundations exactly. Version 1 and 2 saves keep flat ground. Start a new park to use the generated landscape; see `TerrainPrototype.md` for terrain settings and testing.
+
+New saves also retain each tree's model, height and rotation. Border forest is generated for new parks and then saved as ordinary trees; clearing it remains permanent after loading. Earlier saves without tree appearance data still load.
+
 The file is `park-save.json` in Unity's `Application.persistentDataPath` (on Windows normally `%USERPROFILE%/AppData/LocalLow/<CompanyName>/<ProductName>`). A successful overwrite retains the previous file as `park-save.json.bak`; loading currently uses the primary file. Files are JSON with a format version and checked map dimensions. No save is stored inside the project or committed to Git.
 
 ## Check in Unity

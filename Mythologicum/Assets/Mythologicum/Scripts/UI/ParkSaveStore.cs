@@ -6,7 +6,9 @@ namespace Mythologicum
 {
     [Serializable] public sealed class ParkSaveData
     {
-        public int version = 2, width, depth, departedVisitors, lostVisitors;
+        public int version = 3, width, depth, departedVisitors, lostVisitors;
+        public SavedTerrain terrain;
+        public List<SavedTreeVisual> treeVisuals;
         public ProgressionSave progression;
         public float cellSize, balance, income, expenses;
         public bool unlimited;
@@ -59,11 +61,12 @@ namespace Mythologicum
         internal static ParkSaveData ReadFile(string path)
         {
             var data = JsonUtility.FromJson<ParkSaveData>(File.ReadAllText(path));
-            if (data == null || (data.version != 1 && data.version != 2) || data.width < 1 || data.depth < 1 || data.cellSize <= 0
+            if (data == null || data.version<1 || data.version>3 || data.width < 1 || data.depth < 1 || data.cellSize <= 0
                 || data.buildings == null || data.paths == null || data.fences == null || data.creatures == null
                 || data.trees == null || data.graves == null || data.staff == null || data.visitors == null || data.research == null)
                 throw new InvalidDataException("This save is invalid or uses an unsupported version.");
             if(data.version>=2 && data.progression==null)throw new InvalidDataException("This save is missing its park progression.");
+            if(data.version>=3 && data.terrain==null)throw new InvalidDataException("This save is missing its terrain heights.");
             return data;
         }
     }

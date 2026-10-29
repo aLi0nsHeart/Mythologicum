@@ -36,8 +36,8 @@ public static class FenceClimbingChecks
         Check(!layout.CanClimb(edge) && !climbing.CanCross(V(1, 1), V(2, 1)), "Spikes stop climbers.");
         Check(!walking.CanCross(V(1, 1), V(2, 1)), "Spikes also stop ordinary walkers.");
         Check(climbing.HasLineOfSight(V(1, 1), V(2, 1)), "Spikes do not hide nearby prey.");
-        Check(!layout.TrySetGate(edge), "Spiked fences must not silently become wooden gates.");
-        Check(layout.TrySetKind(edge, FenceKind.Wooden) && layout.TrySetGate(edge), "Wooden fence conversion to gate remains supported.");
+        Check(layout.TrySetGate(edge) && layout.KindAt(edge)==FenceKind.Spiked, "Spiked gates retain spike protection.");
+        Check(layout.TryRemove(edge) && layout.TryAdd(edge,FenceKind.Wooden) && layout.TrySetGate(edge), "Wooden fence conversion to gate remains supported.");
         Check(!layout.CanClimb(edge) && !climbing.CanCross(V(1, 1), V(2, 1)), "Closed gates cannot be climbed.");
         Check(!layout.TrySetKind(edge, FenceKind.Spiked) && layout.IsGate(edge), "Type replacement cannot erase a gate.");
         Check(layout.TryRemove(edge) && !layout.IsGate(edge), "Demolition clears the gate flag.");

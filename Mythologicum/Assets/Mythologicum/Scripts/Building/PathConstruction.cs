@@ -23,6 +23,7 @@ namespace Mythologicum
 
         public bool TryPlace(Vector2Int cell)
         {
+            if(!grid.GroundWalkable(cell,true))return false;
             if (!grid.TryOccupy(cell, BuildCellContent.Path)) return false;
             var tile = new GameObject($"Path [{cell.x}, {cell.y}]");
             tile.transform.SetParent(parent, false);
@@ -32,6 +33,7 @@ namespace Mythologicum
             collider.isTrigger = true;
             collider.size = new Vector3(grid.CellSize, Height, grid.CellSize);
             CreateVisual(tile.transform);
+            FitSelection(tile);
             tiles.Add(cell, tile);
             tile.AddComponent<DemolitionTarget>().Initialize(() =>
             {
@@ -43,6 +45,11 @@ namespace Mythologicum
 
         public void CreateVisual(Transform parent)
         {
+            if(grid.Terrain!=null)
+            {
+                var visual=new GameObject("Conforming path");visual.transform.SetParent(parent,false);
+                visual.AddComponent<GroundConformingVisual>().Initialize(grid,material);return;
+            }
             if (tilePrefab != null)
             {
                 var visual = Object.Instantiate(tilePrefab, parent, false);
@@ -73,6 +80,22 @@ namespace Mythologicum
             Bounds bounds = renderers[0].bounds;
             foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
             return bounds;
+        }
+        private void FitSelection(GameObject tile)
+        {
+            if(grid.Terrain==null)return;
+            var bounds=tile.GetComponentInChildren<MeshFilter>().sharedMesh.bounds;
+            var collider=tile.GetComponent<BoxCollider>();collider.center=bounds.center;
+            collider.size=new Vector3(grid.CellSize,Mathf.Max(Height,bounds.size.y),grid.CellSize);
+        }
+        public void RefreshTerrain()
+        {
+            if(grid.Terrain==null)return;
+            foreach(var pair in tiles)
+            {
+                pair.Value.transform.position=grid.CellCenter(pair.Key)+Vector3.up*(Height/2);
+                pair.Value.GetComponentInChildren<GroundConformingVisual>().Refresh();FitSelection(pair.Value);
+            }
         }
 
         public bool TryRemove(Vector2Int cell)

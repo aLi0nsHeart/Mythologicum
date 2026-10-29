@@ -68,11 +68,15 @@ namespace Mythologicum
 
         private void ApplyPose()
         {
+            var park=GetComponent<BuildModeController>();
+            if(park?.Terrain!=null)focusPoint.y=park.GroundElevation(focusPoint);
             transform.rotation = Quaternion.Euler(tilt, yaw, 0f);
             // Match the previous framing at the focus point; zoom now moves the camera
             // through the world while perspective supplies natural depth and scale.
             float distance = zoomLevel / Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
             transform.position = focusPoint - transform.forward * distance;
+            if(park?.Terrain!=null)
+            {var p=transform.position;p.y=Mathf.Max(p.y,park.GroundElevation(p)+2f);transform.position=p;}
         }
 
         private void OnValidate()

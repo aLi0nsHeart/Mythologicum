@@ -97,9 +97,10 @@ namespace Mythologicum
             Array.Sort(creatureCatalog, (a, b) => string.CompareOrdinal(a.displayName, b.displayName));
             Bounds bounds = ground.bounds;
             var origin = new Vector3(bounds.min.x, bounds.max.y, bounds.min.z);
-            grid = new SquareBuildGrid(origin, cellSize,
-                Mathf.FloorToInt(bounds.size.x / cellSize), Mathf.FloorToInt(bounds.size.z / cellSize));
+            int mapWidth=Mathf.FloorToInt(bounds.size.x/cellSize),mapDepth=Mathf.FloorToInt(bounds.size.z/cellSize);
+            grid = new SquareBuildGrid(origin,cellSize,mapWidth,mapDepth,CreateTerrain(mapWidth,mapDepth));
             Material groundMaterial = ground.GetComponent<Renderer>().sharedMaterial;
+            CreateTerrainSurface(groundMaterial);
             gridMaterial = new Material(groundMaterial) { color = new Color(0.2f, 0.3f, 0.35f) };
             previewMaterial = new Material(groundMaterial.shader) { color = ValidPreviewColor };
             buildingMaterial = new Material(groundMaterial) { color = new Color(0.65f, 0.48f, 0.25f) };
@@ -142,6 +143,7 @@ namespace Mythologicum
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
             var graveRoot = new GameObject("Graveyard gravestones"); graveRoot.transform.SetParent(buildings.transform);
             graves = new GravestoneConstruction(grid, Environment, graveRoot.transform, buildingMaterial);
+            SeedBorderForest();
             groundVegetation = new GroundVegetation(grid, Environment, vegetation);
             entrancePreview = GameObject.CreatePrimitive(PrimitiveType.Cube);
             entrancePreview.name = "Building Entrance Preview";
@@ -265,6 +267,7 @@ namespace Mythologicum
         private void LateUpdate()
         {
             if (GameSaveMenu.IsOpen) return;
+            RefreshTerrainAttachments();
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
@@ -330,7 +333,7 @@ namespace Mythologicum
             { pathSelection.Reset(); fenceSelection.Reset(); return; }
             Ray ray = view.ScreenPointToRay(pointer);
             // Hit only the ground: buildings must not shift the cursor onto their roofs.
-            if (!ground.Raycast(ray, out RaycastHit hit, view.farClipPlane)) { ResetStroke(); return; }
+            if (!GroundHit(ray, out RaycastHit hit, view.farClipPlane)) { ResetStroke(); return; }
             if (tool == Tool.Fence) { ApplyFenceRoute(mouse, hit.point); return; }
             if (tool == Tool.Gate) { ApplyGate(mouse, hit.point); return; }
             Vector2Int cell = grid.WorldToCell(hit.point);
@@ -364,14 +367,16 @@ namespace Mythologicum
             if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)) valid = false;
             bool affordable = economy.CanAfford(selectedBuilding.constructionCost);
             previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
-            ShowModelPreview(footprint.Center(grid), Quaternion.Euler(0f, -90f * buildingRotation, 0f),
+            Vector3 platform=buildingConstruction.PreviewPosition(footprint);
+            ShowModelPreview(platform, Quaternion.Euler(0f, -90f * buildingRotation, 0f),
                 parent => buildingConstruction.CreateVisual(parent, selectedBuilding));
             entrancePreview.transform.position = grid.CellCenter(footprint.AccessCell) + Vector3.up * 0.14f;
+            if(valid){var door=entrancePreview.transform.position;door.y=platform.y+.14f;entrancePreview.transform.position=door;}
             entrancePreview.transform.localScale = new Vector3(cellSize * 0.65f, 0.08f, cellSize * 0.65f);
             entrancePreview.SetActive(true);
             if (valid && !selectedBuilding.RequiresPathConnection)
                 status.text = "Click: place dispenser | R: rotate | Cyan tile: animal release point | No path required";
-            if (!valid) status.text = "Cannot place here: footprint and entrance tile must be clear and inside the map. | R: rotate";
+            if (!valid) status.text = "Cannot place: keep footprint and entrance clear; flattening must preserve nearby foundations and walkable slopes. | R: rotate";
             if (valid) status.text += $" | Cost: {selectedBuilding.constructionCost:0}";
             if (valid && !affordable) status.text = $"Not enough funds: need {selectedBuilding.constructionCost:0}. Enable Infinite funds to build freely.";
             if (valid && affordable && mouse.leftButton.wasPressedThisFrame && buildingConstruction.TryPlace(footprint))
@@ -405,7 +410,7 @@ namespace Mythologicum
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
                 parent => creatureWorld.CreateVisual(parent, selectedCreature, selectedCreature.visualPrefab, out _));
-            if (!valid) status.text = "Choose clear ground away from another creature (or population limit reached).";
+            if (!valid) status.text = "Choose clear, walkable ground away from other creatures (or population limit reached).";
             if (valid && mouse.leftButton.wasPressedThisFrame && Progression.TryPlace(selectedCreature.name,
                 () => creatureWorld.TrySpawn(selectedCreature, cell))) SelectTool(Tool.None);
         }
@@ -442,7 +447,7 @@ namespace Mythologicum
             buildingInspection.Select(null);
             creatureInspection.Select(null);
             visitorPresentation.Select(null);
-            if (ground.Raycast(view.ScreenPointToRay(pointer), out RaycastHit hit, view.farClipPlane))
+            if (GroundHit(view.ScreenPointToRay(pointer), out RaycastHit hit, view.farClipPlane))
                 enclosurePresentation.Select(grid.WorldToCell(hit.point));
             else enclosurePresentation.Select(null);
         }
@@ -465,12 +470,13 @@ namespace Mythologicum
             }
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowFencePreview(edge);
-            if (!valid) status.text = "Choose a wooden, reinforced or sanctified fence without a gate. | Esc: cancel";
+            if (!valid) status.text = "Choose any existing fence without a gate. Its protection is preserved. | Esc: cancel";
             if (valid && mouse.leftButton.wasPressedThisFrame && fences.TryPlaceGate(edge)) SelectTool(Tool.None);
         }
 
         private bool CanPlace(Vector2Int cell)
         {
+            if(!grid.GroundWalkable(cell,true))return false;
             if (trees.Occupies(cell) || graves.Occupies(cell)) return false;
             Vector3 center = grid.CellCenter(cell) + Vector3.up * (buildingHeight / 2f);
             Vector3 halfExtents = new Vector3(cellSize / 2f - 0.01f, buildingHeight / 2f - 0.01f, cellSize / 2f - 0.01f);
@@ -484,7 +490,7 @@ namespace Mythologicum
                 node => ConstructionRouteGraph.PathNeighbors(node, grid, fences.Layout),
                 node => grid.ContentAt(node) == BuildCellContent.Path || CanPlace(node),
                 ConstructionRouteGraph.CellDistance, ShowPathPreview,
-                node => grid.ContentAt(node) == BuildCellContent.Path || paths.TryPlace(node));
+                node => grid.ContentAt(node) == BuildCellContent.Path || paths.TryPlace(node),grid.MovementCost);
         }
 
         private void ApplyFenceRoute(Mouse mouse, Vector3 point)
@@ -499,7 +505,7 @@ namespace Mythologicum
 
         private void ApplyRoute<T>(Mouse mouse, T destination, ConstructionRouteSelection<T> selection,
             Func<T, IEnumerable<T>> neighbors, Predicate<T> canBuild, Func<T, T, int> estimate,
-            Action<T> showPreview, Func<T, bool> place)
+            Action<T> showPreview, Func<T, bool> place, Func<T,T,float> traversalCost=null)
         {
             if (!selection.HasStart)
             {
@@ -510,7 +516,7 @@ namespace Mythologicum
                 if (valid && mouse.leftButton.wasPressedThisFrame) selection.Begin(destination);
                 return;
             }
-            selection.Update(destination, neighbors, canBuild, estimate);
+            selection.Update(destination, neighbors, canBuild, estimate,traversalCost);
             bool found = selection.Route.Count > 0;
             previewMaterial.color = found ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             if (found)
@@ -572,6 +578,7 @@ namespace Mythologicum
                 PreparePreview(modelPreview);
             }
             modelPreview.transform.SetPositionAndRotation(position, rotation);
+            foreach(var conformer in modelPreview.GetComponentsInChildren<GroundConformingVisual>(true))conformer.Refresh();
             modelPreview.SetActive(true);
         }
 
@@ -586,6 +593,7 @@ namespace Mythologicum
             }
             GameObject visual = routePreviews[visiblePreviews++];
             visual.transform.SetPositionAndRotation(position, rotation);
+            foreach(var conformer in visual.GetComponentsInChildren<GroundConformingVisual>(true))conformer.Refresh();
             visual.SetActive(true);
         }
 
@@ -646,6 +654,7 @@ namespace Mythologicum
 
         private void OnDestroy()
         {
+            DisposeTerrain();fences?.Dispose();
             management?.Dispose();
             notifications?.Dispose();
             buildingInspection?.Dispose();

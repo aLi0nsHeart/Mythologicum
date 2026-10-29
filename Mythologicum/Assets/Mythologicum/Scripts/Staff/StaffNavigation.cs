@@ -23,6 +23,7 @@ namespace Mythologicum
         }
 
         public bool IsWalkable(Vector2Int cell, bool pathsOnly = false) => grid.Contains(cell)
+            && grid.GroundWalkable(cell,pathsOnly)
             && grid.ContentAt(cell) != BuildCellContent.Building
             && (!pathsOnly || grid.ContentAt(cell) == BuildCellContent.Path)
             && (clear == null || clear(cell));
@@ -38,7 +39,7 @@ namespace Mythologicum
 
         public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal, bool pathsOnly = false) =>
             ConstructionRouteFinder.Find(start,goal,cell => Neighbors(cell,pathsOnly),
-                cell => IsWalkable(cell,pathsOnly),Distance);
+                cell => IsWalkable(cell,pathsOnly),Distance,grid.MovementCost);
 
         public List<Vector2Int> Reachable(Vector2Int start, bool pathsOnly = false)
         {

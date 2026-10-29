@@ -364,6 +364,7 @@ namespace Mythologicum
             if (direction.sqrMagnitude > .001f) actor.transform.rotation = Quaternion.LookRotation(direction);
             float speed = guest.Activity == VisitorActivity.Fleeing ? Definition.runSpeed : Definition.walkSpeed;
             actor.transform.position = Vector3.MoveTowards(actor.transform.position, goal, Mathf.Max(.1f, speed) * dt);
+            if(grid.Terrain!=null)actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y);
             if ((actor.transform.position - goal).sqrMagnitude < .0001f)
             { actor.Cell = next; actor.Route.RemoveAt(0); }
         }
@@ -438,7 +439,7 @@ namespace Mythologicum
                     ? CreatureActivity.Resting : CreatureActivity.Wandering;
         }
 
-        private Vector3 Position(Vector2Int cell) => grid.CellCenter(cell) + Vector3.up * actorProfile.bodyScale.y;
+        private Vector3 Position(Vector2Int cell) => grid.ActorPosition(cell,actorProfile.bodyScale.y);
         private static float Distance(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
         public void Dispose()
         {

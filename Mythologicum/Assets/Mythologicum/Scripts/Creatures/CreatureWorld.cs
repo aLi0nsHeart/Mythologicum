@@ -65,6 +65,7 @@ namespace Mythologicum
             gridRevision = grid.Revision; fenceRevision = fences.Revision;
             foreach (CreatureAgent agent in agents)
             {
+                GroundActor(agent);
                 // External controllers own their routes, including authorized staff/visitor gate crossings.
                 if (agent.ExternallyControlled) continue;
                 agent.DecisionTimer = 0f;
@@ -572,6 +573,8 @@ namespace Mythologicum
                 agent.transform.position = Vector3.Lerp(GroundPosition(agent, agent.TraversalFrom),
                     GroundPosition(agent, agent.TraversalTo), progress)
                     + Vector3.up * (Mathf.Sin(progress * Mathf.PI) * (FenceConstruction.Height + 0.65f));
+                if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,
+                    agent.Definition.bodyScale.y+Mathf.Sin(progress*Mathf.PI)*(FenceConstruction.Height+.65f));
                 if (agent.StateTimer <= 0f)
                 {
                     agent.Cell = agent.TraversalTo;
@@ -790,6 +793,7 @@ namespace Mythologicum
                 {
                     Vector3 origin = GroundPosition(agent, agent.Cell);
                     agent.transform.position = Vector3.MoveTowards(agent.transform.position, origin, agent.Definition.walkSpeed * dt);
+                    if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,agent.Definition.bodyScale.y);
                     if ((agent.transform.position - origin).sqrMagnitude < 0.0001f)
                     {
                         FenceEdge edge = CrossingEdge(agent.Cell, next);
@@ -809,6 +813,7 @@ namespace Mythologicum
             float speed = running ? agent.Definition.runSpeed : agent.Definition.walkSpeed
                 * Mathf.Lerp(1f, agent.Definition.agitatedSpeedMultiplier, agent.Wellbeing.Agitation);
             agent.transform.position = Vector3.MoveTowards(agent.transform.position, goal, speed * dt);
+            if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,agent.Definition.bodyScale.y);
             if ((agent.transform.position - goal).sqrMagnitude < 0.0001f)
             { agent.Cell = next; agent.Route.RemoveAt(0); }
         }
@@ -1038,7 +1043,13 @@ namespace Mythologicum
         }
 
         private Vector3 GroundPosition(CreatureAgent agent, Vector2Int cell) =>
-            grid.CellCenter(cell) + Vector3.up * agent.Definition.bodyScale.y;
+            grid.ActorPosition(cell,agent.Definition.bodyScale.y);
+        private void GroundActor(CreatureAgent actor)
+        {
+            if(grid.Terrain==null||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence)return;
+            actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y+actor.Elevation);
+        }
+        public void RefreshGroundPositions(){foreach(var actor in agents)GroundActor(actor);}
         private static float HorizontalDistance(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
 
         public void Dispose()
