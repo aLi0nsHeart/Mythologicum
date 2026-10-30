@@ -12,6 +12,7 @@ namespace Mythologicum
         private readonly Transform parent;
         private readonly Material trunkMaterial, leafMaterial;
         private readonly Dictionary<Vector2Int, GameObject> trees = new Dictionary<Vector2Int, GameObject>();
+        private readonly Dictionary<Vector2Int,SavedTreeVisual> appearances=new Dictionary<Vector2Int,SavedTreeVisual>();
         private bool disposed;
         private readonly VegetationDefinition vegetation;
         private readonly System.Random random = new System.Random();
@@ -27,6 +28,7 @@ namespace Mythologicum
         }
 
         public bool Occupies(Vector2Int cell) => trees.ContainsKey(cell);
+        public void RefreshTerrain(){foreach(var pair in trees)pair.Value.transform.position=grid.CellCenter(pair.Key);}
 
         public bool CanPlace(Vector2Int cell)
         {
@@ -38,24 +40,28 @@ namespace Mythologicum
                 Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         }
 
-        public bool TryPlace(Vector2Int cell)
+        public bool TryPlace(Vector2Int cell,GameObject prefab=null,float height=3.4f,float yaw=0)
         {
             Physics.SyncTransforms();
             if (!CanPlace(cell) || !environment.AddTree(cell)) return false;
             var root = new GameObject($"Tree [{cell.x}, {cell.y}]");
             root.transform.SetParent(parent, false);
             root.transform.position = grid.CellCenter(cell);
+            if(prefab!=null){nextPrefab=prefab;nextHeight=height;nextYaw=yaw;}
             CreateVisual(root.transform);
+            float treeHeight=nextPrefab!=null?nextHeight:3f;
+            appearances[cell]=new SavedTreeVisual{cell=cell,prefab=nextPrefab!=null?nextPrefab.name:null,height=treeHeight,yaw=nextYaw};
             nextPrefab = null;
             var collider = root.AddComponent<BoxCollider>();
             collider.isTrigger = true;
-            collider.size = new Vector3(1.6f, 3.05f, 1.6f);
-            collider.center = Vector3.up * 1.525f;
+            collider.size = new Vector3(1.6f, treeHeight, 1.6f);
+            collider.center = Vector3.up * treeHeight/2;
             trees.Add(cell, root);
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 environment.RemoveTree(cell);
                 trees.Remove(cell);
+                appearances.Remove(cell);
             });
             return true;
         }
@@ -65,7 +71,7 @@ namespace Mythologicum
 
         public void CreateVisual(Transform parent)
         {
-            if (vegetation != null && vegetation.trees != null && vegetation.trees.Length > 0)
+            if (nextPrefab!=null || vegetation != null && vegetation.trees != null && vegetation.trees.Length > 0)
             {
                 if (nextPrefab == null)
                 {
@@ -83,6 +89,29 @@ namespace Mythologicum
                 Part(parent, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f),
                     new Vector3(1.6f, 1.8f, 1.6f), leafMaterial);
             }
+        }
+        public int SeedBorder(TerrainArtDefinition art,int terrainSeed)
+        {
+            var settings=art.forest;
+            if(settings==null||!settings.enabled||art.borderTrees==null||art.borderTrees.Length==0)return 0;
+            var random=new System.Random(settings.seed^terrainSeed);int count=0;
+            foreach(var cell in ForestBorderLayout.Cells(grid.Width,grid.Depth,settings.widthInCells,settings.density,settings.seed^terrainSeed))
+            {
+                if(!CanPlace(cell))continue;
+                var prefab=art.borderTrees[random.Next(art.borderTrees.Length)];
+                if(prefab!=null&&TryPlace(cell,prefab,Mathf.Lerp(settings.minimumHeight,settings.maximumHeight,(float)random.NextDouble()),(float)random.NextDouble()*360f))count++;
+            }
+            return count;
+        }
+        public List<SavedTreeVisual> CaptureVisuals()
+        {
+            var result=new List<SavedTreeVisual>();foreach(var a in appearances.Values)result.Add(new SavedTreeVisual{cell=a.cell,prefab=a.prefab,height=a.height,yaw=a.yaw});return result;
+        }
+        public bool RestoreTree(Vector2Int cell,SavedTreeVisual appearance)
+        {
+            GameObject prefab=null;
+            if(appearance!=null&&vegetation?.trees!=null)foreach(var choice in vegetation.trees)if(choice!=null&&choice.name==appearance.prefab){prefab=choice;break;}
+            return TryPlace(cell,prefab,appearance?.height??3.4f,appearance?.yaw??0);
         }
 
         private static void Part(Transform parent, string name, PrimitiveType primitive, Vector3 position,
@@ -107,6 +136,7 @@ namespace Mythologicum
                 if (pair.Value != null) UnityEngine.Object.Destroy(pair.Value);
             }
             trees.Clear();
+            appearances.Clear();
             UnityEngine.Object.Destroy(trunkMaterial);
             UnityEngine.Object.Destroy(leafMaterial);
         }

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace Mythologicum
 {
-    public enum ConstructionCategory { Buildings, Paths, Fences, Creatures, Enclosures }
+    public enum ConstructionCategory { Buildings, Paths, Fences, Creatures, Enclosures, Terrain }
 
     /// <summary>Bottom categories with expandable lists; future variants belong in these lists.</summary>
     public sealed class ConstructionPalette
@@ -26,7 +26,7 @@ namespace Mythologicum
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
-            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null)
+            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null)
         {
             this.categoryOpened = categoryOpened;
             Root = new GameObject("Construction Palette", typeof(RectTransform));
@@ -35,12 +35,13 @@ namespace Mythologicum
             rootRect.anchorMin = Vector2.zero;
             rootRect.anchorMax = Vector2.one;
             rootRect.offsetMin = rootRect.offsetMax = Vector2.zero;
-            MakeButton(template, Root.transform, "Buildings (B)", new Vector2(-437.5f, 40f), () => Toggle(ConstructionCategory.Buildings));
-            enclosuresCategory = MakeButton(template, Root.transform, "Enclosures (H)", new Vector2(-262.5f, 40f), () => Toggle(ConstructionCategory.Enclosures));
-            pathsCategory = MakeButton(template, Root.transform, "Paths (P)", new Vector2(-87.5f, 40f), () => Toggle(ConstructionCategory.Paths));
-            fencesCategory = MakeButton(template, Root.transform, "Fences (F)", new Vector2(87.5f, 40f), () => Toggle(ConstructionCategory.Fences));
-            creaturesCategory = MakeButton(template, Root.transform, "Creatures (C)", new Vector2(262.5f, 40f), () => Toggle(ConstructionCategory.Creatures));
-            MakeButton(template, Root.transform, "Demolish (X)", new Vector2(437.5f, 40f), demolish);
+            MakeButton(template, Root.transform, "Buildings (B)", new Vector2(-450f, 40f), () => Toggle(ConstructionCategory.Buildings),false,140);
+            enclosuresCategory = MakeButton(template, Root.transform, "Enclosures (H)", new Vector2(-300f, 40f), () => Toggle(ConstructionCategory.Enclosures),false,140);
+            MakeButton(template,Root.transform,"Terrain (T)",new Vector2(-150,40),()=>Toggle(ConstructionCategory.Terrain),false,140);
+            pathsCategory = MakeButton(template, Root.transform, "Paths (P)", new Vector2(0f, 40f), () => Toggle(ConstructionCategory.Paths),false,140);
+            fencesCategory = MakeButton(template, Root.transform, "Fences (F)", new Vector2(150f, 40f), () => Toggle(ConstructionCategory.Fences),false,140);
+            creaturesCategory = MakeButton(template, Root.transform, "Creatures (C)", new Vector2(300f, 40f), () => Toggle(ConstructionCategory.Creatures),false,140);
+            MakeButton(template, Root.transform, "Demolish (X)", new Vector2(450f, 40f), demolish,false,140);
             foreach (ConstructionCategory category in Enum.GetValues(typeof(ConstructionCategory)))
             {
                 var group = new GameObject(category + " Choices", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -52,6 +53,13 @@ namespace Mythologicum
                 group.GetComponent<Image>().color = new Color(0.05f, 0.08f, 0.1f, 0.95f);
                 groups.Add(category, group);
                 group.SetActive(false);
+            }
+            int terrainIndex=0;
+            foreach(TerrainBrushMode mode in Enum.GetValues(typeof(TerrainBrushMode)))
+            {
+                var selected=mode;
+                MakeButton(template,groups[ConstructionCategory.Terrain].transform,mode.ToString(),new Vector2((terrainIndex++-1.5f)*235,0),
+                    ()=>{Close();selectTerrain?.Invoke(selected);},true,220);
             }
             int ordinaryCount = 0, enrichmentCount = 2;
             foreach (BuildingDefinition definition in definitions)
@@ -139,7 +147,7 @@ namespace Mythologicum
 
         public void Toggle(ConstructionCategory category)
         {
-            if (!hasEntrance && category != ConstructionCategory.Buildings) return;
+            if (!hasEntrance && category != ConstructionCategory.Buildings && category != ConstructionCategory.Terrain) return;
             bool wasOpen = expanded == category;
             categoryOpened();
             Close();

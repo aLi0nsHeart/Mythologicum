@@ -31,9 +31,10 @@ namespace Mythologicum
         public bool CanPlace(BuildingFootprint footprint)
         {
             if (!Network.CanPlace(footprint)) return false;
+            if(grid.Terrain!=null&&!Network.RestoringSave&&!grid.Terrain.TryPlanFoundation(footprint,grid,out _))return false;
             Vector3 half = new Vector3(footprint.Width * grid.CellSize / 2f - 0.05f,
                 footprint.Definition.height / 2f - 0.01f, footprint.Depth * grid.CellSize / 2f - 0.05f);
-            if (Physics.CheckBox(footprint.Center(grid) + Vector3.up * footprint.Definition.height / 2f,
+            if (Physics.CheckBox(PreviewPosition(footprint) + Vector3.up * footprint.Definition.height / 2f,
                 half, Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
             return !Physics.CheckBox(grid.CellCenter(footprint.AccessCell) + Vector3.up * 0.5f,
                 new Vector3(grid.CellSize / 2f - 0.05f, 0.49f, grid.CellSize / 2f - 0.05f),
@@ -46,6 +47,15 @@ namespace Mythologicum
             if (!CanPlace(footprint)) return false;
             ParkBuildingRecord record = Network.TryPlace(footprint);
             if (record == null) return false;
+            if(grid.Terrain!=null)
+            {
+                if(!Network.RestoringSave)
+                {
+                    if(!grid.Terrain.TryPlanFoundation(footprint,grid,out var plan)){Network.Remove(record);return false;}
+                    grid.Terrain.Apply(plan);
+                }
+                if(!grid.Terrain.RegisterFoundation(record,footprint)){Network.Remove(record);return false;}
+            }
             BuildingDefinition definition = footprint.Definition;
             var root = new GameObject(definition.displayName);
             root.AddComponent<BuildingSelection>().Initialize(record);
@@ -77,9 +87,16 @@ namespace Mythologicum
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 Network.Remove(record);
+                grid.Terrain?.ReleaseFoundation(record);
                 views.Remove(record);
             });
             return true;
+        }
+        public Vector3 PreviewPosition(BuildingFootprint footprint)
+        {
+            var position=footprint.Center(grid);
+            if(grid.Terrain!=null&&!Network.RestoringSave&&grid.Terrain.TryPlanFoundation(footprint,grid,out var plan))position.y=grid.Origin.y+plan.Level;
+            return position;
         }
 
         // Shared by placement and its ghost; creates no occupancy, labels or gameplay components.

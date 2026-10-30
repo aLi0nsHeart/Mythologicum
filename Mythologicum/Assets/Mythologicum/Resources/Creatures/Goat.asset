@@ -13,14 +13,20 @@ MonoBehaviour:
   m_Name: Goat
   m_EditorClassIdentifier: 
   displayName: Goat
-  visualPrefab: {fileID: 6885452974112614176, guid: 1f8729ffe5e3ebb45b5c6b50bc6a2cec, type: 3}
-  visualScale: {x: 1, y: 1, z: 1}
   diet: 1
   tags: 1
   preyTags: 0
   fearedTags: 2
   manuallyPlaceable: 1
   rating: 1
+  origin: Domestic
+  maximumHealth: 40
+  damage: 0
+  threat: 0
+  feedsOnFear: 0
+  scareRange: 3
+  scareSeconds: 1.5
+  scareCooldownSeconds: 8
   initialHunger: 35
   hungerPerSecond: 2
   huntThreshold: 50
@@ -32,9 +38,13 @@ MonoBehaviour:
   sleepThreshold: 20
   wakeThreshold: 85
   sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
   requiresTreeForSleep: 0
   canClimbWoodenFences: 0
-  settlingSeconds: 45
+  canPhaseFences: 0
+  phaseHungerThreshold: 80
+  canBreakFences: 0
+  requiresGravestoneForSleep: 0
   treeClimbSeconds: 1.5
   fenceClimbSeconds: 2
   failedClimbSeconds: 1.2
@@ -51,6 +61,7 @@ MonoBehaviour:
   decisionInterval: 0.35
   minimumSpace: 48
   requiredTrees: 0
+  requiredGravestones: 0
   environmentRadius: 12
   minimumCompanions: 2
   maximumCompanions: 8
@@ -59,6 +70,11 @@ MonoBehaviour:
   socializingEnergyMultiplier: 2
   happinessThreshold: 50
   happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
   pauseMinSeconds: 2
   pauseMaxSeconds: 5
   preyMemorySeconds: 5
@@ -66,18 +82,7 @@ MonoBehaviour:
   feedingSeconds: 4
   fleeSafeDistance: 6
   agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 6885452974112614176, guid: 1f8729ffe5e3ebb45b5c6b50bc6a2cec, type: 3}
+  visualScale: {x: 1, y: 1, z: 1}
   color: {r: 0.88, g: 0.83, b: 0.7, a: 1}
   bodyScale: {x: 0.7, y: 0.7, z: 1}
-  canBreakFences: 0
-  origin: Domestic
-  scareRange: 3
-  scareCooldownSeconds: 8
-  requiresGravestoneForSleep: 0
-  damage: 5
-  threat: 5
-  phaseHungerThreshold: 80
-  feedsOnFear: 0
-  requiredGravestones: 0
-  maximumHealth: 40
-  scareSeconds: 1.5
-  canPhaseFences: 0

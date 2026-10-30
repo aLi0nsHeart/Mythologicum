@@ -26,7 +26,6 @@ public static class FenceCapabilityChecks
             Check(breaking.CanCross(V(1,1), V(2,1)) == (kind != FenceKind.Heavy), "Attack planning respects " + kind);
             Check(phasing.CanCross(V(2,1), V(1,1)) == (kind != FenceKind.Sanctified), "Phase crossing is symmetric.");
             Check(breaking.CanCross(V(2,1), V(1,1)) == (kind != FenceKind.Heavy), "Attack crossing is symmetric.");
-            if (kind == FenceKind.Spiked) continue;
             Check(layout.TrySetGate(edge), "Protected gate conversion supports " + kind);
             Check(!climbing.CanCross(V(1,1), V(2,1)), "Gates cannot be climbed.");
             Check(phasing.CanCross(V(1,1), V(2,1)) == (kind != FenceKind.Sanctified), "Gate phase protection matches its fence.");

@@ -18,6 +18,7 @@ namespace Mythologicum
         private readonly Dictionary<FenceEdge, GameObject> objects = new Dictionary<FenceEdge, GameObject>();
         private readonly Dictionary<FenceEdge, TextMesh> healthLabels = new Dictionary<FenceEdge, TextMesh>();
         private static Mesh spikeMesh;
+        private readonly Dictionary<FenceKind,Material> terrainMaterials=new Dictionary<FenceKind,Material>();
         public static float HeightFor(FenceKind kind) => kind == FenceKind.Heavy ? HeavyHeight
             : kind == FenceKind.Spiked || kind == FenceKind.Sanctified ? SpikedHeight : Height;
 
@@ -57,8 +58,7 @@ namespace Mythologicum
             return true;
         }
 
-        public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge)
-            && Layout.KindAt(edge) != FenceKind.Spiked;
+        public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge);
 
         internal bool RestoreSegment(FenceEdge edge, FenceKind kind, bool gate, float health)
         {
@@ -135,6 +135,11 @@ namespace Mythologicum
             var solid = barrier.AddComponent<BoxCollider>();
             solid.center = collider.center;
             solid.size = collider.size;
+            if(grid.Terrain!=null)
+            {
+                solid.enabled=false;barrier.AddComponent<MeshFilter>();barrier.AddComponent<MeshCollider>();barrier.AddComponent<RuntimeGroundMesh>();
+                FitTerrain(edge,root);
+            }
             objects[edge] = root;
             root.AddComponent<FenceSegment>().Initialize(edge);
             root.AddComponent<DemolitionTarget>().Initialize(() =>
@@ -147,6 +152,16 @@ namespace Mythologicum
 
         public void CreateVisual(Transform parent, FenceKind kind, bool gate = false)
         {
+            if(grid.Terrain!=null)
+            {
+                if(!terrainMaterials.TryGetValue(kind,out var shared))
+                {
+                    shared=new Material(material){color=kind==FenceKind.Heavy?new Color(.28f,.32f,.36f):kind==FenceKind.Sanctified
+                        ?new Color(.78f,.78f,.86f):new Color(.38f,.25f,.14f)};terrainMaterials[kind]=shared;
+                }
+                var visual=new GameObject(gate?"Conforming gate":"Conforming fence");visual.transform.SetParent(parent,false);
+                visual.AddComponent<GroundConformingVisual>().Initialize(grid,shared,true,kind,gate);return;
+            }
             bool spiked = !gate && kind == FenceKind.Spiked;
             float height = HeightFor(kind);
             // Appearance is a gate; protection and health remain those of its underlying fence kind.
@@ -206,6 +221,25 @@ namespace Mythologicum
             // Account for source pivots after fitting to the cell edge and gameplay barrier height.
             wrapper.transform.localPosition = -Vector3.Scale(bounds.center, wrapper.transform.localScale) + Vector3.up * height / 2f;
         }
+        private void FitTerrain(FenceEdge edge,GameObject root)
+        {
+            root.transform.position=Layout.Center(edge);
+            root.GetComponentInChildren<GroundConformingVisual>().Refresh();
+            float h=HeightFor(Layout.KindAt(edge)),half=grid.CellSize/2;
+            Vector3 Point(float x,float z,float height)
+            {var p=root.transform.TransformPoint(new Vector3(x,0,z));p.y=grid.GroundHeight(p)+height;return root.transform.InverseTransformPoint(p);}
+            var v=new List<Vector3>();var t=new List<int>();float d=Thickness/2;
+            var a=Point(-half,-d,0);var b=Point(-half,d,0);var c=Point(half,d,0);var e=Point(half,-d,0);
+            GroundMeshBuilder.AddQuad(v,t,e,c,b,a);GroundMeshBuilder.AddQuad(v,t,b+Vector3.up*h,c+Vector3.up*h,e+Vector3.up*h,a+Vector3.up*h);
+            GroundMeshBuilder.AddQuad(v,t,a+Vector3.up*h,e+Vector3.up*h,e,a);GroundMeshBuilder.AddQuad(v,t,c,c+Vector3.up*h,b+Vector3.up*h,b);
+            GroundMeshBuilder.AddQuad(v,t,b,b+Vector3.up*h,a+Vector3.up*h,a);GroundMeshBuilder.AddQuad(v,t,e+Vector3.up*h,c+Vector3.up*h,c,e);
+            root.transform.Find("Closed barrier").GetComponent<RuntimeGroundMesh>().Set(GroundMeshBuilder.Finish("Sloping closed barrier",v,t));
+            float low=Mathf.Min(a.y,b.y,c.y,e.y),high=Mathf.Max(a.y,b.y,c.y,e.y)+h;
+            var collider=root.GetComponent<BoxCollider>();collider.center=Vector3.up*((low+high)/2);collider.size=new Vector3(grid.CellSize,high-low,Thickness);
+        }
+        public void RefreshTerrain()
+        {if(grid.Terrain!=null)foreach(var pair in objects)if(Layout.HasFence(pair.Key))FitTerrain(pair.Key,pair.Value);}
+        public void Dispose(){foreach(var m in terrainMaterials.Values)Object.Destroy(m);terrainMaterials.Clear();}
 
         private static Bounds LocalBounds(Transform parent, Renderer[] renderers)
         {

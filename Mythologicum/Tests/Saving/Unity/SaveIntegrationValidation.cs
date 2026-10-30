@@ -43,7 +43,10 @@ public static class SaveIntegrationValidation
         {
             var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
             controller.enabled=false;
+            // This synthetic save starts empty, independent of new-game forest generation.
+            foreach(var target in GameObject.Find("Enrichment trees").GetComponentsInChildren<DemolitionTarget>())target.Demolish();
             var data = controller.CapturePark(); data.buildings.Clear(); data.paths.Clear(); data.creatures.Clear(); data.staff.Clear(); data.visitors.Clear();
+            data.version=2;data.terrain=null; // Legacy flat-park compatibility fixture.
             data.balance=1234; data.income=567; data.expenses=89; data.unlimited=false;
             data.buildings.Add(new SavedBuilding {kind=BuildingKind.ParkEntrance,cell=new Vector2Int(2,3),width=2,depth=2,height=3,door=0,price=23,revenue=115,expenses=7});
             data.paths.Add(new Vector2Int(2,2)); data.paths.Add(new Vector2Int(3,2)); data.paths.Add(new Vector2Int(4,2));

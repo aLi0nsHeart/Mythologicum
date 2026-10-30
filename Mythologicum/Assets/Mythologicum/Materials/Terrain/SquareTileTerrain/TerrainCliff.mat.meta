@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 6dd3ae3c3670a6f4e9cbee9bb51e8ab3
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 237277
+  packageName: 3D Square Tile Terrain Generator
+  packageVersion: 1.0
+  assetPath: Assets/SquareTileTerrain/Example/Other/TerrainMat.mat
+  uploadId: 560100

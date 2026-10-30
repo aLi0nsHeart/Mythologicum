@@ -58,6 +58,7 @@ public static class ProgressionIntegrationValidation
     }
     static void Run(BuildModeController c)
     {
+        foreach(var target in GameObject.Find("Enrichment trees").GetComponentsInChildren<DemolitionTarget>())target.Demolish();
         c.enabled=false;var p=c.Progression;var canvas=UnityEngine.Object.FindFirstObjectByType<Canvas>();
         Check(Resources.Load<ProgressionDefinition>("Progression/DefaultProgression")!=null,"Editable progression settings load from Resources");
         var chupa=Resources.Load<CreatureDefinition>("Creatures/Chupacabra");var oni=Resources.Load<CreatureDefinition>("Creatures/Oni");
@@ -105,7 +106,7 @@ public static class ProgressionIntegrationValidation
         Check(p.ActiveProject(lab).Work==work&&!lab.IsOpen,"Disconnected laboratory pauses active work");
         Check(p.Launch(expedition,"south-america","survey",1),"Launch mission to save while away");p.Tick(10);
         expected=c.CapturePark();c.ValidateSave(expected);
-        Check(expected.version==2&&expected.progression.projects.Count==1&&expected.progression.missions.Count==1,"Save contains in-flight mission and partial technology");
+        Check(expected.version>=2&&expected.progression.projects.Count==1&&expected.progression.missions.Count==1,"Save contains in-flight mission and partial technology");
         Check(Application.companyName=="MythologicumValidation","Test save identity is isolated from player's park");
         ParkSaveStore.Write(expected);stage=1;SceneManager.LoadScene("MainMenuScene");
     }

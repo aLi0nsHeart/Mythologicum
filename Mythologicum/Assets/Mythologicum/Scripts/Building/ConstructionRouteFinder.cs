@@ -9,13 +9,14 @@ namespace Mythologicum
         private readonly struct Entry<T>
         {
             public readonly T Node;
-            public readonly int Cost, Priority, Order;
-            public Entry(T node, int cost, int priority, int order)
+            public readonly float Cost, Priority;
+            public readonly int Order;
+            public Entry(T node, float cost, float priority, int order)
             { Node = node; Cost = cost; Priority = priority; Order = order; }
         }
 
         public static List<T> Find<T>(T start, T goal, Func<T, IEnumerable<T>> neighbors,
-            Predicate<T> canBuild, Func<T, T, int> estimate)
+            Predicate<T> canBuild, Func<T, T, int> estimate, Func<T,T,float> traversalCost = null)
         {
             var allowed = new Dictionary<T, bool>();
             bool CanVisit(T node)
@@ -29,7 +30,7 @@ namespace Mythologicum
                 int comparison = a.Priority.CompareTo(b.Priority);
                 return comparison != 0 ? comparison : a.Order.CompareTo(b.Order);
             }));
-            var cost = new Dictionary<T, int> { [start] = 0 };
+            var cost = new Dictionary<T, float> { [start] = 0 };
             var previous = new Dictionary<T, T>();
             int order = 0;
             frontier.Add(new Entry<T>(start, 0, estimate(start, goal), order++));
@@ -50,8 +51,11 @@ namespace Mythologicum
                 foreach (T next in neighbors(current.Node))
                 {
                     if (!CanVisit(next)) continue;
-                    int nextCost = current.Cost + 1;
-                    if (cost.TryGetValue(next, out int oldCost) && oldCost <= nextCost) continue;
+                    float step=traversalCost?.Invoke(current.Node,next)??1f;
+                    // Unit Manhattan estimates remain admissible when every edge costs at least one.
+                    if(float.IsNaN(step)||float.IsInfinity(step)||step<1f)continue;
+                    float nextCost = current.Cost + step;
+                    if (cost.TryGetValue(next, out float oldCost) && oldCost <= nextCost) continue;
                     cost[next] = nextCost;
                     previous[next] = current.Node;
                     frontier.Add(new Entry<T>(next, nextCost, nextCost + estimate(next, goal), order++));
@@ -75,12 +79,12 @@ namespace Mythologicum
         public void Invalidate() => hasGoal = false;
 
         public void Update(T destination, Func<T, IEnumerable<T>> neighbors,
-            Predicate<T> canBuild, Func<T, T, int> estimate)
+            Predicate<T> canBuild, Func<T, T, int> estimate, Func<T,T,float> traversalCost = null)
         {
             if (!HasStart || (hasGoal && EqualityComparer<T>.Default.Equals(goal, destination))) return;
             goal = destination;
             hasGoal = true;
-            Route = ConstructionRouteFinder.Find(Start, goal, neighbors, canBuild, estimate);
+            Route = ConstructionRouteFinder.Find(Start, goal, neighbors, canBuild, estimate,traversalCost);
         }
     }
 }

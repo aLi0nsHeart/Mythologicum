@@ -16,6 +16,7 @@ namespace Mythologicum
         private Vector2Int? selectedCell;
         private EnclosureRecord selected;
         private int lastRevision = -1;
+        private int lastTerrainRevision=-1;
         private bool inspecting = true;
 
         public EnclosurePresentation(EnclosureMap map, SquareBuildGrid grid, Canvas canvas, Font font, Material groundMaterial)
@@ -80,10 +81,11 @@ namespace Mythologicum
             warning.gameObject.SetActive(unsecured > 0);
             warning.text = $"Warning: {unsecured} enclosure(s) unsecured. Repair the fence gaps.";
             EnclosureRecord current = selectedCell.HasValue ? map.At(selectedCell.Value) : null;
-            if (current != selected || map.Revision != lastRevision)
+            if (current != selected || map.Revision != lastRevision || (grid.Terrain?.Revision??0)!=lastTerrainRevision)
             {
                 selected = current;
                 lastRevision = map.Revision;
+                lastTerrainRevision=grid.Terrain?.Revision??0;
                 RebuildHighlight();
             }
             SetInspecting(inspecting);
@@ -102,6 +104,12 @@ namespace Mythologicum
         {
             if (mesh != null) Object.Destroy(mesh);
             if (selected == null) return;
+            if(grid.Terrain!=null)
+            {
+                mesh=GroundMeshBuilder.Cells(grid,selected.Cells,.115f);
+                overlay.GetComponent<MeshFilter>().sharedMesh=mesh;
+                material.color=selected.IsSecured?new Color(.25f,.55f,.35f):new Color(.7f,.18f,.12f);return;
+            }
             var vertices = new List<Vector3>();
             var triangles = new List<int>();
             foreach (Vector2Int cell in selected.Cells)

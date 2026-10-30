@@ -19,6 +19,15 @@ namespace Mythologicum
             for (int z = 0; z <= grid.Depth; z++)
                 AddStrip(vertices, triangles, 0f, z * grid.CellSize - thickness / 2f, width, thickness);
             var mesh = new Mesh { name = "Build Grid", indexFormat = IndexFormat.UInt32 };
+            if(grid.Terrain!=null)
+            {
+                vertices.Clear();triangles.Clear();
+                for(int x=0;x<=grid.Width;x++)for(int z=0;z<grid.Depth*2;z++)
+                    AddStrip(vertices,triangles,x*grid.CellSize-thickness/2,z*grid.CellSize/2,thickness,grid.CellSize/2);
+                for(int z=0;z<=grid.Depth;z++)for(int x=0;x<grid.Width*2;x++)
+                    AddStrip(vertices,triangles,x*grid.CellSize/2,z*grid.CellSize-thickness/2,grid.CellSize/2,thickness);
+                for(int i=0;i<vertices.Count;i++){var p=vertices[i];p.y=grid.GroundHeight(grid.Origin+p)-grid.Origin.y;vertices[i]=p;}
+            }
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
