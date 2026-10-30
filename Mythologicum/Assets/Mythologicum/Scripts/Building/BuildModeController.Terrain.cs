@@ -4,6 +4,7 @@ namespace Mythologicum
     public sealed partial class BuildModeController
     {
         private ParkTerrainSurface terrainSurface;
+        private ParkAtmosphere atmosphere;
         private Renderer originalGroundRenderer;
         private bool originalGroundColliderEnabled,originalGroundRendererEnabled;
         private int attachmentRevision=-1;
@@ -62,6 +63,17 @@ namespace Mythologicum
             terrainArt=Resources.Load<TerrainArtDefinition>("Terrain/TerrainArt");
             terrainSurface=new ParkTerrainSurface(grid,terrainArt!=null&&terrainArt.grass!=null?terrainArt.grass:material,terrainArt!=null?terrainArt.cliff:null,terrainArt!=null?terrainArt.soil:null);
             GetComponent<IsometricCameraController>()?.SetMapBounds(grid.Origin,grid.Width*grid.CellSize,grid.Depth*grid.CellSize);
+            var atmospherePrefab=Resources.Load<GameObject>("Rendering/ParkAtmosphere");
+            var atmosphereObject=atmospherePrefab!=null?Instantiate(atmospherePrefab):new GameObject("Park Atmosphere");
+            atmosphereObject.name="Park Atmosphere";
+            atmosphereObject.transform.SetParent(transform,false);
+            atmosphere=atmosphereObject.GetComponent<ParkAtmosphere>();
+            if(atmosphere==null)
+            {
+                atmosphere=atmosphereObject.AddComponent<ParkAtmosphere>();
+                atmosphereObject.GetComponent<BKPureNature.PureVolumetricFog>().ApplyParkPreset();
+            }
+            atmosphere.Initialize(grid);
         }
         private void SeedBorderForest()
         {
@@ -78,6 +90,7 @@ namespace Mythologicum
         }
         private void DisposeTerrain()
         {
+            if(atmosphere!=null)Destroy(atmosphere.gameObject);
             terrainSurface?.Dispose();
             if(ground!=null)ground.enabled=originalGroundColliderEnabled;
             if(originalGroundRenderer!=null)originalGroundRenderer.enabled=originalGroundRendererEnabled;

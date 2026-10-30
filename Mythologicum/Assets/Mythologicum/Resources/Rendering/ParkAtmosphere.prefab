@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3534070572972708122
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1816147110431111856}
+  - component: {fileID: 6641770272250015617}
+  - component: {fileID: 5095881440358063094}
+  m_Layer: 0
+  m_Name: ParkAtmosphere
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1816147110431111856
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3534070572972708122}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6641770272250015617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3534070572972708122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a8a4f589d342f24fbade49a21a154f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  settingsVersion: 1
+  terrains: []
+  findActiveTerrainsAutomatically: 1
+  horizontalPadding: 8
+  bottomPadding: 3
+  topPadding: 18
+  terrainEdgeFade: 3
+  terrainFollow: 1
+  rebuildWhenTerrainChanges: 1
+  density: 0.009
+  groundFogHeight: 12
+  topSoftness: 2
+  noiseTextureResolution: 64
+  noiseSeed: 1337
+  largeNoiseScale: 45
+  detailNoiseScale: 12
+  noiseAmount: 0.7
+  noiseFloor: 0.2
+  noiseContrast: 1.5
+  noiseStrength: 1.8
+  noiseCoverage: 0.35
+  noiseHeightDistortion: 2
+  verticalNoiseShear: 0.004
+  windDirection: {x: 0.28734788, y: 0.95782626}
+  windSpeed: 0.55
+  debugView: 0
+  useSceneDepth: 1
+  depthBias: 0
+  maximumRaySteps: 40
+  minimumRaySteps: 8
+  targetStepLength: 3
+  maximumFogDistance: 240
+  nearFadeDistance: 18
+  farFadeStart: 0.85
+  fogColor: {r: 0.64, g: 0.75, b: 0.79, a: 1}
+  followSceneFogColor: 0
+  ambientColor: {r: 0.62, g: 0.7, b: 0.76, a: 1}
+  followSceneAmbientColor: 0
+  ambientStrength: 0.85
+  ambientShadowStrength: 0.2
+  sunStrength: 0.35
+  sunScattering: 0.15
+  anisotropy: 0.12
+  directionalLight: {fileID: 0}
+  rayJitterStrength: 1
+  noiseMipBias: 0.5
+  noiseFilterScale: 0.7
+  rayStepSmoothing: 1
+  enableVolumetricShadows: 1
+  terrainCastsFogShadows: 1
+  bakeTerrainHorizonShadows: 0
+  useUnityRealtimeShadows: 1
+  shadowStrength: 0.45
+  shadowDistance: 110
+  terrainShadowBias: 0
+  fogSelfShadowStrength: 0.5
+--- !u!114 &5095881440358063094
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3534070572972708122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4ee5bbf142043579aa6e28f03726cc6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
