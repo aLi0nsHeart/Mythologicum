@@ -143,7 +143,7 @@ namespace Mythologicum
                     if (worker.ActionTimer >= tuning.restockSeconds)
                     {
                         float cost = feeder.Footprint.Definition.restockCost;
-                        if (economy.TrySpend(cost)) { feeder.RecordExpense(cost); feeder.RestockFeed(); ClearJob(worker); }
+                        if (economy.TrySpend(cost, ParkTransactionCategory.Supplies)) { feeder.RecordExpense(cost); feeder.RestockFeed(); ClearJob(worker); }
                         else worker.Status = "Waiting for funds to buy feeder supplies";
                     }
                 }

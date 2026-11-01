@@ -16,6 +16,8 @@ namespace Mythologicum
             data.terrain=grid.Terrain?.Capture();
             data.treeVisuals=trees.CaptureVisuals();
             data.generation=mapOptions?.Clone();data.rocks=rocks.Capture();
+            data.finance=economy.CaptureFinance();data.reputation=visitorWorld.Reputation.Capture();
+            data.rejectedAdmissions=visitorWorld.RejectedAdmissions;data.expensiveServiceRefusals=visitorWorld.ExpensiveServiceRefusals;
             var camera = GetComponent<IsometricCameraController>();
             if (camera != null) { data.focus = camera.SavedFocus; data.yaw = camera.SavedYaw; data.zoom = camera.SavedZoom; }
             for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
@@ -74,6 +76,8 @@ namespace Mythologicum
         }
         public void ValidateSave(ParkSaveData data)
         {
+            ParkEconomy.ValidateSnapshot(data.finance);ParkReputation.ValidateSnapshot(data.reputation);
+            if(data.rejectedAdmissions<0||data.expensiveServiceRefusals<0)throw new InvalidDataException("Invalid saved visitor pricing feedback.");
             if(data.width<1||data.depth<1||data.width>128||data.depth>128||!Finite(data.cellSize)||data.cellSize<.25f||data.cellSize>16f)
                 throw new InvalidDataException("Unsupported saved map dimensions.");
             if(data.generation!=null&&(!data.generation.Validate(out _)||data.generation.width!=data.width||data.generation.depth!=data.depth))
@@ -210,6 +214,9 @@ namespace Mythologicum
                     var species = Species(saved.research); if (species != null) staffWorld.SetResearchTarget(restored[i], species);
                 }
                 economy.Restore(data.balance, data.income, data.expenses, data.unlimited);
+                economy.RestoreFinance(data.finance);
+                visitorWorld.Reputation.Restore(data.reputation);visitorWorld.RefreshReputation();
+                visitorWorld.RestoreFeedbackCounts(data.rejectedAdmissions,data.expensiveServiceRefusals);
                 visitorWorld.RestoreCounts(data.departedVisitors, data.lostVisitors);
                 if(data.version>=2) Progression.Restore(data.progression,restored);
                 else Progression.AdoptLegacyPark(restored,fences.Layout.Edges,fences.Layout);

@@ -13,8 +13,14 @@ namespace Mythologicum
                 float rate = building.UpkeepPerSecond;
                 float cost = (float)Math.Min(float.MaxValue, (double)rate * dt);
                 building.RecordExpense(cost);
-                economy.Tick(dt, rate);
+                float baseRate = Amount(building.Footprint.Definition.operatingCostPerSecond);
+                float salaries = (float)Math.Min(float.MaxValue,
+                    building.HiredCount * (double)Amount(building.Footprint.Definition.staffSalaryPerSecond));
+                economy.Tick(dt, baseRate, ParkTransactionCategory.BuildingUpkeep);
+                economy.Tick(dt, salaries, ParkTransactionCategory.Salary);
             }
         }
+
+        private static float Amount(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f ? value : 0f;
     }
 }

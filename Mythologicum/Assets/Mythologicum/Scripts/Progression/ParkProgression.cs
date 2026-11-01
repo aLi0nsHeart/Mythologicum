@@ -98,14 +98,14 @@ namespace Mythologicum
         public bool BuyTeam(ParkBuildingRecord home)
         {
             float cost=NextTeamCost;
-            if(!CanUse(home,BuildingKind.ExpeditionCentre)||Teams>=Rules.maximumTeams||!economy.TrySpend(cost))return false;
+            if(!CanUse(home,BuildingKind.ExpeditionCentre)||Teams>=Rules.maximumTeams||!economy.TrySpend(cost,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(cost);
             Teams++;Revision++;return true;
         }
         public bool BuyAccess(ParkBuildingRecord home,string region)
         {
             var r=Region(region);
-            if(!CanUse(home,BuildingKind.ExpeditionCentre)||r==null||HasAccess(region)||!RegionHasCreatures(region)||!economy.TrySpend(r.accessCost))return false;
+            if(!CanUse(home,BuildingKind.ExpeditionCentre)||r==null||HasAccess(region)||!RegionHasCreatures(region)||!economy.TrySpend(r.accessCost,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(r.accessCost);
             access.Add(region);Revision++;return true;
         }
@@ -113,7 +113,7 @@ namespace Mythologicum
         {
             var d=Difficulty(difficulty);var eligible=Eligible(region,difficulty);
             if(!CanUse(home,BuildingKind.ExpeditionCentre)||!HasAccess(region)||d==null||eligible.Count==0||teams<1||teams>AvailableTeams
-                ||!economy.TrySpend(d.costPerTeam*teams))return false;
+                ||!economy.TrySpend(d.costPerTeam*teams,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(d.costPerTeam*teams);
             float chance=Chance(difficulty,teams), duration=Math.Max(1f,d.seconds*DurationMultiplier);
             missions.Add(new ExpeditionMission {id=++nextMission,region=region,difficulty=difficulty,teams=teams,
@@ -143,7 +143,7 @@ namespace Mythologicum
         public bool StartResearch(ParkBuildingRecord home,string id)
         {
             if(ResearchBlock(home,id)!="")return false;
-            var t=Technology(id);if(!economy.TrySpend(t.cost))return false;
+            var t=Technology(id);if(!economy.TrySpend(t.cost,ParkTransactionCategory.Research))return false;
             home.RecordExpense(t.cost);
             projects.Add(new TechnologyProject {Home=home,Definition=t});Revision++;return true;
         }

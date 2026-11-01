@@ -26,7 +26,7 @@ namespace Mythologicum
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
-            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null)
+            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null,Action openParkManagement=null)
         {
             this.categoryOpened = categoryOpened;
             Root = new GameObject("Construction Palette", typeof(RectTransform));
@@ -35,13 +35,15 @@ namespace Mythologicum
             rootRect.anchorMin = Vector2.zero;
             rootRect.anchorMax = Vector2.one;
             rootRect.offsetMin = rootRect.offsetMax = Vector2.zero;
-            MakeButton(template, Root.transform, "Buildings (B)", new Vector2(-450f, 40f), () => Toggle(ConstructionCategory.Buildings),false,140);
-            enclosuresCategory = MakeButton(template, Root.transform, "Enclosures (H)", new Vector2(-300f, 40f), () => Toggle(ConstructionCategory.Enclosures),false,140);
-            MakeButton(template,Root.transform,"Terrain (T)",new Vector2(-150,40),()=>Toggle(ConstructionCategory.Terrain),false,140);
-            pathsCategory = MakeButton(template, Root.transform, "Paths (P)", new Vector2(0f, 40f), () => Toggle(ConstructionCategory.Paths),false,140);
-            fencesCategory = MakeButton(template, Root.transform, "Fences (F)", new Vector2(150f, 40f), () => Toggle(ConstructionCategory.Fences),false,140);
-            creaturesCategory = MakeButton(template, Root.transform, "Creatures (C)", new Vector2(300f, 40f), () => Toggle(ConstructionCategory.Creatures),false,140);
-            MakeButton(template, Root.transform, "Demolish (X)", new Vector2(450f, 40f), demolish,false,140);
+            var park = MakeButton(template, Root.transform, "Park management", new Vector2(-525f, 40f), () => { Close(); openParkManagement?.Invoke(); }, false,140);
+            park.GetComponentInChildren<Text>().fontSize=16;
+            MakeButton(template, Root.transform, "Buildings (B)", new Vector2(-375f, 40f), () => Toggle(ConstructionCategory.Buildings),false,140);
+            enclosuresCategory = MakeButton(template, Root.transform, "Enclosures (H)", new Vector2(-225f, 40f), () => Toggle(ConstructionCategory.Enclosures),false,140);
+            MakeButton(template,Root.transform,"Terrain (T)",new Vector2(-75,40),()=>Toggle(ConstructionCategory.Terrain),false,140);
+            pathsCategory = MakeButton(template, Root.transform, "Paths (P)", new Vector2(75f, 40f), () => Toggle(ConstructionCategory.Paths),false,140);
+            fencesCategory = MakeButton(template, Root.transform, "Fences (F)", new Vector2(225f, 40f), () => Toggle(ConstructionCategory.Fences),false,140);
+            creaturesCategory = MakeButton(template, Root.transform, "Creatures (C)", new Vector2(375f, 40f), () => Toggle(ConstructionCategory.Creatures),false,140);
+            MakeButton(template, Root.transform, "Demolish (X)", new Vector2(525f, 40f), demolish,false,140);
             foreach (ConstructionCategory category in Enum.GetValues(typeof(ConstructionCategory)))
             {
                 var group = new GameObject(category + " Choices", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));

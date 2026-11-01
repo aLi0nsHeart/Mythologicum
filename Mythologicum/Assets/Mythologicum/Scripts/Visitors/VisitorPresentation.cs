@@ -49,7 +49,7 @@ namespace Mythologicum
         {
             if (hud == null || panel == null) return;
             overview.text = $"Funds: {economy.Balance:0.00}\n"
-                + $"Income: {economy.Income:0.00} | Costs: {economy.Expenses:0.00}\n"
+                + $"Profit/min: {economy.OperatingProfitPerMinute:0.00} | Stars: {world.Reputation.Stars:0.0}/5\n"
                 + $"Visitors: {world.Population}\n"
                 + $"Average satisfaction: {world.AverageSatisfaction:0}/100\n"
                 + $"Departed: {world.DepartedCount} | Lost: {world.LostCount}\n"
@@ -69,7 +69,8 @@ namespace Mythologicum
                 + $"Time in park: {seconds / 60}m {seconds % 60:00}s\n"
                 + $"Patience left: {100f * (1f - selected.Mood.VisitProgress):0}%\n"
                 + $"Willingness to stay: {100f * selected.Mood.Willingness:0}%\n\n"
-                + selected.Status + "\n\nClick elsewhere to deselect.";
+                + selected.Status + (string.IsNullOrEmpty(selected.PriceComplaint) ? "" : "\n" + selected.PriceComplaint)
+                + "\n\nClick elsewhere to deselect.";
         }
 
         public void Dispose()

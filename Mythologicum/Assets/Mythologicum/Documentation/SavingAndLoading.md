@@ -18,6 +18,12 @@ Format 2 also saves expedition teams and permits, in-flight missions and their o
 
 Format 3 adds terrain corner heights and movement limits, preserving hills and flattened building foundations exactly. Version 1 and 2 saves keep flat ground. Start a new park to use the generated landscape; see `TerrainPrototype.md` for terrain settings and testing.
 
+Optional format-3 fields also retain the recent financial window, visitor reputation,
+safety history and pricing feedback. Earlier saves start with an empty recent window
+and neutral customer reputation; their exhibition appeal is rebuilt from restored
+creatures and public paths. Loading does not create new sales or visitor reviews.
+See `ParkManagement.md` for the dashboard and rating rules.
+
 New saves also retain each tree's model, height and rotation. Border forest is generated for new parks and then saved as ordinary trees; clearing it remains permanent after loading. Earlier saves without tree appearance data still load.
 
 The file is `park-save.json` in Unity's `Application.persistentDataPath` (on Windows normally `%USERPROFILE%/AppData/LocalLow/<CompanyName>/<ProductName>`). A successful overwrite retains the previous file as `park-save.json.bak`; loading currently uses the primary file. Files are JSON with a format version and checked map dimensions. No save is stored inside the project or committed to Git.

@@ -63,7 +63,7 @@ namespace Mythologicum
             }
             if (actor == null) return false;
             float cost = home.Footprint.Definition.hireCost;
-            economy.TrySpend(cost); home.RecordExpense(cost); home.HiredCount++;
+            economy.TrySpend(cost, ParkTransactionCategory.Hiring); home.RecordExpense(cost); home.HiredCount++;
             var worker = actor.gameObject.AddComponent<StaffAgent>();
             worker.Actor = actor; worker.Home = home; worker.Role = role;
             workers.Add(worker); UseLocomotionController(actor);

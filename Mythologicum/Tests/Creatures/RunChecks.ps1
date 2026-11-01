@@ -44,6 +44,7 @@ try {
     $checks += @('..\Progression\ProgressionChecks')
     $checks += @('..\Terrain\TerrainChecks')
     $checks += @('..\Terrain\TerrainArtChecks')
+    $checks += @('..\Management\FinanceChecks', '..\Management\ReputationChecks', '..\Management\BalanceChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force

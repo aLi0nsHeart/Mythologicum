@@ -1,6 +1,9 @@
 # Buildings, personnel and creature care
 
-Restart Play mode after the scripts import. Placed buildings, personnel, prices and research belong to the current session; this prototype does not yet save a park between sessions.
+Restart Play mode after the scripts import. Placed buildings, personnel, prices and
+research are retained in park saves; see `SavingAndLoading.md`. The bottom Park
+management button shows recent finances, editable prices and park reputation;
+see `ParkManagement.md` and `EconomyBalance.md` for current operating costs.
 
 ## Inspect buildings and change prices
 
@@ -19,7 +22,9 @@ Three additional choices are available under **Buildings**: **Research centre**,
 
 1. Build and connect one of these workplaces.
 2. Leave construction mode and click it.
-3. Click **Hire**. Each workplace holds at most **5 employees**. A hire costs **50** by default; each employee adds **0.5 per second**, or **30 per minute**, to upkeep.
+3. Click **Hire**. Each workplace holds at most **5 employees**. A hire costs **50**
+   by default. Salaries are **6 per minute per zookeeper**, **9 per researcher** and
+   **12 per mercenary**, in addition to the building's base upkeep.
 4. Watch the employee's activity in the building panel. Click **Dismiss one** to remove one employee and stop that salary.
 
 Employees appear near their workplace and travel through the park. A disconnected workplace cannot start normal work. Demolishing it removes its personnel. A task cannot cross a solid fence without an accessible staff gate or an existing gap.
@@ -42,7 +47,10 @@ Each active researcher contributes **1 percentage point per second** of observat
 | 75% | Space and group needs |
 | 100% | Containment abilities and escape pressure |
 
-Several researchers can study the same species. Knowledge remains available if a particular employee or research centre is removed. Choose another species after a study completes. Creature research is separate from **technology research**, which remains a later feature.
+Several researchers can study the same species. Knowledge remains available if a
+particular employee or research centre is removed. Choose another species after a
+study completes. Creature research is separate from **technology research**; see
+`ProgressionPrototype.md` for technology projects and unlocks.
 
 ## Mercenaries and retirement
 

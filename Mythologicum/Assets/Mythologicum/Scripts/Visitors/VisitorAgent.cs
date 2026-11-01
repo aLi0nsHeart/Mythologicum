@@ -19,6 +19,8 @@ namespace Mythologicum
         internal Vector3 LastDanger;
         internal ParkBuildingRecord Service;
         internal float QuotedPrice;
+        internal float NextFoodPriceComplaint, NextRestPriceComplaint;
+        public string PriceComplaint { get; internal set; }
         internal CreatureAgent Watching;
         internal readonly Dictionary<CreatureAgent, float> ViewedAt = new Dictionary<CreatureAgent, float>();
     }

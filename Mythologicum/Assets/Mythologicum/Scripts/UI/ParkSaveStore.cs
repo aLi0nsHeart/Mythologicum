@@ -12,6 +12,9 @@ namespace Mythologicum
         public MapGenerationOptions generation;
         public List<Vector2Int> rocks;
         public ProgressionSave progression;
+        public FinanceSnapshot finance;
+        public ParkReputationSnapshot reputation;
+        public int rejectedAdmissions, expensiveServiceRefusals;
         public float cellSize, balance, income, expenses;
         public bool unlimited;
         public string savedAt;

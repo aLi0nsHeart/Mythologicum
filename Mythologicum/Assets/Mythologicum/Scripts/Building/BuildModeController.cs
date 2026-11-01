@@ -184,7 +184,7 @@ namespace Mythologicum
                 () => SelectTool(Tool.Path), SelectFence,
                 () => SelectTool(Tool.Gate),
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
-                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),SelectTerrainBrush);
+                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),SelectTerrainBrush,OpenParkManagement);
             status = palette.Status;
             CreateTerrainEditingUI(canvas);
             var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
@@ -274,6 +274,7 @@ namespace Mythologicum
         {
             if (GameSaveMenu.IsOpen) {ResetTerrainStroke();if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);return;}
             RefreshTerrainAttachments();
+            economy.Advance(Time.deltaTime);
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
             creatureWorld.Tick(Time.deltaTime);
@@ -289,6 +290,7 @@ namespace Mythologicum
             enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
             enclosurePresentation.Refresh();
             management.Refresh();
+            parkManagement.Refresh();
             notifications.Refresh();
             if (ManagementOpen) return;
             if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);
@@ -389,7 +391,7 @@ namespace Mythologicum
             if (valid) status.text += $" | Cost: {selectedBuilding.constructionCost:0}";
             if (valid && !affordable) status.text = $"Not enough funds: need {selectedBuilding.constructionCost:0}. Enable Infinite funds to build freely.";
             if (valid && affordable && mouse.leftButton.wasPressedThisFrame && buildingConstruction.TryPlace(footprint))
-            { economy.TrySpend(selectedBuilding.constructionCost); SelectTool(Tool.None); }
+            { economy.TrySpend(selectedBuilding.constructionCost,ParkTransactionCategory.Construction); SelectTool(Tool.None); }
         }
 
         private void ApplyTree(Mouse mouse, Vector2Int cell)
@@ -668,6 +670,7 @@ namespace Mythologicum
             if(terrainCursor!=null)Destroy(terrainCursor.gameObject);
             if(terrainCursorMaterial!=null)Destroy(terrainCursorMaterial);
             management?.Dispose();
+            parkManagement?.Dispose();
             notifications?.Dispose();
             buildingInspection?.Dispose();
             staffWorld?.Dispose();

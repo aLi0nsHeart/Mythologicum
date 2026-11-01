@@ -18,9 +18,18 @@ namespace Mythologicum
         private readonly List<VisitorAgent> visitors = new List<VisitorAgent>();
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> groundRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
         private readonly System.Random appearanceRandom = new System.Random();
-        private float arrivalTimer, time;
+        private float arrivalTimer, time, reputationTimer, admissionCredit;
+        private int reputationGridRevision = -1, reputationFenceRevision = -1;
         private int gridRevision = -1, fenceRevision = -1;
         public VisitorDefinition Definition { get; }
+        public ParkReputation Reputation { get; } = new ParkReputation();
+        public int RejectedAdmissions { get; private set; }
+        public int ExpensiveServiceRefusals { get; private set; }
+        internal void RestoreFeedbackCounts(int rejected, int serviceRefusals)
+        { RejectedAdmissions = Math.Max(0, rejected); ExpensiveServiceRefusals = Math.Max(0, serviceRefusals); }
+        public float AdmissionAcceptance => buildings.Entrance != null ? Reputation.PriceAcceptance(buildings.Entrance.Price) : 0f;
+        public float ExpectedArrivalsPerMinute => buildings.Entrance != null && buildings.Entrance.IsOpen
+            ? 60f / Mathf.Max(.1f, Definition.spawnInterval) * Reputation.DemandMultiplier * AdmissionAcceptance : 0f;
         public IReadOnlyList<VisitorAgent> Visitors => visitors;
         public int Population => visitors.Count;
         public int DepartedCount { get; private set; }
@@ -58,6 +67,12 @@ namespace Mythologicum
         {
             buildings.Refresh();
             if (Population >= Definition.maximumVisitors || buildings.Entrance == null || !buildings.Entrance.IsOpen) return null;
+            RefreshReputation();
+            float acceptance = AdmissionAcceptance;
+            admissionCredit += acceptance;
+            if (acceptance <= 0f || admissionCredit < 1f)
+            { if (RejectedAdmissions < int.MaxValue) RejectedAdmissions++; return null; }
+            admissionCredit = Mathf.Max(0f, admissionCredit - 1f);
             GameObject model = null;
             if (Definition.people != null && Definition.people.civilians != null && Definition.people.civilians.Length > 0)
                 model = Definition.people.civilians[appearanceRandom.Next(Definition.people.civilians.Length)];
@@ -67,7 +82,7 @@ namespace Mythologicum
             visitor.Actor = actor; visitor.Activity = VisitorActivity.Arriving;
             visitors.Add(visitor);
             float ticket = buildings.Entrance.Price;
-            buildings.Entrance.RecordRevenue(ticket); economy.Earn(ticket);
+            buildings.Entrance.RecordRevenue(ticket); economy.Earn(ticket, ParkTransactionCategory.Admission);
             return visitor;
         }
 
@@ -89,9 +104,13 @@ namespace Mythologicum
             float dt = deltaTime; time += dt;
             buildings.Refresh();
             RefreshNavigation();
+            Reputation.Tick(dt);
+            reputationTimer -= dt;
+            if (reputationTimer <= 0f || reputationGridRevision != grid.Revision || reputationFenceRevision != fences.Revision)
+                RefreshReputation();
             if (buildings.Entrance != null && buildings.Entrance.IsOpen && Population < Definition.maximumVisitors)
             {
-                arrivalTimer -= dt;
+                arrivalTimer -= dt * Reputation.DemandMultiplier;
                 if (arrivalTimer <= 0f)
                 {
                     TrySpawn(); arrivalTimer = Mathf.Max(0.1f, Definition.spawnInterval);
@@ -102,7 +121,7 @@ namespace Mythologicum
                 VisitorAgent guest = visitors[i];
                 CreatureAgent actor = guest == null ? null : guest.Actor;
                 if (actor == null || !actor.Alive)
-                { visitors.RemoveAt(i); LostCount++; continue; }
+                { visitors.RemoveAt(i); LostCount++; Reputation.ReportDeath(); continue; }
                 if (actor.CapturedBy != null && actor.CapturedBy.Alive)
                 {
                     guest.LeavingPark = true;
@@ -155,11 +174,48 @@ namespace Mythologicum
                     && actor.Cell == buildings.Entrance.Footprint.AccessCell)
                 {
                     ReleaseService(guest); visitors.RemoveAt(i); DepartedCount++;
+                    Reputation.ReportDeparture(guest.Mood.Satisfaction);
                     creatures.RemoveExternal(actor); continue;
                 }
                 actor.ExternalStatus = guest.Status + $" | Satisfaction {guest.Mood.Satisfaction:0}";
                 creatures.RefreshExternal(actor);
             }
+        }
+
+        /// <summary>Recounts creatures visible from connected public paths; fence ownership is irrelevant.</summary>
+        public void RefreshReputation()
+        {
+            buildings.Refresh();
+            var displayed = new Dictionary<string, ParkExhibit>(StringComparer.Ordinal);
+            float range = Definition.viewRange;
+            bool validRange = !float.IsNaN(range) && !float.IsInfinity(range) && range >= 0f;
+            if (buildings.Entrance != null && buildings.Entrance.IsOpen && validRange)
+            {
+                int radius = Math.Min(Math.Max(grid.Width, grid.Depth), (int)Math.Ceiling(range / grid.CellSize));
+                foreach (CreatureAgent animal in creatures.Agents)
+                {
+                    if (!animal.Alive || animal.ExternallyControlled || animal.CarriedBy != null
+                        || animal.Definition.requiresGravestoneForSleep && animal.Activity == CreatureActivity.Sleeping) continue;
+                    bool visible = false;
+                    for (int z = Math.Max(0, animal.Cell.y - radius); !visible && z <= Math.Min(grid.Depth - 1, animal.Cell.y + radius); z++)
+                    for (int x = Math.Max(0, animal.Cell.x - radius); !visible && x <= Math.Min(grid.Width - 1, animal.Cell.x + radius); x++)
+                    {
+                        var cell = new Vector2Int(x, z);
+                        if (buildings.IsPathConnected(cell) && Distance(grid.CellCenter(cell), animal.transform.position) <= range
+                            && sight.HasLineOfSight(cell, animal.Cell)) visible = true;
+                    }
+                    if (!visible) continue;
+                    CreatureDefinition definition = animal.Definition;
+                    string species = string.IsNullOrEmpty(definition.name) ? definition.displayName : definition.name;
+                    if (string.IsNullOrEmpty(species)) species = "Unidentified creature";
+                    if (displayed.TryGetValue(species, out ParkExhibit existing)) existing.count++;
+                    else displayed.Add(species, new ParkExhibit(species, definition.rating, 1,
+                        (definition.tags & CreatureTags.Goat) != 0 || definition.origin == "Domestic"));
+                }
+            }
+            Reputation.UpdateExhibition(displayed.Values);
+            reputationTimer = 5f;
+            reputationGridRevision = grid.Revision; reputationFenceRevision = fences.Revision;
         }
 
         private void RefreshNavigation()
@@ -251,6 +307,7 @@ namespace Mythologicum
         private bool TryService(VisitorAgent guest, BuildingKind kind)
         {
             ParkBuildingRecord best = null; int shortest = int.MaxValue;
+            bool expensive = false;
             Vector2Int from = guest.Actor.Route.Count > 0 ? guest.Actor.Route[0] : guest.Actor.Cell;
             foreach (ParkBuildingRecord building in buildings.Records)
             {
@@ -261,13 +318,27 @@ namespace Mythologicum
                 if (reservations >= Mathf.Max(1, building.Footprint.Definition.serviceCapacity)) continue;
                 List<Vector2Int> route = navigation.FindPath(from, building.Footprint.AccessCell);
                 if (route.Count == 0 || route.Count >= shortest) continue;
+                if (!Reputation.ServiceAffordable(building.Price, kind == BuildingKind.Kiosk))
+                { expensive = true; continue; }
                 shortest = route.Count; best = building;
             }
-            if (best == null || !SetRoute(guest, best.Footprint.AccessCell)) return false;
+            if (best == null || !SetRoute(guest, best.Footprint.AccessCell))
+            { if (expensive) RefuseServicePrice(guest, kind == BuildingKind.Kiosk); return false; }
             guest.Service = best; guest.Watching = null;
+            guest.PriceComplaint = null;
             SetActivity(guest, kind == BuildingKind.Kiosk ? VisitorActivity.SeekingFood : VisitorActivity.SeekingRest,
                 kind == BuildingKind.Kiosk ? "Walking to a kiosk" : "Walking to a rest area");
             return true;
+        }
+
+        private void RefuseServicePrice(VisitorAgent guest, bool food)
+        {
+            float next = food ? guest.NextFoodPriceComplaint : guest.NextRestPriceComplaint;
+            if (time < next) return;
+            if (food) guest.NextFoodPriceComplaint = time + 30f; else guest.NextRestPriceComplaint = time + 30f;
+            if (ExpensiveServiceRefusals < int.MaxValue) ExpensiveServiceRefusals++;
+            guest.PriceComplaint = food ? "Food prices are too high" : "Rest prices are too high";
+            guest.Mood.Punish(2f);
         }
 
         private bool ServiceAvailable(VisitorAgent guest)
@@ -378,6 +449,11 @@ namespace Mythologicum
                 if (!ServiceAvailable(guest) || actor.Cell != guest.Service.Footprint.AccessCell)
                 { ReleaseService(guest); guest.DecisionTimer = 0f; return; }
                 bool food = guest.Activity == VisitorActivity.SeekingFood;
+                if (!Reputation.ServiceAffordable(guest.Service.Price, food))
+                {
+                    RefuseServicePrice(guest, food); ReleaseService(guest); guest.DecisionTimer = 0f;
+                    SetActivity(guest, VisitorActivity.Arriving, "Looking for an affordable service"); return;
+                }
                 guest.QuotedPrice = guest.Service.Price;
                 guest.StateTimer = Mathf.Max(.1f, guest.Service.Footprint.Definition.serviceSeconds);
                 SetActivity(guest, food ? VisitorActivity.Eating : VisitorActivity.Resting,
@@ -426,7 +502,8 @@ namespace Mythologicum
         private void ChargeService(VisitorAgent guest)
         {
             guest.Service.RecordRevenue(guest.QuotedPrice);
-            economy.Earn(guest.QuotedPrice);
+            economy.Earn(guest.QuotedPrice, guest.Service.Footprint.Definition.kind == BuildingKind.Kiosk
+                ? ParkTransactionCategory.Food : ParkTransactionCategory.Rest);
             guest.QuotedPrice = 0f;
         }
 
