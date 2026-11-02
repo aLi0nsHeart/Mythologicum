@@ -186,7 +186,7 @@ namespace Mythologicum
             var labelObject = new GameObject("Creature stats", typeof(TextMesh));
             labelObject.transform.SetParent(root.transform);
             agent.Label = labelObject.GetComponent<TextMesh>();
-            agent.Label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            agent.Label.font = UITheme.BodyFont;
             agent.Label.GetComponent<MeshRenderer>().sharedMaterial = agent.Label.font.material;
             agent.Label.fontSize = 48; agent.Label.characterSize = 0.085f;
             agent.Label.anchor = TextAnchor.LowerCenter; agent.Label.alignment = TextAlignment.Center;

@@ -5,7 +5,7 @@ namespace Mythologicum
 {
     internal static class ManagementWidgets
     {
-        internal static Font Font => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        internal static Font Font => UITheme.BodyFont;
         internal static RectTransform Rect(Transform parent,string name,Vector2 position,Vector2 size)
         {
             var go=new GameObject(name,typeof(RectTransform));go.transform.SetParent(parent,false);
@@ -33,7 +33,7 @@ namespace Mythologicum
         internal static RectTransform Scroll(Transform parent,string name,Vector2 position,Vector2 size,float contentHeight)
         {
             var go=Box(parent,name,position,size,new Color(.055f,.095f,.11f));var scroll=go.AddComponent<ScrollRect>();
-            var view=Box(go.transform,"Viewport",Vector2.zero,size);
+            var view=Box(go.transform,"Viewport",Vector2.zero,size,new Color(0,0,0,.001f));
             var vr=(RectTransform)view.transform;vr.anchorMin=Vector2.zero;vr.anchorMax=Vector2.one;vr.offsetMin=vr.offsetMax=Vector2.zero;
             view.AddComponent<RectMask2D>();
             var content=Rect(view.transform,"Content",Vector2.zero,new Vector2(size.x,contentHeight));
@@ -52,7 +52,10 @@ namespace Mythologicum
             var parent=(RectTransform)canvas.transform;
             var card=Rect(root.transform,"Window",Vector2.zero,new Vector2(1160,660));
             card.localScale=Vector3.one*Mathf.Min(1f,(parent.rect.width-30)/1160,(parent.rect.height-30)/660);
-            card.anchorMin=card.anchorMax=card.pivot=new Vector2(.5f,.5f);return card;
+            card.anchorMin=card.anchorMax=card.pivot=new Vector2(.5f,.5f);
+            var image=card.gameObject.AddComponent<Image>();image.color=new Color(.07f,.045f,.025f,1f);
+            var style=UIThemeElement.Mark(card.gameObject,UIThemeRole.Window);style.Initialize(image);style.Apply(UITheme.Current);
+            return card;
         }
         internal static void Clear(Transform root)
         {for(int i=root.childCount-1;i>=0;i--){var go=root.GetChild(i).gameObject;go.SetActive(false);UnityEngine.Object.Destroy(go);}}

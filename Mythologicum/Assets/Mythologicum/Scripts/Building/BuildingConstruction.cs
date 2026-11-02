@@ -76,7 +76,7 @@ namespace Mythologicum
             labelObject.transform.SetParent(root.transform, false);
             labelObject.transform.localPosition = Vector3.up * (definition.height + 0.6f);
             TextMesh label = labelObject.GetComponent<TextMesh>();
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = UITheme.BodyFont;
             label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
             label.fontSize = 64;
             label.characterSize = 0.12f;

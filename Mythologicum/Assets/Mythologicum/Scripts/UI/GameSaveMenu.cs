@@ -12,6 +12,7 @@ namespace Mythologicum
         public static bool IsOpen => instance != null && instance.overlay != null && instance.overlay.activeSelf;
         private BuildModeController park;
         private GameObject overlay;
+        private GameObject confirmation;
         private Text message;
         private Font font;
         private float previousScale = 1f;
@@ -33,23 +34,10 @@ namespace Mythologicum
             var canvas = FindFirstObjectByType<Canvas>(); if (canvas == null) return;
             var component = canvas.gameObject.AddComponent<GameSaveMenu>(); instance = component;
             component.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            // Insert beside the existing start button, preserving authored menu art and events.
-            Button start = null;
-            foreach (var button in canvas.GetComponentsInChildren<Button>())
-                if (button.onClick.GetPersistentEventCount() > 0 && button.onClick.GetPersistentMethodName(0) == "StartGame") { start = button; break; }
-            var load = component.Button(canvas.transform, "Load game", new Vector2(0f, -30f), component.Load);
-            if (start != null)
-            {
-                var source = (RectTransform)start.transform; var rect = (RectTransform)load.transform;
-                rect.anchorMin = source.anchorMin; rect.anchorMax = source.anchorMax; rect.pivot = source.pivot;
-                rect.sizeDelta = source.sizeDelta;
-                rect.anchoredPosition = source.anchoredPosition + new Vector2(source.rect.width + 20f, 0f);
-                // Keep the pair centered instead of placing load outside small screens.
-                source.anchoredPosition -= new Vector2((source.rect.width + 20f) / 2f, 0f);
-                rect.anchoredPosition -= new Vector2((source.rect.width + 20f) / 2f, 0f);
-            }
-            load.interactable = ParkSaveStore.Exists;
-            component.message = component.Label(canvas.transform, "", new Vector2(0,-180), new Vector2(650,100));
+            var navigation = FindFirstObjectByType<SceneNavigation>();
+            if(navigation==null)navigation=canvas.gameObject.AddComponent<SceneNavigation>();
+            var menu=MainMenuPresentation.Create(canvas,navigation,component.Load);
+            component.message = menu.Message;
             component.message.text = ParkSaveStore.LoadError ?? ""; ParkSaveStore.LoadError = null;
         }
         private void CreatePause()
@@ -77,25 +65,31 @@ namespace Mythologicum
             var rect = (RectTransform)overlay.transform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
             rect.offsetMin = rect.offsetMax = Vector2.zero;
             overlay.GetComponent<Image>().color = new Color(.025f,.04f,.06f,.97f);
-            Label(overlay.transform, "Paused", new Vector2(0,190), new Vector2(500,50));
-            Button(overlay.transform, "Resume", new Vector2(0,130), Toggle);
-            Button(overlay.transform, "Save game", new Vector2(0,70), Save);
-            Button(overlay.transform, "Load game", new Vector2(0,10), Load);
-            Button(overlay.transform, "Quit to main menu", new Vector2(0,-50), () => Confirm("Return to the main menu? Unsaved changes will be lost.", () => Navigate("MainMenuScene")));
-            Button(overlay.transform, "Quit game", new Vector2(0,-110), () => Confirm("Quit the game? Unsaved changes will be lost.", () => { Time.timeScale = 1f; FindFirstObjectByType<SceneNavigation>().QuitGame(); }));
-            message = Label(overlay.transform, "", new Vector2(0,-210), new Vector2(650,100));
+            Label(overlay.transform, "Paused", new Vector2(0,205), new Vector2(500,50));
+            Button(overlay.transform, "Resume", new Vector2(0,150), Toggle);
+            Button(overlay.transform, "Save game", new Vector2(0,90), Save);
+            Button(overlay.transform, "Load game", new Vector2(0,30), Load);
+            Button(overlay.transform, "Settings", new Vector2(0,-30), () => SettingsPresentation.Open(canvas));
+            Button(overlay.transform, "Quit to main menu", new Vector2(0,-90), () => Confirm("Return to the main menu? Unsaved changes will be lost.", () => Navigate("MainMenuScene")));
+            Button(overlay.transform, "Quit game", new Vector2(0,-150), () => Confirm("Quit the game? Unsaved changes will be lost.", () => { Time.timeScale = 1f; FindFirstObjectByType<SceneNavigation>().QuitGame(); }));
+            message = Label(overlay.transform, "", new Vector2(0,-245), new Vector2(650,90));
             overlay.SetActive(false);
+            UIThemeApplicator.ApplyAll(canvas);
         }
         private void Update()
         {
-            if (park != null && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
+                if(SettingsPresentation.IsOpen){SettingsPresentation.CloseActive();return;}
+                if (confirmation != null) { CloseConfirmation(); return; }
+                if(park==null)return;
                 if (!IsOpen && park.CloseManagementWindow()) return;
                 Toggle();
             }
         }
         private void Toggle()
         {
+            if(SettingsPresentation.IsOpen){SettingsPresentation.CloseActive();return;}
             if (overlay == null) return;
             if (IsOpen) { overlay.SetActive(false); Time.timeScale = previousScale; }
             else { previousScale = Time.timeScale; Time.timeScale = 0f; overlay.SetActive(true); overlay.transform.SetAsLastSibling(); message.text = ""; }
@@ -112,6 +106,7 @@ namespace Mythologicum
         }
         private void Load()
         {
+            if(SettingsPresentation.IsOpen)return;
             if (!ParkSaveStore.Exists) { message.text = "No saved game yet."; return; }
             if (park != null) Confirm("Load the saved game? Unsaved changes will be lost.", Read);
             else Read();
@@ -128,13 +123,21 @@ namespace Mythologicum
         private void Navigate(string scene) { Time.timeScale = 1f; SceneManager.LoadScene(scene); }
         private void Confirm(string question, UnityEngine.Events.UnityAction action)
         {
+            CloseConfirmation();
             var host = overlay != null ? overlay.transform : transform;
             var dialog = new GameObject("Confirm action", typeof(RectTransform), typeof(Image)); dialog.transform.SetParent(host,false);
+            confirmation = dialog;
             var r = (RectTransform)dialog.transform; r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
             dialog.GetComponent<Image>().color = new Color(.03f,.05f,.07f,.99f);
             Label(dialog.transform, question, new Vector2(0,70),new Vector2(600,100));
-            Button(dialog.transform,"Confirm",new Vector2(0,-10),() => { Destroy(dialog); action(); });
-            Button(dialog.transform,"Cancel",new Vector2(0,-70),() => Destroy(dialog));
+            Button(dialog.transform,"Confirm",new Vector2(0,-10),() => { CloseConfirmation(); action(); });
+            Button(dialog.transform,"Cancel",new Vector2(0,-70),CloseConfirmation);
+            UIThemeApplicator.ApplyAll(dialog.GetComponentInParent<Canvas>());
+        }
+        private void CloseConfirmation()
+        {
+            if (confirmation == null) return;
+            confirmation.SetActive(false); Destroy(confirmation); confirmation = null;
         }
         public static void ShowMessage(string value)
         {

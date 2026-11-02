@@ -49,6 +49,7 @@ namespace Mythologicum
             active.Build(canvas);
             root.SetActive(true); root.transform.SetAsLastSibling();
             active.Refresh();
+            UIThemeApplicator.ApplyAll(canvas);
         }
 
         private void Build(Canvas canvas)
@@ -100,7 +101,9 @@ namespace Mythologicum
             var box = ManagementWidgets.Box(card, "Map preview frame", new Vector2(599, 90), new Vector2(486, 486), new Color(.08f,.14f,.12f));
             var imageRect = ManagementWidgets.Rect(box.transform, "Generated map preview", new Vector2(7, 7), new Vector2(472, 472));
             preview = imageRect.gameObject.AddComponent<RawImage>(); preview.raycastTarget = false;
-            previewSummary = ManagementWidgets.Label(card, "", new Vector2(596, 581), new Vector2(530, 35), 16);
+            previewSummary = ManagementWidgets.Label(card, "", new Vector2(596, 578), new Vector2(530, 34), 14);
+            previewSummary.resizeTextForBestFit = true;
+            previewSummary.resizeTextMinSize = 11; previewSummary.resizeTextMaxSize = 14;
             ManagementWidgets.Button(card, "Cancel", new Vector2(24, 612), new Vector2(170, 38), Close);
             create = ManagementWidgets.Button(card, "Create park", new Vector2(884, 612), new Vector2(235, 38), CreatePark, 21);
             ManagementWidgets.Label(card, "Place the park entrance anywhere you choose.", new Vector2(214, 619), new Vector2(650, 28), 18);

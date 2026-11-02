@@ -31,7 +31,6 @@ namespace Mythologicum
             this.buildings = buildings; this.visitors = visitors; this.creatures = creatures; this.economy = economy;
             root = ManagementWidgets.Modal(canvas, "Park management window");
             var card = ManagementWidgets.Card(root, canvas);
-            card.gameObject.AddComponent<Image>().color = new Color(.04f, .075f, .09f, 1f);
             ManagementWidgets.Label(card, "Park management", new Vector2(16, 10), new Vector2(900, 38), 27);
             ManagementWidgets.Button(card, "Close park management", new Vector2(1034, 8), new Vector2(110, 38), Close, 16)
                 .GetComponentInChildren<Text>().text = "Close";
@@ -44,7 +43,7 @@ namespace Mythologicum
                 pages[i] = ManagementWidgets.Rect(card, names[i] + " page", new Vector2(16, 160), new Vector2(1128, 480)).gameObject;
             }
             statistics = ManagementWidgets.Label(pages[0].transform, "Park statistics", Vector2.zero, new Vector2(1110, 465), 21);
-            finances = ManagementWidgets.Label(pages[1].transform, "Recent finances", Vector2.zero, new Vector2(530, 465), 21);
+            finances = ManagementWidgets.Label(pages[1].transform, "Recent finances", Vector2.zero, new Vector2(530, 465), 19);
             breakdown = ManagementWidgets.Label(pages[1].transform, "Cash flow breakdown", new Vector2(555, 0), new Vector2(555, 465), 19);
             budget = ManagementWidgets.Label(pages[2].transform, "Pricing and budget", Vector2.zero, new Vector2(1110, 98), 19);
             fundsMode = ManagementWidgets.Button(pages[2].transform, "Park funds mode", new Vector2(826, 0), new Vector2(284, 38),
@@ -60,6 +59,7 @@ namespace Mythologicum
         public void Open()
         {
             root.SetActive(true); root.transform.SetAsLastSibling(); ShowPage(0); Refresh();
+            UIThemeApplicator.ApplyAll(root.GetComponentInParent<Canvas>());
         }
         public void Close() => root.SetActive(false);
         private void ShowPage(int index)

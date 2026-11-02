@@ -32,7 +32,7 @@ namespace Mythologicum
 
         private void Update()
         {
-            if (GameSaveMenu.IsOpen || GetComponent<BuildModeController>()?.ManagementOpen == true) return;
+            if (GameSaveMenu.IsOpen || SettingsPresentation.IsOpen || GetComponent<BuildModeController>()?.ManagementOpen == true) return;
             Keyboard keys = Keyboard.current;
             InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
@@ -43,13 +43,13 @@ namespace Mythologicum
                 float vertical = (keys.wKey.isPressed || keys.upArrowKey.isPressed ? 1 : 0)
                     - (keys.sKey.isPressed || keys.downArrowKey.isPressed ? 1 : 0);
                 Vector3 movement = Vector3.ClampMagnitude(new Vector3(horizontal, 0f, vertical), 1f);
-                focusPoint += Quaternion.Euler(0f, yaw, 0f) * movement * (moveSpeed * Time.deltaTime);
+                focusPoint += Quaternion.Euler(0f, yaw, 0f) * movement * (moveSpeed * GameSettings.MoveSensitivity * Time.deltaTime);
                 yaw += ((keys.eKey.isPressed ? 1 : 0) - (keys.qKey.isPressed ? 1 : 0))
-                    * rotationSpeed * Time.deltaTime;
+                    * rotationSpeed * GameSettings.RotationSensitivity * Time.deltaTime;
             }
             if (Mouse.current != null && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
                 zoomLevel = Mathf.Clamp(zoomLevel
-                    - Mouse.current.scroll.ReadValue().y * zoomSpeed, minimumZoom, maximumZoom);
+                    - Mouse.current.scroll.ReadValue().y * zoomSpeed * GameSettings.ZoomSensitivity, minimumZoom, maximumZoom);
 
             focusPoint.x = Mathf.Clamp(focusPoint.x, mapMinimum.x, mapMaximum.x);
             focusPoint.z = Mathf.Clamp(focusPoint.z, mapMinimum.y, mapMaximum.y);

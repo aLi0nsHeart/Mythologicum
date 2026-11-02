@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f45169b3a07b402b8864997d97c2d832, type: 3}
+  m_Name: SteampunkTheme
+  m_EditorClassIdentifier: 
+  bodyFont: {fileID: 12800000, guid: 130d0ab50b4e89f46bffbc016fdcea68, type: 3}
+  headingFont: {fileID: 12800000, guid: e5c356a4b721b024daa3ce4df25a2a24, type: 3}
+  titleFont: {fileID: 12800000, guid: 843d03ef8be16da4d96629804d86d7f3, type: 3}
+  windowFrame: {fileID: 802451727016168549, guid: c3cbd015370c5294385a8d880c234850, type: 3}
+  panelFrame: {fileID: 2750874915692591106, guid: 1f4bdf5b60f5e0c42b43c60999bba131, type: 3}
+  buttonNormal: {fileID: -1388602495020635306, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
+  buttonHover: {fileID: 6912372366057910295, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
+  buttonPressed: {fileID: -6513349321188212269, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
+  buttonDisabled: {fileID: -1388602495020635306, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
+  inputField: {fileID: 2750874915692591106, guid: 1f4bdf5b60f5e0c42b43c60999bba131, type: 3}
+  sliderTrack: {fileID: -8688575788626425756, guid: 58d0e5bc2dd28434abcaaf94a4dfeec0, type: 3}
+  sliderFill: {fileID: -483322954633082500, guid: 58d0e5bc2dd28434abcaaf94a4dfeec0, type: 3}
+  sliderHandle: {fileID: 4508516164457878799, guid: 4d6d3e529a32a4141bbac8264745777d, type: 3}
+  scrollbarTrack: {fileID: 2750874915692591106, guid: 1f4bdf5b60f5e0c42b43c60999bba131, type: 3}
+  scrollbarHandle: {fileID: 4508516164457878799, guid: 4d6d3e529a32a4141bbac8264745777d, type: 3}
+  checkmark: {fileID: 0}
+  envelope: {fileID: 0}
+  closeIcon: {fileID: 0}
+  icons:
+  - {fileID: 4591140052969847277, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: 7678994820052449188, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: 3698671717037595493, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: -9093417008062783642, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: 7229366891782549415, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: -3517875738777368083, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: -8491186037443411640, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: -8895145600599323234, guid: b77342e1883ccd94983f6bd49ddd47a5, type: 3}
+  - {fileID: -15121066305905564, guid: 604f92c9fa27a544ab3997807313c644, type: 3}
+  - {fileID: 2646490671999957014, guid: 604f92c9fa27a544ab3997807313c644, type: 3}
+  - {fileID: 8997256519204195368, guid: 604f92c9fa27a544ab3997807313c644, type: 3}
+  - {fileID: -4407744964062876178, guid: 4a82e804aa2303243a2809843ec25157, type: 3}
+  - {fileID: 378217456759136586, guid: 4a82e804aa2303243a2809843ec25157, type: 3}
+  - {fileID: 314069968343735833, guid: 4a82e804aa2303243a2809843ec25157, type: 3}
+  - {fileID: 7558459862319271696, guid: a15945b5646387a4c8b90129c87a53dc, type: 3}
+  - {fileID: 5751913276161307030, guid: a15945b5646387a4c8b90129c87a53dc, type: 3}
+  - {fileID: 2325918892018278595, guid: a15945b5646387a4c8b90129c87a53dc, type: 3}
+  - {fileID: -1824648503781395610, guid: a15945b5646387a4c8b90129c87a53dc, type: 3}
+  - {fileID: -9076074370141000563, guid: e0018e123761e344bb79ca44447aa41e, type: 3}
+  - {fileID: -4992558212496127271, guid: e0018e123761e344bb79ca44447aa41e, type: 3}
+  - {fileID: 3294153589612204990, guid: 4d6d3e529a32a4141bbac8264745777d, type: 3}
+  background: {fileID: 2800000, guid: b464ee8350ce3984aa31ea54d12d9236, type: 3}
+  textColor: {r: 0.96, g: 0.92, b: 0.83, a: 1}
+  headingColor: {r: 1, g: 0.82, b: 0.48, a: 1}
+  mutedColor: {r: 0.73, g: 0.69, b: 0.61, a: 1}
+  dangerColor: {r: 1, g: 0.47, b: 0.35, a: 1}
+  accentColor: {r: 0.83, g: 0.59, b: 0.28, a: 1}

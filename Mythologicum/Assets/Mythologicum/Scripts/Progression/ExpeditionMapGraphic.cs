@@ -3,6 +3,7 @@ using UnityEngine.UI;
 namespace Mythologicum
 {
     /// <summary>Simple continent silhouettes; expedition pins carry the actual region definitions.</summary>
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class ExpeditionMapGraphic : Graphic
     {
         private static readonly Vector2[][] Land = {

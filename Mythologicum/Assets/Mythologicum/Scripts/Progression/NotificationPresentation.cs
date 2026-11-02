@@ -30,7 +30,7 @@ namespace Mythologicum
             content=ManagementWidgets.Scroll(panel.transform,"Letters - scroll to read",new Vector2(10,53),new Vector2(width-20,height-63),0);
             panel.SetActive(false);Refresh();
         }
-        public void Toggle() {if(IsOpen){Close();return;}panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();}
+        public void Toggle() {if(IsOpen){Close();return;}panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();UIThemeApplicator.ApplyAll(panel.GetComponentInParent<Canvas>());}
         public void Close()=>panel.SetActive(false);
         public void Refresh()
         {

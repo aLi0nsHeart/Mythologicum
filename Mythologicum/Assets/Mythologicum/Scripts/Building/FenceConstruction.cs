@@ -102,7 +102,7 @@ namespace Mythologicum
                     var go = new GameObject("Fence health", typeof(TextMesh));
                     go.transform.SetParent(pair.Value.transform, false);
                     label = go.GetComponent<TextMesh>();
-                    label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    label.font = UITheme.BodyFont;
                     label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
                     label.fontSize = 48; label.characterSize = .08f;
                     label.anchor = TextAnchor.LowerCenter; label.alignment = TextAlignment.Center;

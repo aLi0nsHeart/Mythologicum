@@ -8,7 +8,7 @@ namespace Mythologicum
         private ProgressionPresentation management;
         private ParkManagementPresentation parkManagement;
         private NotificationPresentation notifications;
-        public bool ManagementOpen => (management?.IsOpen ?? false)||(parkManagement?.IsOpen ?? false);
+        public bool ManagementOpen => (management?.IsOpen ?? false)||(parkManagement?.IsOpen ?? false)||SettingsPresentation.IsOpen;
         private void InitializeProgression()
         {
             var definition=Resources.Load<ProgressionDefinition>("Progression/DefaultProgression");

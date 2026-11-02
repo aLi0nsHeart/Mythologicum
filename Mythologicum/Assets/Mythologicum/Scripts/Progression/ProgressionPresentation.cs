@@ -70,8 +70,8 @@ namespace Mythologicum
             researchStatus=ManagementWidgets.Label(card,"Research projects",new Vector2(12,60),new Vector2(w-24,80),19);
             technologyContent=ManagementWidgets.Scroll(card,"Technology projects - scroll",new Vector2(12,147),new Vector2(w-24,h-160),0);
         }
-        public void OpenExpeditions(ParkBuildingRecord building){home=building;research.SetActive(false);map.SetActive(true);map.transform.SetAsLastSibling();result.text="";Refresh();}
-        public void OpenResearch(ParkBuildingRecord building){home=building;map.SetActive(false);research.SetActive(true);research.transform.SetAsLastSibling();techSignature=null;Refresh();}
+        public void OpenExpeditions(ParkBuildingRecord building){home=building;research.SetActive(false);map.SetActive(true);map.transform.SetAsLastSibling();result.text="";Refresh();UIThemeApplicator.ApplyAll(map.GetComponentInParent<Canvas>());}
+        public void OpenResearch(ParkBuildingRecord building){home=building;map.SetActive(false);research.SetActive(true);research.transform.SetAsLastSibling();techSignature=null;Refresh();UIThemeApplicator.ApplyAll(research.GetComponentInParent<Canvas>());}
         public void Close(){map.SetActive(false);research.SetActive(false);}
         public void Refresh()
         {
