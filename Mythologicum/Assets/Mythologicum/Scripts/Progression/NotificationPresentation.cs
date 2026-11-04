@@ -9,6 +9,8 @@ namespace Mythologicum
         private readonly RectTransform content;
         private readonly NotificationInbox inbox;
         private readonly Action<Vector2Int> focus;
+        private readonly Image mailIcon;
+        private readonly Text unreadCount;
         private int revision=-1;
         public bool IsOpen => panel.activeSelf;
         public NotificationPresentation(Canvas canvas,NotificationInbox inbox,Action<Vector2Int> focus)
@@ -17,10 +19,11 @@ namespace Mythologicum
             var button=ManagementWidgets.Button(canvas.transform,"Letters",Vector2.zero,new Vector2(64,52),Toggle);letter=button.gameObject;
             var r=(RectTransform)letter.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,86);
             letter.GetComponentInChildren<Text>().text="";
-            var icon=ManagementWidgets.Rect(letter.transform,"Envelope",new Vector2(12,13),new Vector2(40,26)).gameObject.AddComponent<EnvelopeGraphic>();
-            icon.color=new Color(.95f,.88f,.7f);icon.raycastTarget=false;
+            mailIcon=ManagementWidgets.Rect(letter.transform,"Notification icon",new Vector2(11,5),new Vector2(42,42)).gameObject.AddComponent<Image>();
+            mailIcon.preserveAspect=true;mailIcon.raycastTarget=false;
+            UIThemeElement.Mark(mailIcon.gameObject,UIThemeRole.Icon);
             badge=ManagementWidgets.Box(letter.transform,"Unread notifications",new Vector2(45,-7),new Vector2(24,25),new Color(.8f,.19f,.1f));
-            var badgeText=ManagementWidgets.Label(badge.transform,"!",Vector2.zero,new Vector2(24,25),22);badgeText.alignment=TextAnchor.MiddleCenter;
+            unreadCount=ManagementWidgets.Label(badge.transform,"Unread count",Vector2.zero,new Vector2(24,25),16);unreadCount.alignment=TextAnchor.MiddleCenter;
             float width=460,height=Mathf.Min(430,((RectTransform)canvas.transform).rect.height-190);
             panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,new Vector2(width,height));
             r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,150);
@@ -35,6 +38,10 @@ namespace Mythologicum
         public void Refresh()
         {
             badge.SetActive(inbox.UnreadCount>0);
+            unreadCount.text=inbox.UnreadCount>99?"99+":inbox.UnreadCount.ToString();
+            var theme=UITheme.Current;
+            mailIcon.sprite=theme!=null?(inbox.UnreadCount>0?theme.envelopeUnread:theme.envelope):null;
+            mailIcon.enabled=mailIcon.sprite!=null;
             if(!IsOpen||revision==inbox.Revision)return;revision=inbox.Revision;ManagementWidgets.Clear(content);
             float y=0;
             for(int i=inbox.Entries.Count-1;i>=0;i--)

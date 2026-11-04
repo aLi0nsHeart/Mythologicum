@@ -53,7 +53,9 @@ namespace Mythologicum
                 {
                     var rect = text.rectTransform;
                     rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
-                    rect.offsetMin = new Vector2(10, 4); rect.offsetMax = new Vector2(-10, -4);
+                    var symbol = button.GetComponent<UIIcon>();
+                    rect.offsetMin = new Vector2(symbol != null ? symbol.LabelPadding : 10f, 4);
+                    rect.offsetMax = new Vector2(-10, -4);
                 }
                 text.resizeTextForBestFit = true;
                 text.resizeTextMinSize = Mathf.Max(11, originalFontSize - 4);

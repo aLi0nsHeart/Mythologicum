@@ -40,6 +40,7 @@ namespace Mythologicum
         {
             if (canvas == null) canvas = GetComponent<Canvas>();
             if (canvas == null) return;
+            foreach (var button in canvas.GetComponentsInChildren<Button>(true)) UIIcon.AttachAutomatic(button);
             elements.Clear();
             foreach (var graphic in canvas.GetComponentsInChildren<Graphic>(true))
             {

@@ -97,12 +97,17 @@ public static class SteampunkUIIntegrationValidation
         var menu = GameObject.Find("Main menu"); if (menu == null) yield break;
         Check(SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null, "UI validation uses a real graphics device");
         ValidateThemeAssets(); ValidateMenuActions(menu);
+        ValidateCursor(true);
+        ValidateButtonIcon(FindButton(menu.transform, "New Game"), UIIconKind.Play, true);
+        ValidateButtonIcon(FindButton(menu.transform, "Settings"), UIIconKind.Settings);
+        ValidateButtonIcon(FindButton(menu.transform, "Quit"), UIIconKind.Quit);
         Check(!FindButton(menu.transform, "Load Game").interactable, "Load Game is disabled when the save slot is empty");
         Capture("MainMenu-NoSave", menu, 1280, 720);
         FindButton(menu.transform, "Settings").onClick.Invoke();
         yield return null;
         Check(SettingsPresentation.IsOpen, "Main-menu Settings opens a working settings window");
         var settings = GameObject.Find("Settings window");
+        ValidateMovementInstructions(settings);
         var volume = settings.transform.Find("Master volume")?.GetComponent<Slider>()
             ?? settings.GetComponentsInChildren<Slider>(true).Single(slider => slider.name == "Master volume");
         volume.value = .35f;
@@ -181,6 +186,41 @@ public static class SteampunkUIIntegrationValidation
             "Body text uses a retained UI font");
         Check(theme.background != null && AssetDatabase.GetAssetPath(theme.background).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
             "The theme background resolves retained UI artwork");
+        Check(theme.envelope != null && theme.envelope.name == "Steampunk_UI_gameplay_icons_4_12",
+            "Read mail uses the exact parchment-and-quill icon requested by the designer");
+        Check(theme.envelopeUnread != null && theme.envelopeUnread.name == "Steampunk_UI_gameplay_icons_4_14",
+            "Unread mail uses the exact highlighted notification icon requested by the designer");
+        Check(theme.Icon(UIIconKind.Building)?.normal != null
+            && theme.Icon(UIIconKind.Building).normal.name == "Steampunk_UI_gameplay_icons_4_5",
+            "Building uses the exact selected steampunk scroll icon");
+        foreach (var kind in new[] { UIIconKind.Building, UIIconKind.ParkManagement, UIIconKind.Encyclopedia,
+            UIIconKind.Pause, UIIconKind.Play, UIIconKind.Settings, UIIconKind.Quit, UIIconKind.Funds })
+        {
+            var set = theme.Icon(kind);
+            Check(set != null && set.normal != null && set.highlighted != null && set.pressed != null && set.disabled != null,
+                "The " + kind + " icon has normal, hover, pressed and disabled artwork");
+            foreach (var sprite in new[] { set.normal, set.highlighted, set.pressed, set.disabled })
+                Check(AssetDatabase.GetAssetPath(sprite).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
+                    "The " + kind + " icon state comes from the integrated UI art: " + sprite.name);
+        }
+        Check(theme.cursorSource != null && theme.cursorSource.name == "Steampunk_UI_inventory_cursor_icons_6",
+            "The cursor is derived from the exact requested inventory cursor sprite");
+        Check(theme.cursorTexture != null && AssetDatabase.GetAssetPath(theme.cursorTexture)
+            .StartsWith("Assets/Mythologicum/UI/Cursors/", StringComparison.Ordinal),
+            "The cursor uses its own cropped project texture rather than the full sprite atlas");
+        var cursorImporter = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(theme.cursorTexture)) as TextureImporter;
+        Check(cursorImporter != null && cursorImporter.textureType == TextureImporterType.Cursor && cursorImporter.isReadable
+            && !cursorImporter.mipmapEnabled && cursorImporter.textureCompression == TextureImporterCompression.Uncompressed,
+            "The custom cursor is imported as a readable, uncompressed cursor without mipmaps");
+        Check(theme.cursorTexture.width > 0 && theme.cursorTexture.height > 0 && theme.cursorTexture.width <= 64
+            && theme.cursorTexture.height <= 64 && theme.cursorTexture.width < theme.cursorSource.texture.width,
+            "The cursor is small enough for hardware cursors and contains only the selected icon");
+        Check(theme.cursorHotspot.x >= 0 && theme.cursorHotspot.x < theme.cursorTexture.width
+            && theme.cursorHotspot.y >= 0 && theme.cursorHotspot.y < theme.cursorTexture.height,
+            "The cursor's click hotspot is inside the cropped image");
+        var cursorPixels = theme.cursorTexture.GetPixels32();
+        Check(cursorPixels.Count(pixel => pixel.a > 32) > 20 && cursorPixels.Count(pixel => pixel.a < 10) > 20,
+            "The cropped cursor has visible artwork and transparent surrounding pixels");
         var forbidden = Directory.GetDirectories("Assets", "*", SearchOption.AllDirectories).Where(path =>
         {
             string normalized = path.Replace('\\', '/');
@@ -216,6 +256,35 @@ public static class SteampunkUIIntegrationValidation
         var building = Field<BuildingConstruction>(controller, "buildingConstruction");
         var paths = Field<PathConstruction>(controller, "paths"); var fences = Field<FenceConstruction>(controller, "fences");
         var creatures = Field<CreatureWorld>(controller, "creatureWorld");
+        var palette = Field<ConstructionPalette>(controller, "palette");
+        ValidateGameplayChrome(canvas, palette);
+        ValidateParkStatus(controller, true);
+        ValidateCursor(false);
+        ValidateButtonIcon(FindButton(palette.Root.transform, "Building"), UIIconKind.Building, true);
+        ValidateButtonIcon(FindButton(palette.Root.transform, "Park Management"), UIIconKind.ParkManagement);
+        ValidateButtonIcon(FindButton(palette.Root.transform, "Encyclopedia"), UIIconKind.Encyclopedia);
+        ValidateButtonIcon(FindButton(palette.Root.transform, "Pause"), UIIconKind.Pause);
+        palette.Refresh(false);
+        FindButton(palette.Root.transform, "Building").onClick.Invoke();
+        yield return null;
+        Check(palette.IsOpen, "Building unfolds the construction categories");
+        var tools = GameObject.Find("Building tools");
+        Check(tools != null, "Building has its own expandable construction row");
+        Check(tools.GetComponentsInChildren<Button>().Select(button => button.name).SequenceEqual(new[]
+            { "Buildings (B)", "Enclosures (H)", "Terrain (T)", "Paths (P)", "Fences (F)", "Creatures (C)", "Demolish (X)" }),
+            "Building groups the seven requested categories in their requested order");
+        Check(FindButton(tools.transform, "Buildings (B)").interactable && FindButton(tools.transform, "Terrain (T)").interactable,
+            "New parks can choose buildings and terrain before placing an entrance");
+        Check(!FindButton(tools.transform, "Paths (P)").interactable && !FindButton(tools.transform, "Fences (F)").interactable
+            && !FindButton(tools.transform, "Enclosures (H)").interactable && !FindButton(tools.transform, "Creatures (C)").interactable,
+            "The nested construction menu preserves the park-entrance requirement");
+        Capture("Building-Tools-BeforeEntrance", palette.Root, 1280, 720);
+        FindButton(palette.Root.transform, "Building").onClick.Invoke();
+        Check(!palette.IsOpen, "Clicking Building again folds away its categories");
+        palette.Toggle(ConstructionCategory.Terrain);
+        Check(palette.IsOpen && GameObject.Find("Terrain Choices") != null,
+            "A direct construction-category shortcut unfolds its parent Building row");
+        palette.Close();
         Check(grid.Width >= 45 && grid.Depth >= 40, "Default new-game map retains room for the UI interaction fixture");
         foreach (string name in new[] { "Enrichment trees", "Natural rocks" })
             foreach (var target in GameObject.Find(name).GetComponentsInChildren<DemolitionTarget>()) target.Demolish();
@@ -246,14 +315,31 @@ public static class SteampunkUIIntegrationValidation
         var guest = controller.Visitors.TrySpawn(); Check(guest != null, "Visitor HUD and inspector retain working visitor admission");
         controller.Visitors.RefreshReputation(); controller.Economy.Advance(10); BuildingEconomy.Tick(building.Network, controller.Economy, 10);
         controller.Economy.Earn(25, ParkTransactionCategory.Food);
-        var palette = Field<ConstructionPalette>(controller, "palette"); palette.Refresh(true);
+        ValidateParkStatus(controller, true);
+        string previousFunds = GameObject.Find("Park status").GetComponentsInChildren<Text>().Single(text => text.name == "Park funds").text;
+        controller.Economy.Earn(7.25f, ParkTransactionCategory.Other);
+        ValidateParkStatus(controller, true);
+        Check(GameObject.Find("Park status").GetComponentsInChildren<Text>().Single(text => text.name == "Park funds").text != previousFunds,
+            "The compact funds display updates immediately when real park funds change");
+        palette.Refresh(true);
         Field<VisitorPresentation>(controller, "visitorPresentation").Refresh();
         yield return null;
         Capture("InGame-HUD", canvas.gameObject, 1280, 720);
-        palette.Toggle(ConstructionCategory.Buildings); yield return null;
+        FindButton(palette.Root.transform, "Building").onClick.Invoke();
+        yield return null;
+        Check(FindButton(GameObject.Find("Building tools").transform, "Paths (P)").interactable,
+            "Placing the entrance enables the nested path tools");
+        FindButton(GameObject.Find("Building tools").transform, "Buildings (B)").onClick.Invoke();
+        yield return null;
         Capture("Construction-Buildings", palette.Root, 1280, 720); palette.Close();
         palette.Toggle(ConstructionCategory.Enclosures); yield return null;
         Capture("Construction-Enclosures", palette.Root, 1280, 720); palette.Close();
+        FindButton(palette.Root.transform, "Building").onClick.Invoke();
+        FindButton(GameObject.Find("Building tools").transform, "Demolish (X)").onClick.Invoke();
+        Check(!palette.IsOpen, "Demolish selects the existing tool and folds the Building menu");
+        Check(Field<object>(controller, "tool").ToString() == "Demolish", "The nested Demolish action selects the real demolition tool");
+        Invoke(controller, "OpenParkManagement");
+        Field<ParkManagementPresentation>(controller, "parkManagement").Close();
         var buildingInfo = Field<BuildingInspection>(controller, "buildingInspection");
         buildingInfo.SetInspecting(true); buildingInfo.Select(records[BuildingKind.ResearchCentre]);
         yield return null;
@@ -275,8 +361,16 @@ public static class SteampunkUIIntegrationValidation
         Check(Field<GameObject>(enclosureInfo, "panel").activeSelf, "Enclosure information remains selectable after restyling");
         yield return null;
         Capture("Enclosure-Inspector", Field<GameObject>(enclosureInfo, "panel"), 1280, 720); enclosureInfo.Select(null); enclosureInfo.Refresh();
+        var notifications = Field<NotificationPresentation>(controller, "notifications");
+        controller.Progression.Inbox.MarkAllRead(); notifications.Refresh();
+        ValidateMailIcon(canvas, false);
         controller.Progression.Inbox.Post("ui-test-fence", ParkNoticeKind.FenceOpened, "Fence opened", "The brass notification frame preserves readable event text.", Cell(19, 18));
-        var notifications = Field<NotificationPresentation>(controller, "notifications"); notifications.Toggle();
+        notifications.Refresh();
+        ValidateMailIcon(canvas, true);
+        yield return null;
+        Capture("InGame-UnreadMail", canvas.gameObject, 1280, 720);
+        notifications.Toggle();
+        ValidateMailIcon(canvas, false);
         yield return null;
         Capture("Notifications", Field<GameObject>(notifications, "panel"), 1280, 720); notifications.Close();
         Invoke(controller, "OpenExpeditions", records[BuildingKind.ExpeditionCentre]);
@@ -288,7 +382,7 @@ public static class SteampunkUIIntegrationValidation
         Invoke(controller, "OpenTechnologies", records[BuildingKind.ResearchCentre]);
         yield return null;
         Capture("Technology-Research", Field<GameObject>(progression, "research"), 1280, 720); progression.Close();
-        Invoke(controller, "OpenParkManagement");
+        FindButton(palette.Root.transform, "Park Management").onClick.Invoke();
         yield return null;
         var management = Field<ParkManagementPresentation>(controller, "parkManagement"); var managementRoot = Field<GameObject>(management, "root");
         foreach (string tab in new[] { "Statistics", "Finances", "Prices & budget", "Star rating" })
@@ -297,6 +391,63 @@ public static class SteampunkUIIntegrationValidation
             Capture("Management-" + tab.Replace(" & ", "-").Replace(' ', '-'), managementRoot, 1280, 720);
         }
         Capture("Management-Stars-1920", managementRoot, 1920, 1080); management.Close();
+        FindButton(palette.Root.transform, "Encyclopedia").onClick.Invoke();
+        yield return null;
+        var encyclopedia = Field<EncyclopediaPresentation>(controller, "encyclopedia");
+        var book = GameObject.Find("Encyclopedia window");
+        Check(encyclopedia.IsOpen && book != null && controller.ManagementOpen,
+            "The bottom Encyclopedia button opens a modal and blocks world construction input");
+        Check(!palette.IsOpen && !management.IsOpen && !progression.IsOpen,
+            "Opening the encyclopedia folds construction and closes other management windows");
+        FindButton(book.transform, "Park").onClick.Invoke();
+        yield return null;
+        Capture("Encyclopedia-Park", book, 1280, 720);
+        Check(book.GetComponentsInChildren<Button>().Any(button => button.name == "Getting started"),
+            "The Park encyclopedia tab contains a browsable guide list");
+        FindButton(book.transform, "Creatures").onClick.Invoke();
+        var chupacabra = Resources.Load<CreatureDefinition>("Creatures/Chupacabra");
+        FindButton(book.transform, chupacabra.displayName).onClick.Invoke();
+        yield return null;
+        var article = book.GetComponentsInChildren<Text>().Single(text => text.name == "Encyclopedia article");
+        var articleSummary = book.GetComponentsInChildren<Text>().Single(text => text.name == "Encyclopedia article summary");
+        var research = controller.Personnel.Research;
+        Check(Near(research.Progress(chupacabra), 0) && articleSummary.text.Contains("0%"),
+            "Creature biographies use the existing research system's initial progress");
+        Check(article.text.Contains(research.Description(chupacabra)) && !article.text.Contains("Food: ")
+            && !article.text.Contains("Habitat: ") && !article.text.Contains("Containment: "),
+            "Unresearched creature biographies conceal the locked care and containment discoveries");
+        Capture("Encyclopedia-Creature-Unknown", book, 1280, 720);
+        Check(research.Study(chupacabra, 25), "The encyclopedia fixture advances real researcher knowledge");
+        encyclopedia.Refresh(); yield return null;
+        Check(articleSummary.text.Contains("25%") && article.text.Contains(research.Description(chupacabra))
+            && article.text.Contains("Food: ") && !article.text.Contains("Habitat: "),
+            "The open biography expands its first discovery without leaking later research stages");
+        Capture("Encyclopedia-Creature-FirstDiscovery", book, 1280, 720);
+        Check(research.Study(chupacabra, 75), "The encyclopedia fixture completes real species research");
+        encyclopedia.Refresh(); yield return null;
+        Check(articleSummary.text.Contains("100%") && article.text.Contains(research.Description(chupacabra))
+            && article.text.Contains("Habitat: ") && article.text.Contains("Sleep: ") && article.text.Contains("Space: ")
+            && article.text.Contains("Group: ") && article.text.Contains("Containment: "),
+            "Completed research expands the same biography with all unlocked creature-care information");
+        Capture("Encyclopedia-Creature-Researched", book, 1280, 720);
+        var articleScroll = book.GetComponentsInChildren<ScrollRect>().Single(scroll => scroll.name == "Encyclopedia article scroll");
+        Check(articleScroll.content.rect.height >= article.preferredHeight,
+            "The researched biography grows its scrollable content to fit all unlocked notes");
+        if (articleScroll.content.rect.height > articleScroll.viewport.rect.height + 1)
+        {
+            articleScroll.verticalNormalizedPosition = .4f; encyclopedia.Refresh();
+            Check(Near(articleScroll.verticalNormalizedPosition, .4f, .03f), "Refreshing encyclopedia progress preserves the reader's scroll position");
+        }
+        FindButton(book.transform, "Management").onClick.Invoke();
+        foreach (string entry in new[] { "Economy & prices", "Staff", "Creature care" })
+        {
+            FindButton(book.transform, entry).onClick.Invoke(); yield return null;
+            Check(!string.IsNullOrWhiteSpace(article.text), "The Management encyclopedia explains " + entry);
+        }
+        Capture("Encyclopedia-Management", book, 1280, 720);
+        Capture("Encyclopedia-Management-1920", book, 1920, 1080);
+        Check(controller.CloseManagementWindow() && !encyclopedia.IsOpen,
+            "The normal management-window close route dismisses the encyclopedia");
         Invoke(controller, "SelectTerrainBrush", TerrainBrushMode.Raise);
         yield return null;
         var terrain = Field<TerrainEditingPresentation>(controller, "terrainEditing");
@@ -304,9 +455,13 @@ public static class SteampunkUIIntegrationValidation
         FindButton(Field<GameObject>(terrain, "root").transform, "Radius +").onClick.Invoke();
         Check(terrain.Radius == 4, "Restyled terrain controls preserve their radius action");
         FindButton(Field<GameObject>(terrain, "root").transform, "Done").onClick.Invoke();
-        var pause = controller.GetComponent<GameSaveMenu>(); Time.timeScale = 1; Invoke(pause, "Toggle");
+        FindButton(palette.Root.transform, "Building").onClick.Invoke();
+        Check(palette.IsOpen, "Construction is open before testing the bottom Pause action");
+        var pause = controller.GetComponent<GameSaveMenu>(); Time.timeScale = 1;
+        FindButton(palette.Root.transform, "Pause").onClick.Invoke();
         yield return null;
         Check(GameSaveMenu.IsOpen && Time.timeScale == 0, "Pause still freezes the simulation after restyling");
+        Check(!palette.IsOpen, "The bottom Pause action folds construction before opening its menu");
         var overlay = Field<GameObject>(pause, "overlay"); Capture("Pause", overlay, 1280, 720);
         FindButton(overlay.transform, "Quit to main menu").onClick.Invoke();
         yield return null;
@@ -317,6 +472,7 @@ public static class SteampunkUIIntegrationValidation
         {
             FindButton(overlay.transform, "Settings").onClick.Invoke(); Check(SettingsPresentation.IsOpen, "Settings are available from the in-game pause menu");
             yield return null;
+            ValidateMovementInstructions(GameObject.Find("Settings window"));
             Capture("Pause-Settings", GameObject.Find("Settings window"), 1280, 720);
             FindButton(GameObject.Find("Settings window").transform, "Back").onClick.Invoke();
             Check(GameSaveMenu.IsOpen && Time.timeScale == 0, "Returning from settings preserves the pause state");
@@ -349,9 +505,140 @@ public static class SteampunkUIIntegrationValidation
             "UI replacement does not charge or reset saved money");
         Check(actual.reputation.reviewedVisitors == saved.reputation.reviewedVisitors && actual.reputation.fatalities == saved.reputation.fatalities,
             "UI replacement preserves saved park reputation history");
+        Check(Near(controller.Personnel.Research.Progress(Resources.Load<CreatureDefinition>("Creatures/Chupacabra")), 100),
+            "The park save preserves the encyclopedia's completed species research");
+        ValidateParkStatus(controller, false);
+        ValidateCursor(false);
         Capture("Loaded-Park-Pause", Field<GameObject>(controller.GetComponent<GameSaveMenu>(), "overlay"), 1280, 720);
         File.WriteAllText(Result, "PASS: " + checks + " steampunk asset, menu, settings, UI layout, GPU, interaction and save/load checks.\nCaptures: " + captures + " in " + Captures);
         pending = false; EditorApplication.Exit(0);
+    }
+
+    static void ValidateMovementInstructions(GameObject settings)
+    {
+        var instructions = settings.GetComponentsInChildren<Text>().SingleOrDefault(text => text.name == "Movement keys");
+        Check(instructions != null, "Movement instructions are available inside Settings");
+        string keys = instructions.text.Replace(" ", "").ToLowerInvariant();
+        Check(keys.Contains("wasd") && keys.Contains("arrow") && keys.Contains("q/e") && keys.Contains("mousewheel")
+            && keys.Contains("esc"), "Settings explain movement, rotation, zoom and cancelling with the actual game controls");
+        Check(instructions.preferredHeight <= instructions.rectTransform.rect.height + 2,
+            "All movement instruction lines fit inside Settings; preferred " + instructions.preferredHeight
+            + "; available " + instructions.rectTransform.rect.height);
+    }
+
+    static void ValidateCursor(bool exerciseLifecycle)
+    {
+        var cursors = UnityEngine.Object.FindObjectsByType<ExhibitionCursor>(FindObjectsSortMode.None);
+        Check(cursors.Length == 1 && cursors[0].isActiveAndEnabled,
+            "Exactly one active custom-cursor controller survives menu and park scene changes");
+        var cursor = cursors[0];
+        if (exerciseLifecycle)
+        {
+            cursor.enabled = false;
+            Check(!ExhibitionCursor.IsApplied && ExhibitionCursor.CurrentTexture == null,
+                "Disabling the custom cursor restores the system pointer");
+            cursor.enabled = true;
+        }
+        cursor.ApplyThemeCursor();
+        if (ExhibitionCursor.IsApplied)
+            Check(ExhibitionCursor.CurrentTexture == UITheme.Current.cursorTexture
+                && ExhibitionCursor.CurrentHotspot == UITheme.Current.cursorHotspot,
+                "A focused game uses the configured cropped cursor and its click hotspot");
+        else
+            Check(!Application.isFocused && ExhibitionCursor.CurrentTexture == null,
+                "An unfocused batch-mode game safely leaves the system pointer in control");
+    }
+
+    static void ValidateButtonIcon(Button button, UIIconKind kind, bool exerciseStates = false)
+    {
+        UIThemeApplicator.ApplyAll(CurrentCanvas);
+        var icon = button.GetComponent<UIIcon>();
+        Check(icon != null && icon.Kind == kind, "The " + button.name + " control has a meaningful " + kind + " icon");
+        var set = UITheme.Current.Icon(kind);
+        var image = icon.IconImage;
+        Check(image != null && image.sprite != null && !image.raycastTarget && image.preserveAspect,
+            "The " + button.name + " icon preserves its shape and does not block pointer input");
+        var label = button.GetComponentsInChildren<Text>(true).FirstOrDefault(text => text.transform.parent == button.transform);
+        Check(label != null && label.rectTransform.offsetMin.x >= icon.LabelPadding - .5f,
+            "The " + button.name + " label leaves room for its icon");
+        if (!exerciseStates) return;
+        var pointer = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+        icon.OnPointerUp(pointer); icon.OnPointerExit(pointer); icon.OnDeselect(new BaseEventData(EventSystem.current)); icon.Refresh();
+        bool wasEnabled = button.interactable;
+        button.interactable = true; icon.Refresh();
+        Check(image.sprite == set.normal, "The " + button.name + " icon uses its normal artwork at rest");
+        icon.OnPointerEnter(pointer); icon.Refresh();
+        Check(image.sprite == set.highlighted, "The " + button.name + " icon responds to hover with imported artwork");
+        icon.OnPointerDown(pointer); icon.Refresh();
+        Check(image.sprite == set.pressed, "The " + button.name + " icon responds to pressing with imported artwork");
+        button.interactable = false; icon.Refresh();
+        Check(image.sprite == set.disabled, "The " + button.name + " icon has readable disabled artwork");
+        button.interactable = wasEnabled;
+        icon.OnPointerUp(pointer); icon.OnPointerExit(pointer); icon.OnDeselect(new BaseEventData(EventSystem.current)); icon.Refresh();
+        Check(image.sprite == (wasEnabled ? set.normal : set.disabled),
+            "The " + button.name + " icon returns to the correct state after interaction");
+    }
+
+    static void ValidateParkStatus(BuildModeController controller, bool refresh)
+    {
+        var status = Field<ParkStatusPresentation>(controller, "parkStatus");
+        Check(status != null, "The park owns a compact funds-and-stars presentation");
+        if (refresh) status.Refresh();
+        var root = GameObject.Find("Park status");
+        Check(root != null && root.activeInHierarchy, "Current funds and star rating are visible in the park view");
+        var rect = (RectTransform)root.transform;
+        Check(rect.anchorMin == new Vector2(0, 1) && rect.anchorMax == new Vector2(0, 1)
+            && rect.rect.width <= 360 && rect.rect.height <= 130,
+            "The funds-and-stars display stays compact in the upper-left corner");
+        var labels = root.GetComponentsInChildren<Text>();
+        var funds = labels.Single(text => text.name == "Park funds");
+        var rating = labels.Single(text => text.name == "Park rating");
+        Check(funds.text == $"Funds: {controller.Economy.Balance:0.00}",
+            "The compact funds label shows the actual current park balance");
+        Check(rating.text == $"{controller.Visitors.Reputation.Stars:0.0} / 5",
+            "The compact rating label shows the actual current park reputation");
+        Check(funds.preferredHeight <= funds.rectTransform.rect.height + 2
+            && rating.preferredHeight <= rating.rectTransform.rect.height + 2,
+            "The compact funds and rating labels fit inside their visible rows");
+        var stars = root.GetComponentsInChildren<StarRatingGraphic>().Single();
+        Check(Near(Field<float>(stars, "rating"), controller.Visitors.Reputation.Stars),
+            "The five compact stars reflect the actual park rating");
+        Check(root.GetComponentsInChildren<Image>().Any(image => image.sprite == UITheme.Current.Icon(UIIconKind.Funds).normal),
+            "The funds display uses the imported steampunk money icon");
+    }
+
+    static void ValidateMailIcon(Canvas canvas, bool unread)
+    {
+        var letter = FindButton(canvas.transform, "Letters");
+        var icon = letter.GetComponentsInChildren<Image>(true).Single(image => image.name == "Notification icon");
+        Sprite expected = unread ? UITheme.Current.envelopeUnread : UITheme.Current.envelope;
+        Check(icon.sprite == expected && !icon.raycastTarget && icon.preserveAspect,
+            unread ? "A new unread letter switches Mail to the requested highlighted notification icon"
+                : "Reading all letters returns Mail to the requested normal parchment icon");
+        Check(letter.GetComponentsInChildren<EnvelopeGraphic>(true).Length == 0,
+            "Mail uses the imported artwork instead of the old drawn envelope");
+    }
+
+    static void ValidateGameplayChrome(Canvas canvas, ConstructionPalette palette)
+    {
+        var topButtons = palette.Root.GetComponentsInChildren<Button>()
+            .Where(button => button.transform.parent == palette.Root.transform).ToArray();
+        Check(topButtons.Select(button => button.name).SequenceEqual(new[] { "Building", "Park Management", "Encyclopedia", "Pause" }),
+            "The bottom toolbar has exactly the four requested top-level actions in order");
+        Check(!palette.IsOpen, "The Building categories start folded away");
+        var visibleText = canvas.GetComponentsInChildren<Text>().Where(text => text.isActiveAndEnabled).ToArray();
+        Check(!canvas.GetComponentsInChildren<Transform>().Any(item => item.gameObject.activeInHierarchy && item.name == "Park overview"),
+            "The old top-left finance and visitor HUD is removed");
+        Check(!visibleText.Any(text => text.text.IndexOf("WASD", StringComparison.OrdinalIgnoreCase) >= 0),
+            "Movement instructions no longer cover the park view");
+        Check(!visibleText.Any(text => text.text.Contains("Choose a construction category below")),
+            "The generic construction-category prompt no longer covers the park view");
+        Check(!visibleText.Any(text => text.text.Contains("Vegetation art:") || text.text.Contains("LUX ART STUDIOS")),
+            "The vegetation credit is no longer displayed over the park view");
+        var pauseButtons = canvas.GetComponentsInChildren<Button>().Where(button => button.gameObject.activeInHierarchy
+            && button.GetComponentsInChildren<Text>().Any(text => text.text == "Pause")).ToArray();
+        Check(pauseButtons.Length == 1 && pauseButtons[0].transform.parent == palette.Root.transform,
+            "Pause is reachable only from its new bottom-toolbar position");
     }
 
     static void Capture(string name, GameObject focus, int width, int height)
@@ -384,6 +671,15 @@ public static class SteampunkUIIntegrationValidation
                 Check(graphic != null && graphic.sprite != null && AssetDatabase.GetAssetPath(graphic.sprite).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
                     "The " + name + " button uses integrated artwork: " + button.name);
                 foreach (var label in button.GetComponentsInChildren<Text>()) Check(label.font != null, "A themed button retains readable text: " + button.name);
+            }
+            foreach (var icon in focus.GetComponentsInChildren<UIIcon>())
+            {
+                var set = UITheme.Current.Icon(icon.Kind);
+                var graphic = icon.IconImage;
+                Check(set != null && graphic != null && graphic.enabled && !graphic.raycastTarget && graphic.preserveAspect,
+                    "The " + name + " icon is visible, keeps its shape and leaves clicks to its control: " + icon.name);
+                Check(graphic.sprite == set.normal || graphic.sprite == set.highlighted || graphic.sprite == set.pressed || graphic.sprite == set.disabled,
+                    "The " + name + " icon displays a valid imported state: " + icon.name);
             }
             foreach (var selectable in focus.GetComponentsInChildren<Selectable>())
             {

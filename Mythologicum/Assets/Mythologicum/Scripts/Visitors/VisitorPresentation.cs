@@ -4,37 +4,16 @@ using UnityEngine.UI;
 
 namespace Mythologicum
 {
-    /// <summary>Park money, visitor overview, and the selected guest's needs.</summary>
+    /// <summary>The selected guest's needs. Park totals are available in Park Management.</summary>
     public sealed class VisitorPresentation
     {
-        private readonly GameObject hud, panel;
-        private readonly Text overview, details, fundsLabel;
-        private readonly VisitorWorld world;
-        private readonly ParkEconomy economy;
+        private readonly GameObject panel;
+        private readonly Text details;
         private VisitorAgent selected;
         private bool inspecting = true;
 
         public VisitorPresentation(Canvas canvas, Font font, VisitorWorld world, ParkEconomy economy)
         {
-            this.world = world;
-            this.economy = economy;
-            hud = Box(canvas, "Park overview", new Vector2(0f, 1f), new Vector2(15f, -15f), new Vector2(315f, 230f));
-            overview = Label(hud.transform, "Park finances and guests", font, 18);
-            overview.rectTransform.offsetMin = new Vector2(12f, 52f);
-            overview.rectTransform.offsetMax = new Vector2(-12f, -10f);
-
-            var toggle = new GameObject("Infinite funds", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            toggle.transform.SetParent(hud.transform, false);
-            var toggleRect = (RectTransform)toggle.transform;
-            toggleRect.anchorMin = new Vector2(0f, 0f); toggleRect.anchorMax = new Vector2(1f, 0f);
-            toggleRect.offsetMin = new Vector2(10f, 10f); toggleRect.offsetMax = new Vector2(-10f, 44f);
-            Image toggleImage = toggle.GetComponent<Image>();
-            toggleImage.color = new Color(0.2f, 0.29f, 0.32f);
-            Button button = toggle.GetComponent<Button>(); button.targetGraphic = toggleImage;
-            fundsLabel = Label(toggle.transform, "Funds mode", font, 18);
-            fundsLabel.alignment = TextAnchor.MiddleCenter;
-            button.onClick.AddListener(() => { economy.UnlimitedFunds = !economy.UnlimitedFunds; Refresh(); });
-
             panel = Box(canvas, "Visitor needs", new Vector2(1f, 1f), new Vector2(-15f, -170f), new Vector2(350f, 365f));
             details = Label(panel.transform, "Selected visitor", font, 18);
             details.rectTransform.offsetMin = new Vector2(12f, 10f);
@@ -47,14 +26,7 @@ namespace Mythologicum
 
         public void Refresh()
         {
-            if (hud == null || panel == null) return;
-            overview.text = $"Funds: {economy.Balance:0.00}\n"
-                + $"Profit/min: {economy.OperatingProfitPerMinute:0.00} | Stars: {world.Reputation.Stars:0.0}/5\n"
-                + $"Visitors: {world.Population}\n"
-                + $"Average satisfaction: {world.AverageSatisfaction:0}/100\n"
-                + $"Departed: {world.DepartedCount} | Lost: {world.LostCount}\n"
-                + $"Stranded: {world.StrandedCount}";
-            fundsLabel.text = "Infinite funds: " + (economy.UnlimitedFunds ? "on" : "off");
+            if (panel == null) return;
             bool show = inspecting && selected != null && selected.Actor != null && selected.Actor.Alive;
             panel.SetActive(show);
             if (!show) return;
@@ -75,7 +47,6 @@ namespace Mythologicum
 
         public void Dispose()
         {
-            if (hud != null) Object.Destroy(hud);
             if (panel != null) Object.Destroy(panel);
         }
 

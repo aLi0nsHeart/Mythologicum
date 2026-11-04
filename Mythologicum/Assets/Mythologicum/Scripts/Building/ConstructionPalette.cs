@@ -7,11 +7,13 @@ namespace Mythologicum
 {
     public enum ConstructionCategory { Buildings, Paths, Fences, Creatures, Enclosures, Terrain }
 
-    /// <summary>Bottom categories with expandable lists; future variants belong in these lists.</summary>
+    /// <summary>Park toolbar with a nested construction menu and expandable tool choices.</summary>
     public sealed class ConstructionPalette
     {
         public GameObject Root { get; }
         public Text Status { get; }
+        public bool IsOpen => buildingMenu.activeSelf;
+        private readonly GameObject buildingMenu;
         private readonly Dictionary<ConstructionCategory, GameObject> groups = new Dictionary<ConstructionCategory, GameObject>();
         private readonly List<KeyValuePair<BuildingDefinition, Button>> buildingButtons = new List<KeyValuePair<BuildingDefinition, Button>>();
         private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
@@ -26,7 +28,8 @@ namespace Mythologicum
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
-            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null,Action openParkManagement=null)
+            CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null,Action openParkManagement=null,
+            Action openEncyclopedia=null,Action openPause=null)
         {
             this.categoryOpened = categoryOpened;
             Root = new GameObject("Construction Palette", typeof(RectTransform));
@@ -35,22 +38,31 @@ namespace Mythologicum
             rootRect.anchorMin = Vector2.zero;
             rootRect.anchorMax = Vector2.one;
             rootRect.offsetMin = rootRect.offsetMax = Vector2.zero;
-            var park = MakeButton(template, Root.transform, "Park management", new Vector2(-525f, 40f), () => { Close(); openParkManagement?.Invoke(); }, false,140);
-            park.GetComponentInChildren<Text>().fontSize=16;
-            MakeButton(template, Root.transform, "Buildings (B)", new Vector2(-375f, 40f), () => Toggle(ConstructionCategory.Buildings),false,140);
-            enclosuresCategory = MakeButton(template, Root.transform, "Enclosures (H)", new Vector2(-225f, 40f), () => Toggle(ConstructionCategory.Enclosures),false,140);
-            MakeButton(template,Root.transform,"Terrain (T)",new Vector2(-75,40),()=>Toggle(ConstructionCategory.Terrain),false,140);
-            pathsCategory = MakeButton(template, Root.transform, "Paths (P)", new Vector2(75f, 40f), () => Toggle(ConstructionCategory.Paths),false,140);
-            fencesCategory = MakeButton(template, Root.transform, "Fences (F)", new Vector2(225f, 40f), () => Toggle(ConstructionCategory.Fences),false,140);
-            creaturesCategory = MakeButton(template, Root.transform, "Creatures (C)", new Vector2(375f, 40f), () => Toggle(ConstructionCategory.Creatures),false,140);
-            MakeButton(template, Root.transform, "Demolish (X)", new Vector2(525f, 40f), demolish,false,140);
+            MakeButton(template, Root.transform, "Building", new Vector2(-360f, 40f), ToggleBuilding, false,220);
+            MakeButton(template, Root.transform, "Park Management", new Vector2(-120f, 40f), () => { Close(); openParkManagement?.Invoke(); }, false,220);
+            MakeButton(template, Root.transform, "Encyclopedia", new Vector2(120f, 40f), () => { Close(); openEncyclopedia?.Invoke(); }, false,220);
+            MakeButton(template, Root.transform, "Pause", new Vector2(360f, 40f), () => { Close(); openPause?.Invoke(); }, false,220);
+            buildingMenu = new GameObject("Building tools", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            buildingMenu.transform.SetParent(Root.transform, false);
+            var menuRect = (RectTransform)buildingMenu.transform;
+            menuRect.anchorMin = menuRect.anchorMax = new Vector2(.5f,0f);
+            menuRect.anchoredPosition = new Vector2(0f,110f); menuRect.sizeDelta = new Vector2(1000f,64f);
+            buildingMenu.GetComponent<Image>().color = new Color(.05f,.08f,.1f,.95f);
+            MakeButton(template, buildingMenu.transform, "Buildings (B)", new Vector2(-420f,0f), () => Toggle(ConstructionCategory.Buildings),true,134);
+            enclosuresCategory = MakeButton(template, buildingMenu.transform, "Enclosures (H)", new Vector2(-280f,0f), () => Toggle(ConstructionCategory.Enclosures),true,134);
+            MakeButton(template,buildingMenu.transform,"Terrain (T)",new Vector2(-140f,0f),()=>Toggle(ConstructionCategory.Terrain),true,134);
+            pathsCategory = MakeButton(template, buildingMenu.transform, "Paths (P)", Vector2.zero, () => Toggle(ConstructionCategory.Paths),true,134);
+            fencesCategory = MakeButton(template, buildingMenu.transform, "Fences (F)", new Vector2(140f,0f), () => Toggle(ConstructionCategory.Fences),true,134);
+            creaturesCategory = MakeButton(template, buildingMenu.transform, "Creatures (C)", new Vector2(280f,0f), () => Toggle(ConstructionCategory.Creatures),true,134);
+            MakeButton(template, buildingMenu.transform, "Demolish (X)", new Vector2(420f,0f), () => { Close(); demolish(); },true,134);
+            buildingMenu.SetActive(false);
             foreach (ConstructionCategory category in Enum.GetValues(typeof(ConstructionCategory)))
             {
                 var group = new GameObject(category + " Choices", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
                 group.transform.SetParent(Root.transform, false);
                 var rect = (RectTransform)group.transform;
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
-                rect.anchoredPosition = new Vector2(0f, 112f);
+                rect.anchoredPosition = new Vector2(0f, 185f);
                 rect.sizeDelta = new Vector2(1000f, 72f);
                 group.GetComponent<Image>().color = new Color(0.05f, 0.08f, 0.1f, 0.95f);
                 groups.Add(category, group);
@@ -70,7 +82,7 @@ namespace Mythologicum
             if (ordinaryCount > 4)
             {
                 var buildingRect = (RectTransform)groups[ConstructionCategory.Buildings].transform;
-                buildingRect.anchoredPosition = new Vector2(0f,144f);
+                buildingRect.anchoredPosition = new Vector2(0f,217f);
                 buildingRect.sizeDelta = new Vector2(1000f,132f);
             }
             treeChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "Place trees",
@@ -123,7 +135,7 @@ namespace Mythologicum
             Status.alignment = TextAnchor.MiddleCenter;
             Status.raycastTarget = false;
             Status.rectTransform.anchorMin = Status.rectTransform.anchorMax = new Vector2(0.5f, 0f);
-            Status.rectTransform.anchoredPosition = new Vector2(0f, 260f);
+            Status.rectTransform.anchoredPosition = new Vector2(0f, 320f);
             Status.rectTransform.sizeDelta = new Vector2(1100f, 65f);
             Refresh(false);
         }
@@ -151,12 +163,27 @@ namespace Mythologicum
         {
             if (!hasEntrance && category != ConstructionCategory.Buildings && category != ConstructionCategory.Terrain) return;
             bool wasOpen = expanded == category;
-            categoryOpened();
-            Close();
+            categoryOpened?.Invoke();
+            CloseChoices();
+            buildingMenu.SetActive(true);
             if (!wasOpen) { expanded = category; groups[category].SetActive(true); }
         }
 
+        public void ToggleBuilding()
+        {
+            bool wasOpen = IsOpen;
+            categoryOpened?.Invoke();
+            Close();
+            if (!wasOpen) buildingMenu.SetActive(true);
+        }
+
         public void Close()
+        {
+            CloseChoices();
+            buildingMenu.SetActive(false);
+        }
+
+        private void CloseChoices()
         {
             expanded = null;
             foreach (GameObject group in groups.Values) if (group != null) group.SetActive(false);

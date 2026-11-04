@@ -24,10 +24,37 @@ fields, slider tracks and handles, and scrollbars have shared roles. The theme u
 Roboto Slab body text, Arvo headings, Bebas Neue titles, cream lettering, copper
 controls, brass accents and dark leather backing. Disabled controls are dimmed.
 
-The existing construction bar, HUD and inspection locations are retained. Research,
-expedition, park management, notification, new-game, pause and confirmation panels
-share the same theme. Controls keep their existing gameplay actions. Decorative
-graphics do not replace interactive targets or mask viewports.
+Research, expedition, park management, encyclopedia, notification, new-game, pause
+and confirmation panels share the same theme. Controls keep their existing gameplay
+actions. Decorative graphics do not replace interactive targets or mask viewports.
+
+## Park toolbar and encyclopedia
+
+The bottom toolbar contains **Building**, **Park Management**, **Encyclopedia** and
+**Pause**. Building unfolds the Buildings, Enclosures, Terrain, Paths, Fences,
+Creatures and Demolish tools. Category choices open above that row; choosing a tool
+folds the menu. Existing category shortcuts still work and respect entrance and
+research requirements. Escape closes an open menu or cancels the active tool before
+opening Pause. Pause uses the existing save/load/settings/exit menu.
+
+Current funds and the park's star rating appear in a compact top-left status panel,
+with a money-pouch icon and five rating stars. The display reads the existing
+economy and reputation values, including after loading a paused park. Detailed park
+totals, prices and the infinite-funds toggle live in Park Management. The old large
+overview and top-right pause button are hidden or removed at runtime.
+Idle construction no longer displays a category-selection prompt. Tool-specific
+placement instructions remain visible when needed.
+
+The encyclopedia has Park, Creatures and Management sections, with entry lists and
+scrollable articles. Its creature catalogue comes from the game's existing creature
+definitions. Species entries use the same `SpeciesResearch.Description` and progress
+as researchers and creature inspectors: food information at 25%, habitat and sleep at
+50%, space and group needs at 75%, and containment at 100%. New discoveries update
+the open entry while preserving the reader's scroll position. This shares existing
+saved research and does not create a second progression system.
+
+`EncyclopediaPresentation.AddGuides` contains the introductory park and management
+articles. Further creature definitions appear automatically in the species register.
 
 `UIThemeApplicator` attaches to root canvases and styles existing and dynamically
 created UI. `UIThemeElement` can explicitly select a role for a custom element or
@@ -40,6 +67,28 @@ retained artwork. This deliberately resets the theme's asset choices and colours
 ordinary Play mode does not reset artist edits. No source-pack scripts or TMP demo
 prefabs are required.
 
+## Icons and cursor
+
+The theme's named `iconSets` assign normal, highlighted, pressed and disabled
+artwork to controls. `UIIcon` adds non-interactive images beside button labels and
+reserves label padding so the art cannot block clicks or overlap text. Primary
+toolbar, menu, statistics, expedition and research controls use matching symbols;
+controls without suitable artwork keep their labels.
+
+- Building: `Steampunk_UI_gameplay_icons_4_5`.
+- Mail: `Steampunk_UI_gameplay_icons_4_12`, changing to `_14` while letters are
+  unread. Its badge shows the unread count; reading letters restores the normal
+  icon.
+- Funds: the money pouch from `Steampunk_UI_inventory_cursor_icons_31`.
+- Cursor: `Steampunk_UI_inventory_cursor_icons_6`.
+
+The cursor is cropped from its sprite rectangle into
+`UI/Cursors/ExhibitionCursor.png`, a small readable RGBA texture imported as Cursor.
+The shared theme stores its texture, source sprite and click hotspot. The original
+atlas is preserved. `ExhibitionCursor` applies it across scenes and restores the
+system cursor when focus is lost or Play mode ends. Rebuilding the theme regenerates
+the cursor texture as well as the icon assignments.
+
 ## Settings
 
 Settings are available from the main menu and Pause:
@@ -50,6 +99,9 @@ Settings are available from the main menu and Pause:
 - Graphics quality uses the project's actual quality levels.
 - Movement, rotation and zoom sliders multiply the existing camera speeds, with
   1x preserving current controls.
+- Movement instructions are listed here instead of over the park: WASD/arrow keys,
+  Q/E rotation and mouse-wheel zoom.
+- The vegetation asset credit is displayed here instead of on the play view.
 
 Changes apply immediately and persist through PlayerPrefs. Back saves the current
 preferences; Reset defaults restores standard values. Opening or closing settings

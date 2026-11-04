@@ -184,28 +184,13 @@ namespace Mythologicum
                 () => SelectTool(Tool.Path), SelectFence,
                 () => SelectTool(Tool.Gate),
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
-                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),SelectTerrainBrush,OpenParkManagement);
+                creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),
+                SelectTerrainBrush,OpenParkManagement,OpenEncyclopedia,OpenPauseMenu);
             status = palette.Status;
             CreateTerrainEditingUI(canvas);
-            var creditsObject = new GameObject("Vegetation art credit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-            creditsObject.transform.SetParent(palette.Root.transform, false);
-            var credits = creditsObject.GetComponent<Text>();
-            credits.text = "Vegetation art: LUX ART STUDIOS";
-            credits.font = status.font;
-            credits.fontSize = 16;
-            credits.color = new Color(0.94f, 0.94f, 0.88f);
-            credits.alignment = TextAnchor.UpperRight;
-            credits.raycastTarget = false;
-            credits.rectTransform.anchorMin = credits.rectTransform.anchorMax = new Vector2(1f, 1f);
-            credits.rectTransform.pivot = new Vector2(1f, 1f);
-            credits.rectTransform.anchoredPosition = new Vector2(-18f, -65f);
-            credits.rectTransform.sizeDelta = new Vector2(330f, 24f);
             foreach (Text label in canvas.GetComponentsInChildren<Text>())
                 if (label.text.Contains("WASD"))
-                {
-                    label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-                    label.rectTransform.anchoredPosition = new Vector2(0f, -90f);
-                }
+                    label.gameObject.SetActive(false);
         }
 
         private void SelectBuilding(BuildingDefinition definition)
@@ -237,6 +222,7 @@ namespace Mythologicum
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
+            if (selected == Tool.None && status != null) status.text = "";
             gatePreviewKind = null;
             if (modelPreview != null) { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
             foreach (GameObject item in routePreviews)
@@ -272,7 +258,7 @@ namespace Mythologicum
         // After camera movement, so the preview follows the final camera pose.
         private void LateUpdate()
         {
-            if (GameSaveMenu.IsOpen) {ResetTerrainStroke();if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);return;}
+            if (GameSaveMenu.IsOpen) {parkStatus?.Refresh();ResetTerrainStroke();if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);return;}
             RefreshTerrainAttachments();
             economy.Advance(Time.deltaTime);
             groundVegetation?.Refresh();
@@ -283,6 +269,7 @@ namespace Mythologicum
             fences.Refresh(view);
             visitorWorld.Tick(Time.deltaTime);
             BuildingEconomy.Tick(buildingConstruction.Network,economy,Time.deltaTime);
+            parkStatus?.Refresh();
             creatureInspection.Refresh();
             buildingInspection.Refresh();
             visitorPresentation.Refresh();
@@ -292,6 +279,7 @@ namespace Mythologicum
             management.Refresh();
             parkManagement.Refresh();
             notifications.Refresh();
+            encyclopedia?.Refresh();
             if (ManagementOpen) return;
             if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);
             Keyboard keyboard = Keyboard.current;
@@ -312,8 +300,8 @@ namespace Mythologicum
             }
             if (tool == Tool.None)
             {
-                status.text = buildingConstruction.Network.HasEntrance ? "Choose a construction category below."
-                    : "Place the park entrance first: Buildings > Park entrance.";
+                status.text = buildingConstruction.Network.HasEntrance ? ""
+                    : "Place the park entrance first: Building > Buildings > Park entrance.";
                 InspectEnclosure();
                 return;
             }
@@ -671,6 +659,8 @@ namespace Mythologicum
             if(terrainCursorMaterial!=null)Destroy(terrainCursorMaterial);
             management?.Dispose();
             parkManagement?.Dispose();
+            parkStatus?.Dispose();
+            encyclopedia?.Dispose();
             notifications?.Dispose();
             buildingInspection?.Dispose();
             staffWorld?.Dispose();

@@ -43,11 +43,34 @@ namespace Mythologicum.Editor
             theme.scrollbarTrack = theme.panelFrame;
             theme.scrollbarHandle = theme.sliderHandle;
 
-            // These symbols are intentionally rendered by the UI's existing text fallbacks.
-            // None of the imported sprite sheets contains an envelope, cross, or tick.
+            // The mail artwork uses the requested quill-and-scroll sprites.
+            // Cross and tick symbols keep the existing text/vector fallback.
             theme.checkmark = null;
-            theme.envelope = null;
+            theme.envelope = Sprite("Steampunk_UI_gameplay_icons_4", 12);
+            theme.envelopeUnread = Sprite("Steampunk_UI_gameplay_icons_4", 14);
             theme.closeIcon = null;
+            theme.iconSets = new[]
+            {
+                Icons(UIIconKind.Building, "Steampunk_UI_gameplay_icons_4", 5, 6, 5, 7),
+                Icons(UIIconKind.ParkManagement, "Steampunk_UI_gameplay_icons_1", 20, 22, 21, 23),
+                Icons(UIIconKind.Encyclopedia, "Steampunk_UI_gameplay_icons_4", 8, 10, 9, 11),
+                Icons(UIIconKind.Pause, "Steampunk_UI_gameplay_icons_2", 4, 6, 5, 7),
+                Icons(UIIconKind.Play, "Steampunk_UI_gameplay_icons_2", 0, 2, 1, 3),
+                Icons(UIIconKind.Settings, "Steampunk_UI_settings_icons", 8, 10, 9, 11),
+                Icons(UIIconKind.Quit, "Steampunk_UI_settings_icons", 4, 6, 5, 7),
+                Icons(UIIconKind.Expeditions, "Steampunk_UI_gameplay_icons_3", 0, 2, 1, 3),
+                Icons(UIIconKind.Research, "Steampunk_UI_gameplay_icons_3", 8, 11, 10, 12),
+                Icons(UIIconKind.Statistics, "Steampunk_UI_gameplay_icons_1", 20, 22, 21, 23),
+                Icons(UIIconKind.Visitors, "Steampunk_UI_gameplay_icons_1", 41, 43, 42, 44),
+                Icons(UIIconKind.Rest, "Steampunk_UI_gameplay_icons_1", 24, 26, 25, 27),
+                Icons(UIIconKind.Food, "Steampunk_UI_gameplay_icons_1", 37, 39, 38, 40),
+                Icons(UIIconKind.Mail, "Steampunk_UI_gameplay_icons_4", 12, 14, 13, 15),
+                Icons(UIIconKind.MailUnread, "Steampunk_UI_gameplay_icons_4", 14, 14, 14, 15),
+                Icons(UIIconKind.Funds, "Steampunk_UI_inventory_cursor_icons", 31, 31, 31, 31)
+            };
+            theme.cursorSource = Sprite("Steampunk_UI_inventory_cursor_icons", 6);
+            theme.cursorTexture = BuildCursor(theme.cursorSource);
+            theme.cursorHotspot = new Vector2(2, 2);
             theme.icons = new[]
             {
                 Sprite("Steampunk_UI_gameplay_icons_1", 4),  // Globe
@@ -100,6 +123,54 @@ namespace Mythologicum.Editor
                 .FirstOrDefault(candidate => candidate.name == name);
             if (sprite == null) throw new InvalidOperationException("Missing UI sprite: " + name);
             return sprite;
+        }
+
+        private static UIIconSet Icons(UIIconKind kind, string atlas, int normal, int highlighted, int pressed, int disabled)
+        {
+            return new UIIconSet { kind = kind, normal = Sprite(atlas, normal), highlighted = Sprite(atlas, highlighted),
+                pressed = Sprite(atlas, pressed), disabled = Sprite(atlas, disabled) };
+        }
+
+        private static Texture2D BuildCursor(Sprite sprite)
+        {
+            const int size = 48;
+            string path = Root + "/Cursors/ExhibitionCursor.png";
+            EnsureFolder(Root + "/Cursors");
+            Texture2D source = null, cursor = null;
+            try
+            {
+                // Read the original PNG, avoiding compression and readability changes to the atlas.
+                source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!ImageConversion.LoadImage(source, File.ReadAllBytes(AssetDatabase.GetAssetPath(sprite.texture)), false))
+                    throw new InvalidOperationException("Could not read the cursor's source atlas.");
+                cursor = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                Rect region = sprite.rect;
+                var pixels = new Color[size * size];
+                for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
+                {
+                    float u = (region.x + (x + .5f) * region.width / size) / source.width;
+                    float v = (region.y + (y + .5f) * region.height / size) / source.height;
+                    pixels[y * size + x] = source.GetPixelBilinear(u, v);
+                }
+                cursor.SetPixels(pixels); cursor.Apply(false, false);
+                File.WriteAllBytes(path, cursor.EncodeToPNG());
+            }
+            finally
+            {
+                if (source != null) UnityEngine.Object.DestroyImmediate(source);
+                if (cursor != null) UnityEngine.Object.DestroyImmediate(cursor);
+            }
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Cursor;
+            importer.isReadable = true; importer.mipmapEnabled = false;
+            importer.alphaSource = TextureImporterAlphaSource.FromInput;
+            importer.alphaIsTransparency = true; importer.npotScale = TextureImporterNPOTScale.None;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.maxTextureSize = 64; importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
         private static void EnsureFolder(string path)

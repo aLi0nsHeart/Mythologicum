@@ -10,6 +10,7 @@ namespace Mythologicum
     {
         private static GameSaveMenu instance;
         public static bool IsOpen => instance != null && instance.overlay != null && instance.overlay.activeSelf;
+        public static void TogglePause() => instance?.Toggle();
         private BuildModeController park;
         private GameObject overlay;
         private GameObject confirmation;
@@ -44,22 +45,14 @@ namespace Mythologicum
         {
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var canvas = FindFirstObjectByType<Canvas>();
-            // Replace the existing top-right MainMenu action with the pause menu.
-            bool wired = false;
+            // The bottom toolbar now owns Pause; hide the older authored navigation button.
             foreach (var button in canvas.GetComponentsInChildren<Button>(true))
                 for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
                     if (button.onClick.GetPersistentMethodName(i) == "MainMenu")
                     {
-                        button.onClick = new Button.ButtonClickedEvent(); button.onClick.AddListener(Toggle);
-                        var text = button.GetComponentInChildren<Text>(); if (text != null) text.text = "Pause";
-                        wired = true; break;
+                        button.gameObject.SetActive(false);
+                        break;
                     }
-            if (!wired)
-            {
-                var pause = Button(canvas.transform, "Pause", Vector2.zero, Toggle);
-                var r = (RectTransform)pause.transform; r.anchorMin = r.anchorMax = r.pivot = Vector2.one;
-                r.anchoredPosition = new Vector2(-15,-15); r.sizeDelta = new Vector2(130,44);
-            }
             overlay = new GameObject("Pause menu", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             overlay.transform.SetParent(canvas.transform, false);
             var rect = (RectTransform)overlay.transform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;

@@ -56,7 +56,13 @@ namespace Mythologicum
             rotation = SliderControl(card, "Camera rotation", new Vector2(640, 286), .25f, 3, GameSettings.SetRotationSensitivity);
             zoomLabel = ManagementWidgets.Label(card, "Camera zoom", new Vector2(640, 350), new Vector2(470, 30), 20);
             zoom = SliderControl(card, "Camera zoom", new Vector2(640, 389), .25f, 3, GameSettings.SetZoomSensitivity);
-            notice = ManagementWidgets.Label(card, "Preferences apply immediately and are saved automatically.", new Vector2(40, 484), new Vector2(1070, 54), 18);
+            ManagementWidgets.Label(card, "Movement controls", new Vector2(640, 440), new Vector2(470, 28), 20);
+            var keys = ManagementWidgets.Label(card, "Movement keys", new Vector2(640, 470), new Vector2(470, 70), 16);
+            keys.text = "Move: WASD or arrow keys\nRotate: Q / E   |   Zoom: mouse wheel\nEsc: close a window or open Pause";
+            ManagementWidgets.Label(card, "Credits", new Vector2(40, 456), new Vector2(470, 28), 20);
+            var credits = ManagementWidgets.Label(card, "Vegetation credits", new Vector2(40, 490), new Vector2(470, 30), 17);
+            credits.text = "Vegetation assets: LUX ART STUDIOS";
+            notice = ManagementWidgets.Label(card, "Preferences apply immediately and are saved automatically.", new Vector2(40, 540), new Vector2(1070, 26), 15);
             ManagementWidgets.Button(card, "Reset defaults", new Vector2(40, 570), new Vector2(280, 50), () => { GameSettings.ResetDefaults(); Refresh(); });
             ManagementWidgets.Button(card, "Back", new Vector2(850, 570), new Vector2(260, 50), Close);
         }
