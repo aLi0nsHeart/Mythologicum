@@ -12,16 +12,19 @@ namespace Mythologicum
     {
         [SerializeField] private UIIconKind kind;
         [SerializeField] private bool automatic = true;
+        [SerializeField] private bool iconOnly;
         private Button button;
         private Text label;
         private Image icon;
         private bool hovered, pressed, selected;
         private Vector2 previousSize = new Vector2(-1, -1);
         private float labelPadding = 10f;
+        private bool standalonePrepared;
 
         public UIIconKind Kind => kind;
         public Image IconImage => icon;
-        public float LabelPadding => icon != null && icon.enabled && icon.sprite != null ? labelPadding : 10f;
+        public bool IconOnly => iconOnly;
+        public float LabelPadding => iconOnly ? 0f : icon != null && icon.enabled && icon.sprite != null ? labelPadding : 10f;
 
         /// <summary>Assign a specific symbol; automatic name matching will leave this choice alone.</summary>
         public static UIIcon Attach(Button target, UIIconKind value)
@@ -29,6 +32,18 @@ namespace Mythologicum
             if (target == null) return null;
             var symbol = target.GetComponent<UIIcon>() ?? target.gameObject.AddComponent<UIIcon>();
             symbol.button = target; symbol.automatic = false; symbol.kind = value; symbol.Refresh();
+            return symbol;
+        }
+
+        /// <summary>Use the artwork itself as the complete control, with a delayed hover name.</summary>
+        public static UIIcon AttachStandalone(Button target, UIIconKind value, string tooltip = null)
+        {
+            var symbol = Attach(target, value);
+            if (symbol == null) return null;
+            if (!symbol.iconOnly) symbol.previousSize = new Vector2(-1, -1);
+            symbol.iconOnly = true;
+            UIHoverTooltip.Attach(target, tooltip);
+            symbol.Refresh();
             return symbol;
         }
 
@@ -53,6 +68,7 @@ namespace Mythologicum
             if (button == null) button = GetComponent<Button>();
             if (button == null) return;
             if (label == null) label = DirectLabel(button);
+            if (iconOnly && label != null) label.enabled = false;
             if (automatic) kind = Infer(button, label);
             var theme = UITheme.Current;
             var symbols = theme != null ? theme.Icon(kind) : null;
@@ -70,6 +86,7 @@ namespace Mythologicum
                 previousSize = new Vector2(-1, -1);
             }
             icon.enabled = true;
+            if (iconOnly) PrepareStandalone();
             bool available = button.IsInteractable();
             Sprite sprite = !available ? symbols.disabled
                 : pressed && hovered ? symbols.pressed
@@ -81,12 +98,40 @@ namespace Mythologicum
             if (size != previousSize)
             {
                 previousSize = size;
-                float side = Mathf.Clamp(size.y - 12f, 18f, 44f);
                 var rect = icon.rectTransform;
-                rect.anchorMin = rect.anchorMax = new Vector2(0, .5f); rect.pivot = new Vector2(.5f, .5f);
-                rect.anchoredPosition = new Vector2(14f + side * .5f, 0); rect.sizeDelta = Vector2.one * side;
-                labelPadding = 14f + side + 9f;
+                if (iconOnly)
+                {
+                    rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+                    rect.pivot = new Vector2(.5f, .5f);
+                    rect.offsetMin = rect.offsetMax = Vector2.zero;
+                }
+                else
+                {
+                    float side = Mathf.Clamp(size.y - 12f, 18f, 44f);
+                    rect.anchorMin = rect.anchorMax = new Vector2(0, .5f); rect.pivot = new Vector2(.5f, .5f);
+                    rect.anchoredPosition = new Vector2(14f + side * .5f, 0); rect.sizeDelta = Vector2.one * side;
+                    labelPadding = 14f + side + 9f;
+                }
             }
+        }
+
+        private void PrepareStandalone()
+        {
+            var hitArea = button.GetComponent<Image>();
+            if (hitArea != null)
+            {
+                hitArea.color = Color.clear;
+                hitArea.raycastTarget = true;
+            }
+            if (!standalonePrepared)
+            {
+                UIThemeElement.Mark(button.gameObject, UIThemeRole.Ignore);
+                icon.CrossFadeColor(Color.white, 0f, true, true);
+                standalonePrepared = true;
+            }
+            icon.type = Image.Type.Simple;
+            button.targetGraphic = icon;
+            button.transition = Selectable.Transition.None;
         }
 
         private static Text DirectLabel(Button target)

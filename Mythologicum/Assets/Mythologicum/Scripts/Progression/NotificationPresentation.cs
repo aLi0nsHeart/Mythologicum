@@ -5,43 +5,42 @@ namespace Mythologicum
 {
     public sealed class NotificationPresentation : IDisposable
     {
-        private readonly GameObject letter, badge, panel;
+        private readonly GameObject letter, panel;
         private readonly RectTransform content;
         private readonly NotificationInbox inbox;
         private readonly Action<Vector2Int> focus;
-        private readonly Image mailIcon;
-        private readonly Text unreadCount;
+        private readonly Text mailLabel;
+        private readonly Action opened;
+        private int lastUnread=-1;
         private int revision=-1;
         public bool IsOpen => panel.activeSelf;
-        public NotificationPresentation(Canvas canvas,NotificationInbox inbox,Action<Vector2Int> focus)
+        public NotificationPresentation(Canvas canvas,NotificationInbox inbox,Action<Vector2Int> focus,Action opened=null)
         {
-            this.inbox=inbox;this.focus=focus;
+            this.inbox=inbox;this.focus=focus;this.opened=opened;
             var button=ManagementWidgets.Button(canvas.transform,"Letters",Vector2.zero,new Vector2(64,52),Toggle);letter=button.gameObject;
-            var r=(RectTransform)letter.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,86);
-            letter.GetComponentInChildren<Text>().text="";
-            mailIcon=ManagementWidgets.Rect(letter.transform,"Notification icon",new Vector2(11,5),new Vector2(42,42)).gameObject.AddComponent<Image>();
-            mailIcon.preserveAspect=true;mailIcon.raycastTarget=false;
-            UIThemeElement.Mark(mailIcon.gameObject,UIThemeRole.Icon);
-            badge=ManagementWidgets.Box(letter.transform,"Unread notifications",new Vector2(45,-7),new Vector2(24,25),new Color(.8f,.19f,.1f));
-            unreadCount=ManagementWidgets.Label(badge.transform,"Unread count",Vector2.zero,new Vector2(24,25),16);unreadCount.alignment=TextAnchor.MiddleCenter;
-            float width=460,height=Mathf.Min(430,((RectTransform)canvas.transform).rect.height-190);
+            var r=(RectTransform)letter.transform;r.anchorMin=r.anchorMax=new Vector2(0,0);r.pivot=new Vector2(.5f,.5f);
+            r.anchoredPosition=new Vector2(266,90);r.sizeDelta=new Vector2(64,64);
+            mailLabel=letter.GetComponentInChildren<Text>();mailLabel.text="Mail";
+            UIIcon.AttachStandalone(button,UIIconKind.Mail);
+            float width=460,height=Mathf.Min(400,((RectTransform)canvas.transform).rect.height-240);
             panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,new Vector2(width,height));
-            r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,150);
+            r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,0);r.anchoredPosition=new Vector2(24,210);
             ManagementWidgets.Label(panel.transform,"Letters",new Vector2(12,12),new Vector2(160,35),22);
             ManagementWidgets.Button(panel.transform,"Mark all read",new Vector2(174,8),new Vector2(180,35),()=>{inbox.MarkAllRead();Refresh();},16);
             ManagementWidgets.Button(panel.transform,"Close",new Vector2(364,8),new Vector2(84,35),Close,16);
             content=ManagementWidgets.Scroll(panel.transform,"Letters - scroll to read",new Vector2(10,53),new Vector2(width-20,height-63),0);
             panel.SetActive(false);Refresh();
         }
-        public void Toggle() {if(IsOpen){Close();return;}panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();UIThemeApplicator.ApplyAll(panel.GetComponentInParent<Canvas>());}
+        public void Toggle() {if(IsOpen){Close();return;}opened?.Invoke();panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();UIThemeApplicator.ApplyAll(panel.GetComponentInParent<Canvas>());}
         public void Close()=>panel.SetActive(false);
         public void Refresh()
         {
-            badge.SetActive(inbox.UnreadCount>0);
-            unreadCount.text=inbox.UnreadCount>99?"99+":inbox.UnreadCount.ToString();
-            var theme=UITheme.Current;
-            mailIcon.sprite=theme!=null?(inbox.UnreadCount>0?theme.envelopeUnread:theme.envelope):null;
-            mailIcon.enabled=mailIcon.sprite!=null;
+            if(lastUnread!=inbox.UnreadCount)
+            {
+                lastUnread=inbox.UnreadCount;
+                mailLabel.text=lastUnread>0?$"Mail ({lastUnread} unread)":"Mail";
+                UIIcon.AttachStandalone(letter.GetComponent<Button>(),lastUnread>0?UIIconKind.MailUnread:UIIconKind.Mail);
+            }
             if(!IsOpen||revision==inbox.Revision)return;revision=inbox.Revision;ManagementWidgets.Clear(content);
             float y=0;
             for(int i=inbox.Entries.Count-1;i>=0;i--)

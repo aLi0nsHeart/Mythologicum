@@ -183,7 +183,7 @@ namespace Mythologicum
             palette = new ConstructionPalette(canvas, template, buildingCatalog, SelectBuilding,
                 () => SelectTool(Tool.Path), SelectFence,
                 () => SelectTool(Tool.Gate),
-                () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), () => SelectTool(Tool.None),
+                () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), OpenConstructionMenu,
                 creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),
                 SelectTerrainBrush,OpenParkManagement,OpenEncyclopedia,OpenPauseMenu);
             status = palette.Status;
@@ -222,6 +222,7 @@ namespace Mythologicum
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
+            if (selected != Tool.None) notifications?.Close();
             if (selected == Tool.None && status != null) status.text = "";
             gatePreviewKind = null;
             if (modelPreview != null) { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
@@ -300,7 +301,7 @@ namespace Mythologicum
             }
             if (tool == Tool.None)
             {
-                status.text = buildingConstruction.Network.HasEntrance ? ""
+                status.text = buildingConstruction.Network.HasEntrance || palette.IsOpen ? ""
                     : "Place the park entrance first: Building > Buildings > Park entrance.";
                 InspectEnclosure();
                 return;

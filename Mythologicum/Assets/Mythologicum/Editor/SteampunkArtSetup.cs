@@ -64,7 +64,7 @@ namespace Mythologicum.Editor
                 Icons(UIIconKind.Visitors, "Steampunk_UI_gameplay_icons_1", 41, 43, 42, 44),
                 Icons(UIIconKind.Rest, "Steampunk_UI_gameplay_icons_1", 24, 26, 25, 27),
                 Icons(UIIconKind.Food, "Steampunk_UI_gameplay_icons_1", 37, 39, 38, 40),
-                Icons(UIIconKind.Mail, "Steampunk_UI_gameplay_icons_4", 12, 14, 13, 15),
+                Icons(UIIconKind.Mail, "Steampunk_UI_gameplay_icons_4", 12, 13, 13, 15),
                 Icons(UIIconKind.MailUnread, "Steampunk_UI_gameplay_icons_4", 14, 14, 14, 15),
                 Icons(UIIconKind.Funds, "Steampunk_UI_inventory_cursor_icons", 31, 31, 31, 31)
             };

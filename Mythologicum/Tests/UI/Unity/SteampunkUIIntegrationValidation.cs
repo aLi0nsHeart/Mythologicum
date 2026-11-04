@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -264,6 +265,31 @@ public static class SteampunkUIIntegrationValidation
         ValidateButtonIcon(FindButton(palette.Root.transform, "Park Management"), UIIconKind.ParkManagement);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Encyclopedia"), UIIconKind.Encyclopedia);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Pause"), UIIconKind.Pause);
+        var hoverButton = FindButton(palette.Root.transform, "Building");
+        var hover = hoverButton.GetComponent<UIHoverTooltip>();
+        Check(hover != null && !hover.IsVisible, "Standalone HUD icons keep their names hidden until hovered");
+        var hoverPointer = new PointerEventData(EventSystem.current)
+        {
+            position = RectTransformUtility.WorldToScreenPoint(canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera,
+                ((RectTransform)hoverButton.transform).TransformPoint(((RectTransform)hoverButton.transform).rect.center)),
+            button = PointerEventData.InputButton.Left
+        };
+        ExecuteEvents.Execute(hoverButton.gameObject, hoverPointer, ExecuteEvents.pointerEnterHandler);
+        yield return null;
+        yield return null;
+        Check(hover.IsVisible && GameObject.Find("HUD tooltip") != null,
+            "Hovering a standalone icon reveals its name after the tooltip delay, even with the simulation paused");
+        Check(GameObject.Find("HUD tooltip").GetComponentsInChildren<Text>().Any(text => text.text.Contains("Building")),
+            "The Building tooltip explains the unlabeled icon");
+        Check(GameObject.Find("HUD tooltip").GetComponentsInChildren<Graphic>().All(graphic => !graphic.raycastTarget),
+            "The delayed HUD tooltip does not steal input from its icon or the world");
+        Capture("InGame-Hover-Building", canvas.gameObject, 1280, 720);
+        ExecuteEvents.Execute(hoverButton.gameObject, hoverPointer, ExecuteEvents.pointerDownHandler);
+        Check(!hover.IsVisible, "Pressing a standalone icon immediately hides its tooltip");
+        ExecuteEvents.Execute(hoverButton.gameObject, hoverPointer, ExecuteEvents.pointerUpHandler);
+        ExecuteEvents.Execute(hoverButton.gameObject, hoverPointer, ExecuteEvents.pointerExitHandler);
+        yield return null;
+        Check(!hover.IsVisible, "Leaving an icon removes its tooltip and restores the uncluttered HUD");
         palette.Refresh(false);
         FindButton(palette.Root.transform, "Building").onClick.Invoke();
         yield return null;
@@ -325,13 +351,15 @@ public static class SteampunkUIIntegrationValidation
         Field<VisitorPresentation>(controller, "visitorPresentation").Refresh();
         yield return null;
         Capture("InGame-HUD", canvas.gameObject, 1280, 720);
+        Capture("InGame-HUD-1920", canvas.gameObject, 1920, 1080);
         FindButton(palette.Root.transform, "Building").onClick.Invoke();
         yield return null;
         Check(FindButton(GameObject.Find("Building tools").transform, "Paths (P)").interactable,
             "Placing the entrance enables the nested path tools");
         FindButton(GameObject.Find("Building tools").transform, "Buildings (B)").onClick.Invoke();
         yield return null;
-        Capture("Construction-Buildings", palette.Root, 1280, 720); palette.Close();
+        Capture("Construction-Buildings", palette.Root, 1280, 720);
+        Capture("Construction-Buildings-1920", palette.Root, 1920, 1080); palette.Close();
         palette.Toggle(ConstructionCategory.Enclosures); yield return null;
         Capture("Construction-Enclosures", palette.Root, 1280, 720); palette.Close();
         FindButton(palette.Root.transform, "Building").onClick.Invoke();
@@ -559,8 +587,19 @@ public static class SteampunkUIIntegrationValidation
         Check(image != null && image.sprite != null && !image.raycastTarget && image.preserveAspect,
             "The " + button.name + " icon preserves its shape and does not block pointer input");
         var label = button.GetComponentsInChildren<Text>(true).FirstOrDefault(text => text.transform.parent == button.transform);
-        Check(label != null && label.rectTransform.offsetMin.x >= icon.LabelPadding - .5f,
-            "The " + button.name + " label leaves room for its icon");
+        if (icon.IconOnly)
+        {
+            Check(label == null || !label.isActiveAndEnabled,
+                "The " + button.name + " HUD icon has no permanent text label");
+            var backing = button.GetComponent<Image>();
+            Check(backing != null && backing.color.a <= .01f && backing.raycastTarget,
+                "The " + button.name + " standalone icon has an invisible input target without an extra box");
+            Check(button.targetGraphic == image && image.rectTransform.rect.width >= 48 && image.rectTransform.rect.height >= 48,
+                "The " + button.name + " standalone artwork fills a usable icon-sized target");
+        }
+        else
+            Check(label != null && label.isActiveAndEnabled && label.rectTransform.offsetMin.x >= icon.LabelPadding - .5f,
+                "The " + button.name + " menu label leaves room for its icon");
         if (!exerciseStates) return;
         var pointer = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
         icon.OnPointerUp(pointer); icon.OnPointerExit(pointer); icon.OnDeselect(new BaseEventData(EventSystem.current)); icon.Refresh();
@@ -582,41 +621,45 @@ public static class SteampunkUIIntegrationValidation
     static void ValidateParkStatus(BuildModeController controller, bool refresh)
     {
         var status = Field<ParkStatusPresentation>(controller, "parkStatus");
-        Check(status != null, "The park owns a compact funds-and-stars presentation");
+        Check(status != null, "The park owns a bare funds-and-stars presentation");
         if (refresh) status.Refresh();
         var root = GameObject.Find("Park status");
-        Check(root != null && root.activeInHierarchy, "Current funds and star rating are visible in the park view");
+        Check(root != null && root.activeInHierarchy, "Current funds and stars are visible in the park view");
         var rect = (RectTransform)root.transform;
         Check(rect.anchorMin == new Vector2(0, 1) && rect.anchorMax == new Vector2(0, 1)
             && rect.rect.width <= 360 && rect.rect.height <= 130,
-            "The funds-and-stars display stays compact in the upper-left corner");
-        var labels = root.GetComponentsInChildren<Text>();
+            "The bare funds-and-stars display stays compact in the upper-left corner");
+        Check(root.GetComponentsInChildren<Image>(true).Length == 0,
+            "The upper-left status has no backplate, border or decorative money icon");
+        var labels = root.GetComponentsInChildren<Text>().Where(text => text.isActiveAndEnabled).ToArray();
         var funds = labels.Single(text => text.name == "Park funds");
-        var rating = labels.Single(text => text.name == "Park rating");
-        Check(funds.text == $"Funds: {controller.Economy.Balance:0.00}",
-            "The compact funds label shows the actual current park balance");
-        Check(rating.text == $"{controller.Visitors.Reputation.Stars:0.0} / 5",
-            "The compact rating label shows the actual current park reputation");
-        Check(funds.preferredHeight <= funds.rectTransform.rect.height + 2
-            && rating.preferredHeight <= rating.rectTransform.rect.height + 2,
-            "The compact funds and rating labels fit inside their visible rows");
+        Check(labels.Length == 1 && funds.text == controller.Economy.Balance.ToString("$#,##0;-$#,##0;$0", CultureInfo.InvariantCulture),
+            "The funds display shows only a dollar amount from the actual balance, without a label or numeric star counter");
+        Check(funds.preferredHeight <= funds.rectTransform.rect.height + 2,
+            "The plain dollar balance fits inside its visible row");
         var stars = root.GetComponentsInChildren<StarRatingGraphic>().Single();
         Check(Near(Field<float>(stars, "rating"), controller.Visitors.Reputation.Stars),
-            "The five compact stars reflect the actual park rating");
-        Check(root.GetComponentsInChildren<Image>().Any(image => image.sprite == UITheme.Current.Icon(UIIconKind.Funds).normal),
-            "The funds display uses the imported steampunk money icon");
+            "The five bare stars reflect the actual park rating");
+        var fundsBounds = new Vector3[4]; var starBounds = new Vector3[4];
+        funds.rectTransform.GetWorldCorners(fundsBounds); stars.rectTransform.GetWorldCorners(starBounds);
+        Check(starBounds.Max(point => point.y) <= fundsBounds.Min(point => point.y) + 1,
+            "The rating stars sit immediately beneath the dollar balance");
     }
 
     static void ValidateMailIcon(Canvas canvas, bool unread)
     {
         var letter = FindButton(canvas.transform, "Letters");
-        var icon = letter.GetComponentsInChildren<Image>(true).Single(image => image.name == "Notification icon");
+        var symbol = letter.GetComponent<UIIcon>();
+        Check(symbol != null && symbol.IconOnly && symbol.Kind == (unread ? UIIconKind.MailUnread : UIIconKind.Mail),
+            "Mail remains a standalone icon when its notification state changes");
+        var icon = symbol.IconImage;
         Sprite expected = unread ? UITheme.Current.envelopeUnread : UITheme.Current.envelope;
         Check(icon.sprite == expected && !icon.raycastTarget && icon.preserveAspect,
             unread ? "A new unread letter switches Mail to the requested highlighted notification icon"
                 : "Reading all letters returns Mail to the requested normal parchment icon");
         Check(letter.GetComponentsInChildren<EnvelopeGraphic>(true).Length == 0,
             "Mail uses the imported artwork instead of the old drawn envelope");
+        ValidateButtonIcon(letter, unread ? UIIconKind.MailUnread : UIIconKind.Mail);
     }
 
     static void ValidateGameplayChrome(Canvas canvas, ConstructionPalette palette)
@@ -624,7 +667,32 @@ public static class SteampunkUIIntegrationValidation
         var topButtons = palette.Root.GetComponentsInChildren<Button>()
             .Where(button => button.transform.parent == palette.Root.transform).ToArray();
         Check(topButtons.Select(button => button.name).SequenceEqual(new[] { "Building", "Park Management", "Encyclopedia", "Pause" }),
-            "The bottom toolbar has exactly the four requested top-level actions in order");
+            "The HUD preserves the four main menu actions");
+        var arc = new[] { FindButton(palette.Root.transform, "Building"), FindButton(palette.Root.transform, "Park Management"),
+            FindButton(palette.Root.transform, "Encyclopedia"), FindButton(canvas.transform, "Letters"), FindButton(palette.Root.transform, "Pause") };
+        var canvasRect = (RectTransform)canvas.transform;
+        var centers = arc.Select(button =>
+        {
+            var rect = (RectTransform)button.transform;
+            return (Vector2)canvasRect.InverseTransformPoint(rect.TransformPoint(rect.rect.center)) - canvasRect.rect.min;
+        }).ToArray();
+        for (int i = 0; i < arc.Length; i++)
+        {
+            var symbol = arc[i].GetComponent<UIIcon>();
+            Check(symbol != null && symbol.IconOnly, "The " + arc[i].name + " HUD action is a standalone icon");
+            Check(!arc[i].GetComponentsInChildren<Text>().Any(text => text.transform.parent == arc[i].transform && text.isActiveAndEnabled),
+                "The " + arc[i].name + " arc icon has no permanent text label");
+            var rect = (RectTransform)arc[i].transform;
+            Check(rect.rect.width >= 54 && rect.rect.width <= 88 && rect.rect.height >= 54 && rect.rect.height <= 88,
+                "The " + arc[i].name + " icon has a clear compact hit area");
+            Check(centers[i].x > 0 && centers[i].x < canvasRect.rect.width * .36f && centers[i].y > 0 && centers[i].y < 230,
+                "The " + arc[i].name + " icon stays together with the lower-left HUD arc");
+            if (i > 0) Check(centers[i].x > centers[i - 1].x + 50,
+                "The HUD arc keeps adjacent icons separate and ordered");
+        }
+        Check(Mathf.Abs(centers[0].y - centers[1].y) <= 20 && centers[0].y > centers[4].y + 75
+            && centers[2].y < centers[1].y && centers[3].y < centers[2].y && centers[4].y < centers[3].y,
+            "The standalone icons form the requested descending lower-left curve");
         Check(!palette.IsOpen, "The Building categories start folded away");
         var visibleText = canvas.GetComponentsInChildren<Text>().Where(text => text.isActiveAndEnabled).ToArray();
         Check(!canvas.GetComponentsInChildren<Transform>().Any(item => item.gameObject.activeInHierarchy && item.name == "Park overview"),

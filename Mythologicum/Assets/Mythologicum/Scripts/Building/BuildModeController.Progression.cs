@@ -37,7 +37,7 @@ namespace Mythologicum
             encyclopedia=new EncyclopediaPresentation(canvas,creatureCatalog,staffWorld.Research);
             notifications=new NotificationPresentation(canvas,Progression.Inbox,cell=>{
                 management.Close();parkManagement.Close();encyclopedia.Close();SelectTool(Tool.None);GetComponent<IsometricCameraController>()?.FocusOn(grid.CellCenter(cell));
-            });
+            },()=>{SelectTool(Tool.None);management.Close();parkManagement.Close();encyclopedia.Close();});
             palette.ConfigureProgression(Progression);
             buildingInspection.ConfigureManagement(OpenExpeditions,OpenTechnologies);
         }
@@ -47,6 +47,8 @@ namespace Mythologicum
         {SelectTool(Tool.None);parkManagement.Close();encyclopedia.Close();notifications.Close();management.OpenResearch(home);}
         private void OpenParkManagement()
         {SelectTool(Tool.None);management.Close();encyclopedia.Close();notifications.Close();parkManagement.Open();}
+        private void OpenConstructionMenu()
+        {SelectTool(Tool.None);management?.Close();parkManagement?.Close();encyclopedia?.Close();notifications?.Close();}
         private void OpenEncyclopedia()
         {SelectTool(Tool.None);management.Close();parkManagement.Close();notifications.Close();encyclopedia.Open();}
         private void OpenPauseMenu()

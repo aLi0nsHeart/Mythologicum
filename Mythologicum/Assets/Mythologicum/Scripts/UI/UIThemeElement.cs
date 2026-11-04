@@ -41,6 +41,11 @@ namespace Mythologicum
             if (font != null && text.font != font) text.font = font;
             var button = text.GetComponentInParent<Button>(true);
             var selectable = text.GetComponentInParent<Selectable>(true);
+            if (button != null && text.transform.parent == button.transform && button.GetComponent<UIIcon>()?.IconOnly == true)
+            {
+                text.enabled = false;
+                return;
+            }
             Color color = role == UIThemeRole.Title || role == UIThemeRole.Heading ? theme.headingColor : theme.textColor;
             if (IsDanger(sourceColor)) color = theme.dangerColor;
             else if (sourceColor.g > sourceColor.r * 1.25f && sourceColor.g > .4f) color = theme.accentColor;
