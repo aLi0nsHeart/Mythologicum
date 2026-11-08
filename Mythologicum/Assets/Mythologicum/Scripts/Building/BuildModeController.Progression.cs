@@ -60,6 +60,12 @@ namespace Mythologicum
             if(management?.IsOpen==true){management.Close();return true;}
             if(notifications?.IsOpen==true){notifications.Close();return true;}
             if(palette?.IsOpen==true||tool!=Tool.None){SelectTool(Tool.None);return true;}
+            if(GetComponent<IsometricCameraController>()?.IsFollowing==true)
+            {
+                GetComponent<IsometricCameraController>().StopFollowing();
+                buildingInspection.Select(null);creatureInspection.Select(null);visitorPresentation.Select(null);
+                return true;
+            }
             return false;
         }
     }

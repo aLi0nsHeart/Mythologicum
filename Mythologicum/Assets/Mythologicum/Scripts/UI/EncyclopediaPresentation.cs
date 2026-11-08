@@ -51,18 +51,16 @@ namespace Mythologicum
             for (int i = 0; i < names.Length; i++)
             {
                 int index = i;
-                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(24 + i * 372, 76),
+                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(24 + i * 372, 8),
                     new Vector2(366, 44), () => SelectSection(index), 20);
             }
-            listTitle = ManagementWidgets.Label(card, "Encyclopedia list heading", new Vector2(24, 134), new Vector2(286, 30), 20);
-            entries = ManagementWidgets.Scroll(card, "Encyclopedia entries", new Vector2(24, 174), new Vector2(286, 452), 0);
+            listTitle = ManagementWidgets.Label(card, "Encyclopedia list heading", new Vector2(24, 64), new Vector2(286, 30), 20);
+            entries = ManagementWidgets.Scroll(card, "Encyclopedia entries", new Vector2(24, 104), new Vector2(286, 382), 0);
             entriesScroll = entries.GetComponentInParent<ScrollRect>(true);
-            AddScrollbar(entriesScroll);
-            articleTitle = ManagementWidgets.Label(card, "Encyclopedia article title", new Vector2(334, 134), new Vector2(798, 42), 24);
-            articleSummary = ManagementWidgets.Label(card, "Encyclopedia article summary", new Vector2(334, 182), new Vector2(798, 48), 17);
-            articleContent = ManagementWidgets.Scroll(card, "Encyclopedia article scroll", new Vector2(334, 240), new Vector2(798, 386), 0);
+            articleTitle = ManagementWidgets.Label(card, "Encyclopedia article title", new Vector2(334, 64), new Vector2(798, 32), 24);
+            articleSummary = ManagementWidgets.Label(card, "Encyclopedia article summary", new Vector2(334, 104), new Vector2(798, 48), 17);
+            articleContent = ManagementWidgets.Scroll(card, "Encyclopedia article scroll", new Vector2(334, 160), new Vector2(798, 326), 0);
             articleScroll = articleContent.GetComponentInParent<ScrollRect>(true);
-            AddScrollbar(articleScroll);
             article = ManagementWidgets.Label(articleContent, "Encyclopedia article", new Vector2(14, 10), new Vector2(752, 0), 19);
             article.horizontalOverflow = HorizontalWrapMode.Wrap;
             article.verticalOverflow = VerticalWrapMode.Overflow;
@@ -98,7 +96,8 @@ namespace Mythologicum
                 var button = ManagementWidgets.Button(entries, item.Title, new Vector2(8, y), new Vector2(252, 58), () => SelectEntry(item), 18);
                 entryButtons.Add(new KeyValuePair<Entry, Button>(item, button)); y += 66;
             }
-            entries.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(entriesScroll.viewport.rect.height, y));
+            entries.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(0,y-8));
+            UIOverflowScroll.Attach(entriesScroll).Refresh();
             entriesScroll.verticalNormalizedPosition = 1;
             SelectEntry(sections[index].Count > 0 ? sections[index][0] : null);
         }
@@ -137,29 +136,10 @@ namespace Mythologicum
             }
             float height = article.preferredHeight;
             article.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
-            articleContent.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(articleScroll.viewport.rect.height, height + 20));
+            articleContent.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height + 20);
             if (resetScroll) articleScroll.verticalNormalizedPosition = 1;
             else articleContent.anchoredPosition = oldPosition;
-        }
-
-        private static void AddScrollbar(ScrollRect scroll)
-        {
-            var track = ManagementWidgets.Box(scroll.transform, "Reading scrollbar", Vector2.zero, Vector2.zero);
-            var trackRect = (RectTransform)track.transform;
-            trackRect.anchorMin = new Vector2(1, 0); trackRect.anchorMax = Vector2.one;
-            trackRect.pivot = new Vector2(1, .5f); trackRect.anchoredPosition = new Vector2(-3, 0);
-            trackRect.sizeDelta = new Vector2(10, 0);
-            var handle = ManagementWidgets.Box(track.transform, "Handle", Vector2.zero, Vector2.zero);
-            var handleRect = (RectTransform)handle.transform;
-            handleRect.anchorMin = Vector2.zero; handleRect.anchorMax = Vector2.one;
-            handleRect.offsetMin = handleRect.offsetMax = Vector2.zero;
-            var bar = track.AddComponent<Scrollbar>();
-            bar.handleRect = handleRect; bar.targetGraphic = handle.GetComponent<Image>();
-            bar.direction = Scrollbar.Direction.BottomToTop;
-            bar.navigation = new Navigation { mode = Navigation.Mode.None };
-            scroll.verticalScrollbar = bar;
-            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
-            scroll.viewport.offsetMax = new Vector2(-18, 0);
+            UIOverflowScroll.Attach(articleScroll).Refresh();
         }
 
         private void AddGuides()

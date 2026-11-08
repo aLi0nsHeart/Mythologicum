@@ -22,13 +22,15 @@ namespace Mythologicum
             r.anchoredPosition=new Vector2(266,90);r.sizeDelta=new Vector2(64,64);
             mailLabel=letter.GetComponentInChildren<Text>();mailLabel.text="Mail";
             UIIcon.AttachStandalone(button,UIIconKind.Mail);
-            float width=460,height=Mathf.Min(400,((RectTransform)canvas.transform).rect.height-240);
-            panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,new Vector2(width,height));
+            panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,Vector2.one);
             r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,0);r.anchoredPosition=new Vector2(24,210);
-            ManagementWidgets.Label(panel.transform,"Letters",new Vector2(12,12),new Vector2(160,35),22);
-            ManagementWidgets.Button(panel.transform,"Mark all read",new Vector2(174,8),new Vector2(180,35),()=>{inbox.MarkAllRead();Refresh();},16);
-            ManagementWidgets.Button(panel.transform,"Close",new Vector2(364,8),new Vector2(84,35),Close,16);
-            content=ManagementWidgets.Scroll(panel.transform,"Letters - scroll to read",new Vector2(10,53),new Vector2(width-20,height-63),0);
+            var frame=UIFramedPanel.Attach(panel,false,720);var body=frame.Content;
+            var heading=ManagementWidgets.Label(frame.Header,"Letters",Vector2.zero,frame.Header.rect.size,24);
+            heading.alignment=TextAnchor.MiddleCenter;
+            float width=body.rect.width,height=body.rect.height;
+            ManagementWidgets.Button(body,"Mark all read",Vector2.zero,new Vector2(180,36),()=>{inbox.MarkAllRead();Refresh();},16);
+            ManagementWidgets.Button(body,"Close",new Vector2(width-84,0),new Vector2(84,36),Close,16);
+            content=ManagementWidgets.Scroll(body,"Letters - scroll to read",new Vector2(0,46),new Vector2(width,height-46),0);
             panel.SetActive(false);Refresh();
         }
         public void Toggle() {if(IsOpen){Close();return;}opened?.Invoke();panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();UIThemeApplicator.ApplyAll(panel.GetComponentInParent<Canvas>());}
@@ -46,12 +48,15 @@ namespace Mythologicum
             for(int i=inbox.Entries.Count-1;i>=0;i--)
             {
                 var n=inbox.Entries[i];string title=(n.read?"":"NEW: ")+n.title+(n.count>1?" ("+n.count+")":"");
-                var row=ManagementWidgets.Button(content,title,new Vector2(0,y),new Vector2(440,112),()=>{inbox.MarkRead(n.id);if(n.hasLocation){focus(n.location);Close();}Refresh();},17);
+                var row=ManagementWidgets.Button(content,title,new Vector2(0,y),new Vector2(content.rect.width-14,80),()=>{inbox.MarkRead(n.id);if(n.hasLocation){focus(n.location);Close();}Refresh();},17);
                 var text=row.GetComponentInChildren<Text>();text.alignment=TextAnchor.UpperLeft;text.text=title+"\n"+n.body+(n.hasLocation?"\nClick to view location.":"");
-                y+=120;
+                float rowHeight=Mathf.Max(76,text.preferredHeight+16);
+                ((RectTransform)row.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,rowHeight);
+                y+=rowHeight+8;
             }
-            if(y==0){ManagementWidgets.Label(content,"No letters yet.",new Vector2(8,5),new Vector2(420,45));y=55;}
+            if(y==0){ManagementWidgets.Label(content,"No letters yet.",new Vector2(8,5),new Vector2(content.rect.width-30,35));y=44;}
             content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,y);
+            UIOverflowScroll.Attach(content.GetComponentInParent<ScrollRect>()).Refresh();
         }
         public void Dispose(){UnityEngine.Object.Destroy(letter);UnityEngine.Object.Destroy(panel);}
     }

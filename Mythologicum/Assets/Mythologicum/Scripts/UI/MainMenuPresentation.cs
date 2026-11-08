@@ -59,31 +59,31 @@ namespace Mythologicum
             UIThemeElement.Mark(backdrop.gameObject, UIThemeRole.Ignore);
             var card = ManagementWidgets.Card(gameObject, canvas);
             UIThemeElement.Mark(card.gameObject, UIThemeRole.Window);
-            var title = ManagementWidgets.Label(card, "Main menu title", new Vector2(30, 35), new Vector2(1100, 80), 53);
+            var title = ManagementWidgets.Label(card, "Main menu title", new Vector2(30, 8), new Vector2(1100, 62), 53);
             title.text = "MYTHOLOGICUM"; title.alignment = TextAnchor.MiddleCenter;
             UIThemeElement.Mark(title.gameObject, UIThemeRole.Title);
-            var subtitle = ManagementWidgets.Label(card, "Main menu subtitle", new Vector2(30, 118), new Vector2(1100, 52), 29);
+            var subtitle = ManagementWidgets.Label(card, "Main menu subtitle", new Vector2(30, 70), new Vector2(1100, 42), 29);
             subtitle.text = "The Grand Exhibition"; subtitle.alignment = TextAnchor.MiddleCenter;
             UIThemeElement.Mark(subtitle.gameObject, UIThemeRole.Heading);
-            var content = ManagementWidgets.Scroll(card, "Main menu actions", new Vector2(320, 207), new Vector2(520, 318), 0);
+            var content = ManagementWidgets.Scroll(card, "Main menu actions", new Vector2(313, 126), new Vector2(534, 282), 0);
             var actionBackground = content.GetComponentInParent<ScrollRect>(true).GetComponent<Image>();
             actionBackground.color = Color.clear;
             UIThemeElement.Mark(actionBackground.gameObject, UIThemeRole.Ignore);
             var entries = CreateActions(navigation, load);
-            float y = 8;
+            float y = 6;
             foreach (var action in entries)
             {
                 var item = action;
-                var button = ManagementWidgets.Button(content, item.Name, new Vector2(10, y), new Vector2(500, 64), () =>
+                var button = ManagementWidgets.Button(content, item.Name, new Vector2(10, y), new Vector2(500, 56), () =>
                 {
                     if (SettingsPresentation.IsOpen || NewGameSetup.IsOpen || !(item.Enabled?.Invoke() ?? true)) return;
                     item.Execute();
                 }, 24);
                 button.navigation = new Navigation { mode = Navigation.Mode.Automatic };
-                actions.Add(new KeyValuePair<MenuAction, Button>(item, button)); y += 76;
+                actions.Add(new KeyValuePair<MenuAction, Button>(item, button)); y += 68;
             }
             content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, y);
-            Message = ManagementWidgets.Label(card, "Main menu message", new Vector2(130, 553), new Vector2(900, 64), 19);
+            Message = ManagementWidgets.Label(card, "Main menu message", new Vector2(130, 430), new Vector2(900, 56), 19);
             Message.text = ""; Message.alignment = TextAnchor.MiddleCenter;
         }
 

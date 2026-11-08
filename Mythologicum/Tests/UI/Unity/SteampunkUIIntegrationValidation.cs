@@ -10,6 +10,8 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
@@ -181,6 +183,12 @@ public static class SteampunkUIIntegrationValidation
             if (sprite != null)
                 Check(AssetDatabase.GetAssetPath(sprite).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
                     "An optional theme icon resolves retained artwork: " + sprite.name);
+        Check(theme.verticalInfoFrame != null && theme.verticalInfoFrame.name == "Steampunk_UI_Frames_1_2",
+            "Vertical information frames use the designer's exact selected artwork");
+        Check(theme.horizontalInfoFrame != null && theme.horizontalInfoFrame.name == "Steampunk_UI_Dialogue_2_0",
+            "Horizontal information frames use the designer's exact selected artwork");
+        Check(theme.expeditionMapBackground != null && theme.expeditionMapBackground.name == "Steampunk_UI_Dialogue_1_1",
+            "The expedition map retains the designer's exact parchment background");
         foreach (Font font in new[] { theme.bodyFont, theme.headingFont, theme.titleFont })
             Check(font != null, "Theme fonts are available for legacy UGUI text");
         Check(theme.bodyFont != null && AssetDatabase.GetAssetPath(theme.bodyFont).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
@@ -261,6 +269,7 @@ public static class SteampunkUIIntegrationValidation
         ValidateGameplayChrome(canvas, palette);
         ValidateParkStatus(controller, true);
         ValidateCursor(false);
+        ValidateFrameworkEdgeCases(canvas);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Building"), UIIconKind.Building, true);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Park Management"), UIIconKind.ParkManagement);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Encyclopedia"), UIIconKind.Encyclopedia);
@@ -339,6 +348,11 @@ public static class SteampunkUIIntegrationValidation
         Check(creatures.TrySpawn(Resources.Load<CreatureDefinition>("Creatures/Chupacabra"), Cell(19, 18)), "Creature inspector has a living mythological creature");
         var animal = creatures.Agents.Last();
         var guest = controller.Visitors.TrySpawn(); Check(guest != null, "Visitor HUD and inspector retain working visitor admission");
+        building.Refresh(CurrentCamera);
+        creatures.RefreshExternal(guest.Actor);
+        CheckNoWorldLabels("Buildings, staff, visitors and creatures");
+        var cameraChecks = ValidateCameraFollow(controller, animal, guest, records[BuildingKind.ResearchCentre]);
+        while (cameraChecks.MoveNext()) yield return cameraChecks.Current;
         controller.Visitors.RefreshReputation(); controller.Economy.Advance(10); BuildingEconomy.Tick(building.Network, controller.Economy, 10);
         controller.Economy.Earn(25, ParkTransactionCategory.Food);
         ValidateParkStatus(controller, true);
@@ -369,21 +383,46 @@ public static class SteampunkUIIntegrationValidation
         Invoke(controller, "OpenParkManagement");
         Field<ParkManagementPresentation>(controller, "parkManagement").Close();
         var buildingInfo = Field<BuildingInspection>(controller, "buildingInspection");
+        foreach (var kind in new[] { BuildingKind.ParkEntrance, BuildingKind.Kiosk, BuildingKind.RestArea })
+        {
+            buildingInfo.SetInspecting(true); buildingInfo.Select(records[kind]);
+            yield return null;
+            RefreshResponsiveInspectors();
+            var shortPanel = Field<GameObject>(buildingInfo, "panel");
+            ValidateInfoFrame(shortPanel, true);
+            var shortScrolls = shortPanel.GetComponentsInChildren<ScrollRect>()
+                .Where(scroll => scroll.gameObject.activeInHierarchy).ToArray();
+            Check(shortScrolls.Length == 1, kind + " information has one content surface rather than nested scrolling boxes");
+            ValidateScrollInput(shortScrolls.Single(), false, kind + " information");
+            if (kind == BuildingKind.Kiosk)
+            {
+                Capture("Building-Kiosk", shortPanel, 1280, 720);
+                Capture("Building-Kiosk-1920", shortPanel, 1920, 1080);
+            }
+        }
         buildingInfo.SetInspecting(true); buildingInfo.Select(records[BuildingKind.ResearchCentre]);
         yield return null;
+        ValidateInfoFrame(Field<GameObject>(buildingInfo, "panel"), true);
         Capture("Building-Inspector", Field<GameObject>(buildingInfo, "panel"), 1280, 720);
         buildingInfo.Select(null);
         var creatureInfo = Field<CreatureInspection>(controller, "creatureInspection");
         creatureInfo.SetInspecting(true); creatureInfo.Select(animal);
         yield return null;
+        ValidateInfoFrame(Field<GameObject>(creatureInfo, "panel"), true);
         Capture("Creature-Inspector", Field<GameObject>(creatureInfo, "panel"), 1280, 720);
+        Capture("Creature-Inspector-1920", Field<GameObject>(creatureInfo, "panel"), 1920, 1080);
         creatureInfo.Select(null);
         var visitorInfo = Field<VisitorPresentation>(controller, "visitorPresentation"); visitorInfo.SetInspecting(true); visitorInfo.Select(guest);
         yield return null;
+        ValidateInfoFrame(Field<GameObject>(visitorInfo, "panel"), true);
         Capture("Visitor-Inspector", Field<GameObject>(visitorInfo, "panel"), 1280, 720); visitorInfo.Select(null);
 
         for (int x = 18; x < 22; x++) { fences.TryPlace(new FenceEdge(Cell(x, 17), true)); fences.TryPlace(new FenceEdge(Cell(x, 21), true)); }
         for (int z = 17; z < 21; z++) { fences.TryPlace(new FenceEdge(Cell(18, z), false)); fences.TryPlace(new FenceEdge(Cell(22, z), false)); }
+        var damagedEdge = new FenceEdge(Cell(18, 17), true);
+        Check(fences.Layout.TryDamage(damagedEdge, 10f) > 0, "The label check includes a genuinely damaged fence");
+        fences.Refresh(CurrentCamera);
+        CheckNoWorldLabels("Damaged fences and all placed park objects");
         var enclosures = Field<EnclosureMap>(controller, "enclosureMap"); enclosures.Refresh(building.Network.IsPathConnected);
         var enclosureInfo = Field<EnclosurePresentation>(controller, "enclosurePresentation"); enclosureInfo.SetInspecting(true); enclosureInfo.Select(Cell(19, 18)); enclosureInfo.Refresh();
         Check(Field<GameObject>(enclosureInfo, "panel").activeSelf, "Enclosure information remains selectable after restyling");
@@ -405,6 +444,11 @@ public static class SteampunkUIIntegrationValidation
         yield return null;
         var progression = Field<ProgressionPresentation>(controller, "management");
         Capture("Expeditions", Field<GameObject>(progression, "map"), 1280, 720);
+        var worldMap = Field<GameObject>(progression, "map").GetComponentsInChildren<Image>()
+            .Single(image => image.name == "World map");
+        Check(worldMap.sprite != null && worldMap.sprite.name == "Steampunk_UI_Dialogue_1_1",
+            "The actual expedition region map renders on the chosen parchment artwork");
+        Check(worldMap.color.a > .9f, "The world map parchment is visible behind its continent drawing and region controls");
         FindButton(Field<GameObject>(progression, "map").transform, "Buy team").onClick.Invoke();
         Check(controller.Progression.Teams == 1, "Restyled expedition controls preserve their purchase action"); progression.Close();
         Invoke(controller, "OpenTechnologies", records[BuildingKind.ResearchCentre]);
@@ -413,6 +457,7 @@ public static class SteampunkUIIntegrationValidation
         FindButton(palette.Root.transform, "Park Management").onClick.Invoke();
         yield return null;
         var management = Field<ParkManagementPresentation>(controller, "parkManagement"); var managementRoot = Field<GameObject>(management, "root");
+        ValidateInfoFrame(managementRoot, false);
         foreach (string tab in new[] { "Statistics", "Finances", "Prices & budget", "Star rating" })
         {
             FindButton(managementRoot.transform, tab).onClick.Invoke(); yield return null;
@@ -445,6 +490,9 @@ public static class SteampunkUIIntegrationValidation
             && !article.text.Contains("Habitat: ") && !article.text.Contains("Containment: "),
             "Unresearched creature biographies conceal the locked care and containment discoveries");
         Capture("Encyclopedia-Creature-Unknown", book, 1280, 720);
+        var unknownArticleScroll = book.GetComponentsInChildren<ScrollRect>()
+            .Single(scroll => scroll.name == "Encyclopedia article scroll");
+        ValidateScrollInput(unknownArticleScroll, false, "Unresearched creature biography");
         Check(research.Study(chupacabra, 25), "The encyclopedia fixture advances real researcher knowledge");
         encyclopedia.Refresh(); yield return null;
         Check(articleSummary.text.Contains("25%") && article.text.Contains(research.Description(chupacabra))
@@ -474,8 +522,31 @@ public static class SteampunkUIIntegrationValidation
         }
         Capture("Encyclopedia-Management", book, 1280, 720);
         Capture("Encyclopedia-Management-1920", book, 1920, 1080);
+        Capture("Encyclopedia-Management-4x3", book, 1024, 768);
+        Capture("Encyclopedia-Management-Ultrawide", book, 2560, 1080);
         Check(controller.CloseManagementWindow() && !encyclopedia.IsOpen,
             "The normal management-window close route dismisses the encyclopedia");
+        buildingInfo.Select(records[BuildingKind.ResearchCentre]);
+        yield return null;
+        RefreshResponsiveInspectors();
+        var researchPanel = Field<GameObject>(buildingInfo, "panel");
+        var researchScroll = researchPanel.GetComponentsInChildren<ScrollRect>()
+            .Single(scroll => scroll.gameObject.activeInHierarchy);
+        ValidateScrollInput(researchScroll, true, "Research workplace with fully unlocked care notes");
+        researchScroll.verticalNormalizedPosition = .4f;
+        buildingInfo.Refresh(); UIOverflowScroll.Attach(researchScroll).Refresh();
+        Check(Near(researchScroll.verticalNormalizedPosition, .4f, .035f),
+            "Refreshing a long building report preserves its current reading position");
+        Capture("Building-Research-Expanded", researchPanel, 1280, 720);
+        foreach (int repeat in new[] { 0, 1 })
+        {
+            buildingInfo.Select(records[BuildingKind.Kiosk]); RefreshResponsiveInspectors();
+            var compactScroll = researchPanel.GetComponentsInChildren<ScrollRect>()
+                .Single(scroll => scroll.gameObject.activeInHierarchy);
+            ValidateScrollInput(compactScroll, false, "Short kiosk report after long research report, selection " + repeat);
+            buildingInfo.Select(records[BuildingKind.ResearchCentre]); RefreshResponsiveInspectors();
+        }
+        buildingInfo.Select(null);
         Invoke(controller, "SelectTerrainBrush", TerrainBrushMode.Raise);
         yield return null;
         var terrain = Field<TerrainEditingPresentation>(controller, "terrainEditing");
@@ -540,6 +611,281 @@ public static class SteampunkUIIntegrationValidation
         Capture("Loaded-Park-Pause", Field<GameObject>(controller.GetComponent<GameSaveMenu>(), "overlay"), 1280, 720);
         File.WriteAllText(Result, "PASS: " + checks + " steampunk asset, menu, settings, UI layout, GPU, interaction and save/load checks.\nCaptures: " + captures + " in " + Captures);
         pending = false; EditorApplication.Exit(0);
+    }
+
+    static void CheckNoWorldLabels(string population)
+    {
+        var labels = UnityEngine.Object.FindObjectsByType<TextMesh>(FindObjectsSortMode.None)
+            .Where(label => label.gameObject.activeInHierarchy).ToArray();
+        Check(labels.Length == 0, population + " have no floating TextMesh labels: "
+            + string.Join(", ", labels.Select(label => label.name)));
+        Check(!UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None)
+            .Any(canvas => canvas.renderMode == RenderMode.WorldSpace && canvas.GetComponentsInChildren<Text>()
+                .Any(text => text.enabled && !string.IsNullOrWhiteSpace(text.text))),
+            population + " do not replace their removed floating labels with world-space text canvases");
+    }
+
+    static void ValidateInfoFrame(GameObject panel, bool vertical)
+    {
+        UIThemeApplicator.ApplyAll(CurrentCanvas); Canvas.ForceUpdateCanvases();
+        string expected = vertical ? "Steampunk_UI_Frames_1_2" : "Steampunk_UI_Dialogue_2_0";
+        var surfaces = panel.GetComponentsInChildren<Image>().Where(image => image.sprite != null
+            && image.sprite.name == expected && image.isActiveAndEnabled).ToArray();
+        Check(surfaces.Length > 0, panel.name + " uses the selected " + (vertical ? "vertical" : "horizontal") + " information frame");
+        foreach (var image in surfaces) ValidateFrameProportions(image, panel.name);
+    }
+
+    static void ValidateFrameProportions(Image image, string page)
+    {
+        Check(image.type == Image.Type.Simple && image.preserveAspect,
+            page + " renders the complete frame proportionally rather than stretching its ornament: " + image.name);
+        var corners = new Vector3[4]; image.rectTransform.GetWorldCorners(corners);
+        float width = Vector3.Distance(corners[0], corners[3]);
+        float height = Vector3.Distance(corners[0], corners[1]);
+        float sourceAspect = image.sprite.rect.width / image.sprite.rect.height;
+        Check(height > 0 && Mathf.Abs(width / height / sourceAspect - 1f) < .01f,
+            page + " keeps the artwork's original aspect ratio: " + image.sprite.name
+                + "; displayed=" + width + "x" + height + "; source=" + image.sprite.rect.size);
+    }
+
+    static void ValidateScrollInput(ScrollRect scroll, bool overflowExpected, string report)
+    {
+        UIOverflowScroll.Attach(scroll).Refresh(); Canvas.ForceUpdateCanvases();
+        Check(scroll.content != null && scroll.viewport != null, report + " retains a real content viewport");
+        float overflow = scroll.content.rect.height - scroll.viewport.rect.height;
+        Check(overflowExpected ? overflow > 2f : overflow <= 1f,
+            report + (overflowExpected ? " has genuinely overflowing content" : " contains no artificial blank overflow")
+                + "; content=" + scroll.content.rect.height + "; viewport=" + scroll.viewport.rect.height);
+        Check(scroll.vertical == overflowExpected, report + " only enables vertical scrolling when its content needs it");
+        if (scroll.verticalScrollbar != null)
+            Check(scroll.verticalScrollbar.gameObject.activeInHierarchy == overflowExpected,
+                report + " only shows its scrollbar when its content needs it");
+        scroll.verticalNormalizedPosition = 1; scroll.StopMovement();
+        Vector2 start = scroll.content.anchoredPosition;
+        Vector2 point = RectTransformUtility.WorldToScreenPoint(CurrentCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : CurrentCanvas.worldCamera,
+            scroll.viewport.TransformPoint(scroll.viewport.rect.center));
+        var wheel = new PointerEventData(EventSystem.current) { position = point, scrollDelta = new Vector2(0, -3f) };
+        ExecuteEvents.Execute(scroll.gameObject, wheel, ExecuteEvents.scrollHandler);
+        Check(overflowExpected ? Vector2.Distance(scroll.content.anchoredPosition, start) > 1f
+                : Vector2.Distance(scroll.content.anchoredPosition, start) < .01f,
+            report + (overflowExpected ? " responds to a real scroll-wheel event" : " ignores scroll-wheel input while all content fits"));
+        scroll.verticalNormalizedPosition = 1; scroll.StopMovement(); start = scroll.content.anchoredPosition;
+        var drag = new PointerEventData(EventSystem.current) { position = point, pressPosition = point,
+            button = PointerEventData.InputButton.Left };
+        ExecuteEvents.Execute(scroll.gameObject, drag, ExecuteEvents.initializePotentialDrag);
+        ExecuteEvents.Execute(scroll.gameObject, drag, ExecuteEvents.beginDragHandler);
+        drag.position = point + Vector2.up * 80; drag.delta = Vector2.up * 80;
+        ExecuteEvents.Execute(scroll.gameObject, drag, ExecuteEvents.dragHandler);
+        ExecuteEvents.Execute(scroll.gameObject, drag, ExecuteEvents.endDragHandler);
+        Check(overflowExpected ? Vector2.Distance(scroll.content.anchoredPosition, start) > 1f
+                : Vector2.Distance(scroll.content.anchoredPosition, start) < .01f,
+            report + (overflowExpected ? " responds to a real drag event" : " does not drag when all content fits"));
+        scroll.verticalNormalizedPosition = 1; scroll.StopMovement();
+    }
+
+    static void ValidateFrameworkEdgeCases(Canvas canvas)
+    {
+        var list = new GameObject("Exact-fit list validation", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(ScrollRect));
+        list.transform.SetParent(canvas.transform, false);
+        var listRect = (RectTransform)list.transform;
+        listRect.anchorMin = listRect.anchorMax = listRect.pivot = new Vector2(.5f, .5f);
+        listRect.sizeDelta = new Vector2(240, 160);
+        list.GetComponent<Image>().color = Color.clear; UIThemeElement.Mark(list, UIThemeRole.Ignore);
+        var viewportObject = new GameObject("Viewport", typeof(RectTransform));
+        viewportObject.transform.SetParent(list.transform, false);
+        var viewport = (RectTransform)viewportObject.transform;
+        viewport.anchorMin = Vector2.zero; viewport.anchorMax = Vector2.one;
+        viewport.offsetMin = viewport.offsetMax = Vector2.zero;
+        var contentObject = new GameObject("Content", typeof(RectTransform));
+        contentObject.transform.SetParent(viewport, false);
+        var content = (RectTransform)contentObject.transform;
+        content.anchorMin = new Vector2(0, 1); content.anchorMax = Vector2.one; content.pivot = new Vector2(0, 1);
+        content.sizeDelta = new Vector2(0, 160);
+        var rows = new GameObject[6];
+        for (int i = 0; i < rows.Length; i++)
+        {
+            rows[i] = new GameObject("32-pixel row " + i, typeof(RectTransform));
+            rows[i].transform.SetParent(content, false);
+            var row = (RectTransform)rows[i].transform;
+            row.anchorMin = new Vector2(0, 1); row.anchorMax = Vector2.one; row.pivot = new Vector2(0, 1);
+            row.anchoredPosition = new Vector2(0, -32 * i); row.sizeDelta = new Vector2(0, 32);
+        }
+        rows[5].SetActive(false);
+        var scroll = list.GetComponent<ScrollRect>(); scroll.viewport = viewport; scroll.content = content;
+        Canvas.ForceUpdateCanvases();
+        ValidateScrollInput(scroll, false, "Five 32-pixel rows in an exactly 160-pixel viewport");
+        Check(Near(content.rect.height, 160f, .05f), "An exactly fitting list does not acquire padding that invents overflow");
+        ((RectTransform)rows[4].transform).sizeDelta = new Vector2(0, 33);
+        var overflowState = UIOverflowScroll.Attach(scroll); overflowState.Refresh();
+        Check(Near(content.rect.height, 161f, .05f) && overflowState.HasOverflow && scroll.vertical,
+            "One extra pixel of real row content enables scrolling at the exact-fit boundary");
+        ((RectTransform)rows[4].transform).sizeDelta = new Vector2(0, 32);
+        ValidateScrollInput(scroll, false, "Exact-fit list after its extra pixel is removed");
+        rows[5].SetActive(true);
+        ValidateScrollInput(scroll, true, "A sixth real row in the 160-pixel viewport");
+        rows[5].SetActive(false);
+        ValidateScrollInput(scroll, false, "Exact-fit list after its extra row is removed");
+        list.SetActive(false); UnityEngine.Object.Destroy(list);
+
+        var corner = new GameObject("Corner frame validation", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        corner.transform.SetParent(canvas.transform, false);
+        var cornerRect = (RectTransform)corner.transform;
+        cornerRect.anchorMin = cornerRect.anchorMax = cornerRect.pivot = Vector2.zero;
+        cornerRect.anchoredPosition = new Vector2(24, 210);
+        UIFramedPanel.Attach(corner, true, 500);
+        Capture("Native-Frame-Corner-600", corner, 1000, 600);
+        corner.SetActive(false); UnityEngine.Object.Destroy(corner);
+    }
+
+    static IEnumerator ValidateCameraFollow(BuildModeController controller, CreatureAgent animal,
+        VisitorAgent guest, ParkBuildingRecord building)
+    {
+        var camera = controller.GetComponent<IsometricCameraController>();
+        Vector3 originalFocus = camera.SavedFocus;
+        float originalYaw = camera.SavedYaw, originalZoom = camera.SavedZoom;
+        var toolType = Field<object>(controller, "tool").GetType();
+        Invoke(controller, "SelectTool", Enum.Parse(toolType, "None"));
+        camera.RestorePose(originalFocus, originalYaw, 18f);
+        camera.enabled = true;
+        Check((bool)Invoke(controller, "TryInspectObject", animal.GetComponent<Collider>()),
+            "Click routing recognizes a creature's actual collider");
+        Check(camera.IsFollowing && camera.FollowingTarget == animal.transform,
+            "Selecting a living creature attaches the camera to that creature");
+        for (int i = 0; i < 8; i++) yield return null;
+        Check(camera.SavedZoom < 18f - 1f, "Selecting a small creature smoothly zooms in from the overview");
+        var animalViewport = CurrentCamera.WorldToViewportPoint(animal.GetComponent<Collider>().bounds.center);
+        var creatureInfo = Field<CreatureInspection>(controller, "creatureInspection");
+        float creatureViewportX = animalViewport.x;
+        Check(animalViewport.z > 0 && animalViewport.x > .15f
+            && animalViewport.x < InspectorLeft(Field<GameObject>(creatureInfo, "panel")) - .04f
+            && Near(animalViewport.y, .5f, .08f),
+            "The selected creature is centered in the park area left clear by its information panel");
+        Check(Field<GameObject>(creatureInfo, "panel").activeSelf,
+            "Camera focus preserves the selected creature's information panel");
+        Capture("Camera-Follow-Creature", Field<GameObject>(creatureInfo, "panel"), 1280, 720);
+        Vector3 oldPosition = animal.transform.position, oldFocus = camera.SavedFocus;
+        animal.transform.position += new Vector3(4f, 0f, 2f);
+        Physics.SyncTransforms();
+        for (int i = 0; i < 6; i++) yield return null;
+        var movedViewport = CurrentCamera.WorldToViewportPoint(animal.GetComponent<Collider>().bounds.center);
+        Check(camera.IsFollowing && (camera.SavedFocus - oldFocus).sqrMagnitude > 9f
+            && Near(movedViewport.x, creatureViewportX, .045f) && Near(movedViewport.y, animalViewport.y, .08f),
+            "The attached camera follows the creature as it moves across the park; following=" + camera.IsFollowing
+                + "; focus " + oldFocus + " -> " + camera.SavedFocus + "; viewport=" + movedViewport
+                + "; expected x=" + creatureViewportX + "; original viewport=" + animalViewport
+                + "; actor=" + animal.transform.position + "; collider=" + animal.GetComponent<Collider>().bounds.center);
+        animal.transform.position = oldPosition;
+        Physics.SyncTransforms();
+        Check((bool)Invoke(controller, "TryInspectObject", guest.Actor.GetComponent<Collider>())
+            && camera.FollowingTarget == guest.Actor.transform,
+            "Selecting a visitor switches camera attachment to that visitor");
+        var worker = controller.Personnel.Staff.First();
+        Check((bool)Invoke(controller, "TryInspectObject", worker.Actor.GetComponent<Collider>())
+            && camera.FollowingTarget == worker.Actor.transform,
+            "Selecting a staff member follows the person rather than their workplace");
+        var selection = UnityEngine.Object.FindObjectsByType<BuildingSelection>(FindObjectsSortMode.None)
+            .Single(candidate => candidate.Record == building);
+        Check((bool)Invoke(controller, "TryInspectObject", selection.GetComponent<Collider>())
+            && camera.FollowingTarget == selection.transform,
+            "Selecting a building moves camera attachment to that building");
+        for (int i = 0; i < 6; i++) yield return null;
+        var viewport = CurrentCamera.WorldToViewportPoint(selection.GetComponent<Collider>().bounds.center);
+        float buildingLeft = InspectorLeft(Field<GameObject>(Field<BuildingInspection>(controller, "buildingInspection"), "panel"));
+        Check(viewport.z > 0 && viewport.x > .15f && viewport.x < buildingLeft - .04f && Near(viewport.y, .5f, .08f),
+            "The focused building remains visibly framed beside its information panel");
+        ValidateSelectionBounds(selection.GetComponent<Collider>().bounds, buildingLeft);
+        var previousKeyboard = Keyboard.current;
+        var keyboard = InputSystem.AddDevice<Keyboard>("Camera follow validation keyboard");
+        float oldTimeScale = Time.timeScale;
+        try
+        {
+            Time.timeScale = 1;
+            float oldYaw = camera.SavedYaw;
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); InputSystem.Update();
+            keyboard.MakeCurrent();
+            // The batch editor has separate Editor and Player input-state buffers. Consume the
+            // injected state in the same update before another loop swaps the active buffer.
+            Invoke(camera, "Update");
+            Check(camera.IsFollowing && !Near(camera.SavedYaw, oldYaw),
+                "The player can rotate the view while it remains attached to a selected object; "
+                    + CameraInputDiagnostic(camera, keyboard, controller, oldYaw));
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); InputSystem.Update();
+            for (int i = 0; i < 4; i++) yield return null;
+            ValidateSelectionBounds(selection.GetComponent<Collider>().bounds, buildingLeft);
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W)); InputSystem.Update();
+            keyboard.MakeCurrent(); Invoke(camera, "Update");
+            Check(!camera.IsFollowing, "Manual WASD camera movement releases the selected-object attachment; "
+                + CameraInputDiagnostic(camera, keyboard, controller, camera.SavedYaw));
+        }
+        finally
+        {
+            Time.timeScale = oldTimeScale; InputSystem.RemoveDevice(keyboard);
+            if (previousKeyboard != null && previousKeyboard.added) previousKeyboard.MakeCurrent();
+        }
+        Invoke(controller, "TryInspectObject", animal.GetComponent<Collider>());
+        Invoke(controller, "SelectTool", Enum.Parse(toolType, "Demolish"));
+        Check(!camera.IsFollowing, "Starting a construction tool releases the selected-object camera");
+        Invoke(controller, "SelectTool", Enum.Parse(toolType, "None"));
+        Invoke(controller, "TryInspectObject", animal.GetComponent<Collider>());
+        Check(controller.CloseManagementWindow() && !camera.IsFollowing && !GameSaveMenu.IsOpen
+            && !Field<GameObject>(creatureInfo, "panel").activeSelf,
+            "The Escape close route releases the selected creature and inspector before opening Pause");
+        Invoke(controller, "TryInspectObject", animal.GetComponent<Collider>());
+        typeof(CreatureAgent).GetProperty("Alive").SetValue(animal, false);
+        yield return null;
+        Check(!camera.IsFollowing, "The camera releases a selected creature as soon as it dies");
+        typeof(CreatureAgent).GetProperty("Alive").SetValue(animal, true);
+        var disposable = new GameObject("Camera follow validation target");
+        camera.Follow(disposable.transform, new Bounds(disposable.transform.position, Vector3.one));
+        UnityEngine.Object.Destroy(disposable);
+        yield return null;
+        Check(!camera.IsFollowing, "Destroying a selected object safely clears the camera attachment");
+        camera.Follow(animal.transform, new Bounds(animal.transform.position, Vector3.one));
+        camera.FocusOn(originalFocus);
+        Check(!camera.IsFollowing, "A location focus command releases object follow");
+        camera.Follow(animal.transform, new Bounds(animal.transform.position, Vector3.one));
+        camera.RestorePose(originalFocus, originalYaw, originalZoom);
+        Check(!camera.IsFollowing && Near(camera.SavedZoom, originalZoom),
+            "Restoring a saved camera pose releases follow and restores its saved zoom");
+        camera.enabled = false;
+        Field<BuildingInspection>(controller, "buildingInspection").Select(null);
+        Field<VisitorPresentation>(controller, "visitorPresentation").Select(null);
+        creatureInfo.Select(null);
+    }
+
+    static void ValidateSelectionBounds(Bounds bounds, float inspectorLeft)
+    {
+        for (int x = -1; x <= 1; x += 2)
+            for (int y = -1; y <= 1; y += 2)
+                for (int z = -1; z <= 1; z += 2)
+                {
+                    var viewport = CurrentCamera.WorldToViewportPoint(bounds.center
+                        + Vector3.Scale(bounds.extents, new Vector3(x, y, z)));
+                    Check(viewport.z > 0 && viewport.x > -.02f && viewport.x < inspectorLeft + .02f
+                        && viewport.y > -.02f && viewport.y < 1.02f,
+                        "Every selected building corner stays inside the park view beside the inspector: " + viewport);
+                }
+    }
+
+    static float InspectorLeft(GameObject panel)
+    {
+        var corners = new Vector3[4]; ((RectTransform)panel.transform).GetWorldCorners(corners);
+        Camera input = CurrentCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : CurrentCanvas.worldCamera;
+        return RectTransformUtility.WorldToScreenPoint(input, corners[0]).x / Screen.width;
+    }
+
+    static string CameraInputDiagnostic(IsometricCameraController camera, Keyboard keyboard,
+        BuildModeController controller, float oldYaw)
+    {
+        var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+        var input = selected != null ? selected.GetComponent<InputField>() : null;
+        return "following=" + camera.IsFollowing + "; yaw=" + oldYaw + " -> " + camera.SavedYaw
+            + "; currentKeyboard=" + (Keyboard.current == keyboard) + "; Q=" + keyboard.qKey.isPressed
+            + "; W=" + keyboard.wKey.isPressed + "; updateType=" + InputState.currentUpdateType
+            + "; focusedInput=" + (input != null && input.isFocused) + "; selected=" + selected
+            + "; pause=" + GameSaveMenu.IsOpen + "; settings=" + SettingsPresentation.IsOpen
+            + "; management=" + controller.ManagementOpen + "; cameraEnabled=" + camera.enabled
+            + "; delta=" + Time.unscaledDeltaTime;
     }
 
     static void ValidateMovementInstructions(GameObject settings)
@@ -727,11 +1073,21 @@ public static class SteampunkUIIntegrationValidation
         try
         {
             camera.targetTexture = target; canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 1;
+            Canvas.ForceUpdateCanvases(); RefreshResponsiveInspectors();
             UIThemeApplicator.ApplyAll(canvas); Canvas.ForceUpdateCanvases();
             // New dialogs can be created and captured within this same editor callback.
             // Populate CanvasRenderer absolute depths before asking GraphicRaycaster to sort them.
             var request = new UniversalRenderPipeline.SingleCameraRequest { destination = target };
             for (int i = 0; i < 3; i++) RenderPipeline.SubmitRenderRequest(camera, request);
+            foreach (var frameImage in focus.GetComponentsInChildren<Image>())
+            {
+                if (frameImage.sprite == null || !frameImage.isActiveAndEnabled) continue;
+                string spriteName = frameImage.sprite.name;
+                if (spriteName != "Steampunk_UI_Frames_1_2" && spriteName != "Steampunk_UI_Dialogue_2_0"
+                    && spriteName != "Steampunk_UI_Dialogue_1_1") continue;
+                ValidateFrameProportions(frameImage, name + " at " + width + "x" + height);
+                CheckOnScreen(frameImage.rectTransform, camera, width, height, name + "/" + frameImage.name);
+            }
             foreach (var button in focus.GetComponentsInChildren<Button>())
             {
                 if (button.GetComponentInParent<ScrollRect>() == null) CheckOnScreen((RectTransform)button.transform, camera, width, height, name + "/" + button.name);
@@ -789,7 +1145,25 @@ public static class SteampunkUIIntegrationValidation
             camera.targetTexture = oldTarget; canvas.renderMode = oldMode; canvas.worldCamera = oldCamera; canvas.planeDistance = oldDistance;
             RenderTexture.active = oldActive; if (image != null) UnityEngine.Object.DestroyImmediate(image);
             target.Release(); UnityEngine.Object.DestroyImmediate(target); Canvas.ForceUpdateCanvases();
+            RefreshResponsiveInspectors(); UIThemeApplicator.ApplyAll(canvas); Canvas.ForceUpdateCanvases();
         }
+    }
+    static void RefreshResponsiveInspectors()
+    {
+        // Exporting at another resolution changes the root canvas within this same editor
+        // callback. Run the production sizing path before rendering instead of waiting a frame.
+        var canvas = CurrentCanvas;
+        foreach (var frame in canvas.GetComponentsInChildren<UIFramedPanel>()) frame.Refresh();
+        Canvas.ForceUpdateCanvases();
+        var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
+        if (controller != null)
+        {
+            Field<CreatureInspection>(controller, "creatureInspection")?.Refresh();
+            Field<BuildingInspection>(controller, "buildingInspection")?.Refresh();
+            Field<VisitorPresentation>(controller, "visitorPresentation")?.Refresh();
+        }
+        Canvas.ForceUpdateCanvases();
+        foreach (var scroll in canvas.GetComponentsInChildren<ScrollRect>()) UIOverflowScroll.Attach(scroll).Refresh();
     }
     static void CheckOnScreen(RectTransform rect, Camera camera, int width, int height, string name)
     {

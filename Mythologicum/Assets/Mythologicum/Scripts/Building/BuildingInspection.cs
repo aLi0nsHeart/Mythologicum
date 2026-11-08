@@ -14,33 +14,40 @@ namespace Mythologicum
         private readonly Button hire, fire;
         private readonly Dropdown researchChoice;
         private readonly Button management;
+        private readonly UIFramedPanel frame;
+        private readonly RectTransform body, content;
+        private readonly ScrollRect detailsScroll;
+        private readonly Button applyPrice;
         private Action<ParkBuildingRecord> openExpeditions, openTechnology;
         private readonly StaffWorld staff;
         private readonly SpeciesResearch research;
         private readonly CreatureDefinition[] species;
         private ParkBuildingRecord selected;
         private bool inspecting = true;
+        public RectTransform PanelRect => (RectTransform)panel.transform;
 
         public BuildingInspection(Canvas canvas, Font font, StaffWorld staff, SpeciesResearch research, CreatureDefinition[] species)
         {
             this.staff = staff; this.research = research; this.species = species ?? Array.Empty<CreatureDefinition>();
-            panel = Box(canvas.transform, "Building information", new Vector2(1f,1f), new Vector2(-15f,-140f), new Vector2(430f,650f));
-            title = Label(panel.transform, "Building name", font, 22, new Vector2(12f,10f), new Vector2(406f,48f));
-            management = MakeButton(panel.transform,"Technology research",font,new Vector2(12f,62f),new Vector2(406f,36f),()=>
+            panel = Box(canvas.transform, "Building information", new Vector2(1f,1f), new Vector2(-24f,-24f), Vector2.zero);
+            frame=UIFramedPanel.Attach(panel,true,500f);body=frame.Content;
+            title = Label(body, "Building name", font, 22, Vector2.zero, new Vector2(406f,38f));
+            management = MakeButton(body,"Technology research",font,new Vector2(0f,46f),new Vector2(406f,38f),()=>
             {
                 if(selected?.Footprint.Definition.kind==BuildingKind.ExpeditionCentre)openExpeditions?.Invoke(selected);
                 else if(selected?.Footprint.Definition.kind==BuildingKind.ResearchCentre)openTechnology?.Invoke(selected);
             });
-            var content=ManagementWidgets.Scroll(panel.transform,"Building details - scroll",new Vector2(8f,106f),new Vector2(414f,534f),590f);
+            content=ManagementWidgets.Scroll(body,"Building details - scroll",Vector2.zero,new Vector2(406f,400f),0f);
+            detailsScroll=content.GetComponentInParent<ScrollRect>();
             var scrollRect=(RectTransform)content.parent.parent;scrollRect.anchorMin=Vector2.zero;scrollRect.anchorMax=Vector2.one;
-            scrollRect.offsetMin=new Vector2(8,10);scrollRect.offsetMax=new Vector2(-8,-106);
+            scrollRect.offsetMin=Vector2.zero;scrollRect.offsetMax=new Vector2(0,-94);
             accounts = Label(content, "Operating accounts", font, 18, Vector2.zero, new Vector2(406f,168f));
             message = Label(content, "Action result", font, 16, new Vector2(0f,221f), new Vector2(406f,36f));
 
             priceGroup = Group(content, "Price controls", new Vector2(0f,172f), new Vector2(406f,45f));
             priceCaption = Label(priceGroup.transform, "Price type", font, 17, Vector2.zero, new Vector2(150f,38f));
             price = PriceInput(priceGroup.transform, font, new Vector2(155f,0f), new Vector2(120f,36f));
-            MakeButton(priceGroup.transform, "Apply price", font, new Vector2(285f,0f), new Vector2(112f,36f), ApplyPrice);
+            applyPrice=MakeButton(priceGroup.transform, "Apply price", font, new Vector2(285f,0f), new Vector2(112f,36f), ApplyPrice);
 
             staffGroup = Group(content, "Personnel controls", new Vector2(0f,262f), new Vector2(406f,118f));
             hire = MakeButton(staffGroup.transform, "Hire", font, Vector2.zero, new Vector2(194f,36f), Hire);
@@ -55,13 +62,16 @@ namespace Mythologicum
                     staff.SetResearchTarget(selected, this.species[index]);
                 Refresh();
             });
-            researchNotes = ResearchNotes(researchGroup.transform, font);
+            researchNotes = Label(researchGroup.transform,"Unlocked notes",font,16,new Vector2(0,46),new Vector2(406,0));
+            UIOverflowScroll.Attach(detailsScroll);
             panel.SetActive(false);
         }
 
         public void Select(ParkBuildingRecord building)
         {
+            bool changed=selected!=building;
             selected = building; message.text = "";
+            if(changed){detailsScroll.StopMovement();detailsScroll.verticalNormalizedPosition=1f;}
             if (selected != null) price.text = selected.Price.ToString("0.##", CultureInfo.InvariantCulture);
             if (selected != null && selected.Footprint.Definition.kind == BuildingKind.ResearchCentre
                 && staff.ResearchTarget(selected) == null && species.Length > 0)
@@ -77,8 +87,7 @@ namespace Mythologicum
             bool show = inspecting && selected != null && staff.Buildings.Contains(selected);
             panel.SetActive(show);
             if (!show) return;
-            var parent=(RectTransform)panel.transform.parent;
-            ((RectTransform)panel.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,Mathf.Min(650f,Mathf.Max(280f,parent.rect.height-240f)));
+            frame.Refresh();
             BuildingDefinition definition = selected.Footprint.Definition;
             management.gameObject.SetActive(definition.kind==BuildingKind.ExpeditionCentre||definition.kind==BuildingKind.ResearchCentre);
             management.GetComponentInChildren<Text>().text=definition.kind==BuildingKind.ExpeditionCentre?"Open expedition world map":"Technology research";
@@ -127,10 +136,60 @@ namespace Mythologicum
                 researchChoice.interactable = species.Length > 0;
                 researchChoice.SetValueWithoutNotify(Math.Max(0,index));
                 researchNotes.text = target == null ? "Choose a creature species to study."
-                    : "Care notes (scroll to read)\n" + research.Description(target);
+                    : "Care notes\n" + research.Description(target);
                 if(staff.Progression?.ActiveProject(selected)!=null)researchNotes.text="Technology project active. Creature observation resumes when it finishes.\n"+researchNotes.text;
-                researchNotes.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(110f,researchNotes.preferredHeight));
             }
+            LayoutContents();
+        }
+
+        private void LayoutContents()
+        {
+            float width=body.rect.width;
+            TopLeft(title.rectTransform,Vector2.zero,new Vector2(width,38));
+            TopLeft((RectTransform)management.transform,new Vector2(0,46),new Vector2(width,38));
+            ((RectTransform)detailsScroll.transform).offsetMax=new Vector2(0,management.gameObject.activeSelf?-94:-46);
+            float w=Mathf.Max(100,detailsScroll.viewport.rect.width-16f),y=0;
+            PlaceText(accounts,w,ref y);
+            if(priceGroup.activeSelf)
+            {
+                TopLeft((RectTransform)priceGroup.transform,new Vector2(8,y),new Vector2(w,38));
+                TopLeft(priceCaption.rectTransform,Vector2.zero,new Vector2(w*.36f,38));
+                TopLeft((RectTransform)price.transform,new Vector2(w*.38f,0),new Vector2(w*.25f,38));
+                TopLeft((RectTransform)applyPrice.transform,new Vector2(w*.65f,0),new Vector2(w*.35f,38));
+                y+=50;
+            }
+            if(staffGroup.activeSelf)
+            {
+                TopLeft((RectTransform)staffGroup.transform,new Vector2(8,y),new Vector2(w,0));
+                TopLeft((RectTransform)hire.transform,Vector2.zero,new Vector2((w-12)/2,38));
+                TopLeft((RectTransform)fire.transform,new Vector2((w+12)/2,0),new Vector2((w-12)/2,38));
+                float groupY=48;
+                PlaceText(employees,w,ref groupY,0);
+                ((RectTransform)staffGroup.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,groupY);
+                y+=groupY+12;
+            }
+            if(researchGroup.activeSelf)
+            {
+                TopLeft((RectTransform)researchGroup.transform,new Vector2(8,y),new Vector2(w,0));
+                TopLeft((RectTransform)researchChoice.transform,Vector2.zero,new Vector2(w,38));
+                TopLeft(researchChoice.captionText.rectTransform,new Vector2(10,5),new Vector2(w-20,28));
+                float groupY=48;
+                PlaceText(researchNotes,w,ref groupY,0);
+                ((RectTransform)researchGroup.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,groupY);
+                y+=groupY+12;
+            }
+            message.gameObject.SetActive(!string.IsNullOrWhiteSpace(message.text));
+            if(message.gameObject.activeSelf)PlaceText(message,w,ref y);
+            content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,Mathf.Max(0,y-12));
+            UIOverflowScroll.Attach(detailsScroll).Refresh();
+        }
+
+        private static void PlaceText(Text text,float width,ref float y,float left=8)
+        {
+            TopLeft(text.rectTransform,new Vector2(left,y),new Vector2(width,0));
+            float height=Mathf.Ceil(text.preferredHeight);
+            text.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
+            y+=height+12;
         }
 
         private void ApplyPrice()
@@ -177,8 +236,9 @@ namespace Mythologicum
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             go.transform.SetParent(parent, false); Text text = go.GetComponent<Text>();
-            TopLeft(text.rectTransform,position,size); text.font = font; text.fontSize = fontSize;
+            TopLeft(text.rectTransform,position,size); text.font = UITheme.BodyFont; text.fontSize = fontSize;
             text.color = new Color(.94f,.86f,.66f); text.alignment = TextAnchor.UpperLeft; text.raycastTarget = false;
+            text.horizontalOverflow=HorizontalWrapMode.Wrap;text.verticalOverflow=VerticalWrapMode.Overflow;
             return text;
         }
         private static Button MakeButton(Transform parent, string name, Font font, Vector2 position, Vector2 size, Action clicked)
@@ -236,26 +296,6 @@ namespace Mythologicum
             foreach (CreatureDefinition profile in options) dropdown.options.Add(new Dropdown.OptionData(profile.displayName));
             dropdown.RefreshShownValue(); template.SetActive(false);
             return dropdown;
-        }
-        private static Text ResearchNotes(Transform parent, Font font)
-        {
-            var go = new GameObject("Care notes - scroll to read",typeof(RectTransform),typeof(CanvasRenderer),typeof(Image),typeof(ScrollRect));
-            go.transform.SetParent(parent,false); TopLeft((RectTransform)go.transform,new Vector2(0f,43f),new Vector2(406f,119f));
-            go.GetComponent<Image>().color = new Color(.06f,.10f,.12f);
-            var viewport = new GameObject("Viewport",typeof(RectTransform),typeof(CanvasRenderer),typeof(Image),typeof(Mask));
-            viewport.transform.SetParent(go.transform,false);
-            var viewRect=(RectTransform)viewport.transform;
-            viewRect.anchorMin=Vector2.zero; viewRect.anchorMax=Vector2.one;
-            viewRect.offsetMin=new Vector2(4f,4f); viewRect.offsetMax=new Vector2(-4f,-4f);
-            viewport.GetComponent<Mask>().showMaskGraphic=false;
-            Text text=Label(viewport.transform,"Unlocked notes",font,16,Vector2.zero,new Vector2(398f,110f));
-            text.rectTransform.anchorMin=new Vector2(0f,1f); text.rectTransform.anchorMax=new Vector2(1f,1f);
-            text.rectTransform.pivot=new Vector2(.5f,1f); text.rectTransform.anchoredPosition=Vector2.zero;
-            text.rectTransform.sizeDelta=new Vector2(0f,110f);
-            ScrollRect scroll=go.GetComponent<ScrollRect>(); scroll.viewport=viewRect; scroll.content=text.rectTransform;
-            scroll.horizontal=false; scroll.vertical=true; scroll.scrollSensitivity=20f;
-            scroll.movementType=ScrollRect.MovementType.Clamped;
-            return text;
         }
         public void Dispose() { if (panel != null) UnityEngine.Object.Destroy(panel); }
     }

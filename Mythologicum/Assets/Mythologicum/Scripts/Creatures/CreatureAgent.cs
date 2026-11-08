@@ -63,7 +63,6 @@ namespace Mythologicum
         internal Vector2Int TraversalFrom, TraversalTo;
         internal FenceEdge? AttemptFence;
         internal CreatureAgent SocialPartner;
-        internal TextMesh Label;
 
         internal ParkBuildingRecord SourceDispenser;
     }

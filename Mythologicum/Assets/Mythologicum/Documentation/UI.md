@@ -28,6 +28,28 @@ Research, expedition, park management, encyclopedia, notification, new-game, pau
 and confirmation panels share the same theme. Controls keep their existing gameplay
 actions. Decorative graphics do not replace interactive targets or mask viewports.
 
+Vertical information panels use `Steampunk_UI_Frames_1_2` at its native 438:627
+ratio; horizontal panels use `Steampunk_UI_Dialogue_2_0` at 885:500. The expedition
+parchment keeps its native 794:570 ratio. These illustrations use Simple rendering
+and uniform scaling, with no sliced or stretched ornaments. `UIFramedPanel` owns
+the artwork, dark lining, safe body area and heading area. Inspectors share the
+same vertical layout; larger menus use a standard 1160-by-500 logical body fitted
+inside the horizontal frame. Controls reflow inside that body rather than changing
+the frame's proportions.
+
+`UIOverflowScroll` measures visible content after fonts and layout are applied.
+Scrolling and scrollbars activate only when that content exceeds the viewport.
+Short reports stay stationary, hidden sections leave no blank gaps, and changing
+from a long report to a short one clears the old scroll offset. Building research
+notes share the report's single scroll area rather than nesting a second one.
+
+World objects have no floating status text. Click a building, creature, visitor or
+staff member to read its information and smoothly focus the camera on it. The
+camera follows moving selections; Q/E and the mouse wheel still rotate and zoom.
+WASD/arrow movement, clicking empty ground, Escape, or starting construction
+releases follow. Removed objects and creatures that die release it automatically.
+Loading a save restores the saved camera view without attaching it to an object.
+
 ## Park toolbar and encyclopedia
 
 The in-game HUD follows the reference's open layout: **Building**, **Park

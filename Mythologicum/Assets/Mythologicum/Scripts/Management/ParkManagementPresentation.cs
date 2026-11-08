@@ -16,6 +16,7 @@ namespace Mythologicum
         private readonly CreatureWorld creatures;
         private readonly ParkEconomy economy;
         private readonly Text summary, statistics, finances, breakdown, budget, rating, priceMessage;
+        private readonly Text parkStatistics, financeNotes, ratingGuide;
         private readonly GameObject[] pages = new GameObject[4];
         private readonly Button[] tabs = new Button[4];
         private readonly RectTransform priceContent;
@@ -34,25 +35,28 @@ namespace Mythologicum
             ManagementWidgets.Label(card, "Park management", new Vector2(16, 10), new Vector2(900, 38), 27);
             ManagementWidgets.Button(card, "Close park management", new Vector2(1034, 8), new Vector2(110, 38), Close, 16)
                 .GetComponentInChildren<Text>().text = "Close";
-            summary = ManagementWidgets.Label(card, "Park management summary", new Vector2(16, 55), new Vector2(1128, 35), 20);
+            summary = ManagementWidgets.Label(card, "Park management summary", new Vector2(16, 4), new Vector2(996, 32), 20);
             string[] names = { "Statistics", "Finances", "Prices & budget", "Star rating" };
             for (int i = 0; i < pages.Length; i++)
             {
                 int index = i;
-                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(16 + i * 282, 100), new Vector2(270, 42), () => ShowPage(index));
-                pages[i] = ManagementWidgets.Rect(card, names[i] + " page", new Vector2(16, 160), new Vector2(1128, 480)).gameObject;
+                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(16 + i * 282, 48), new Vector2(270, 42), () => ShowPage(index));
+                pages[i] = ManagementWidgets.Rect(card, names[i] + " page", new Vector2(16, 104), new Vector2(1128, 396)).gameObject;
             }
-            statistics = ManagementWidgets.Label(pages[0].transform, "Park statistics", Vector2.zero, new Vector2(1110, 465), 21);
-            finances = ManagementWidgets.Label(pages[1].transform, "Recent finances", Vector2.zero, new Vector2(530, 465), 19);
-            breakdown = ManagementWidgets.Label(pages[1].transform, "Cash flow breakdown", new Vector2(555, 0), new Vector2(555, 465), 19);
-            budget = ManagementWidgets.Label(pages[2].transform, "Pricing and budget", Vector2.zero, new Vector2(1110, 98), 19);
+            statistics = ManagementWidgets.Label(pages[0].transform, "Park statistics", Vector2.zero, new Vector2(530, 380), 20);
+            parkStatistics = ManagementWidgets.Label(pages[0].transform, "Exhibition statistics", new Vector2(560,0), new Vector2(550,380), 20);
+            finances = ManagementWidgets.Label(pages[1].transform, "Recent finances", Vector2.zero, new Vector2(530, 346), 18);
+            breakdown = ManagementWidgets.Label(pages[1].transform, "Cash flow breakdown", new Vector2(555, 0), new Vector2(555, 346), 18);
+            financeNotes = ManagementWidgets.Label(pages[1].transform,"Finance period",new Vector2(0,354),new Vector2(1110,42),16);
+            budget = ManagementWidgets.Label(pages[2].transform, "Pricing and budget", Vector2.zero, new Vector2(810, 90), 18);
             fundsMode = ManagementWidgets.Button(pages[2].transform, "Park funds mode", new Vector2(826, 0), new Vector2(284, 38),
                 () => { economy.UnlimitedFunds = !economy.UnlimitedFunds; Refresh(); }, 17);
-            priceContent = ManagementWidgets.Scroll(pages[2].transform, "Revenue building prices", new Vector2(0, 110), new Vector2(1110, 300), 0);
-            priceMessage = ManagementWidgets.Label(pages[2].transform, "Prices apply to new admissions and new service orders.", new Vector2(0, 424), new Vector2(1110, 50), 17);
+            priceContent = ManagementWidgets.Scroll(pages[2].transform, "Revenue building prices", new Vector2(0, 100), new Vector2(1110, 248), 0);
+            priceMessage = ManagementWidgets.Label(pages[2].transform, "Prices apply to new admissions and new service orders.", new Vector2(0, 358), new Vector2(1110, 38), 17);
             var graphic = ManagementWidgets.Rect(pages[3].transform, "Park stars", Vector2.zero, new Vector2(300, 50));
             stars = graphic.gameObject.AddComponent<StarRatingGraphic>(); stars.raycastTarget = false;
-            rating = ManagementWidgets.Label(pages[3].transform, "Rating explanation", new Vector2(0, 65), new Vector2(1110, 405), 20);
+            rating = ManagementWidgets.Label(pages[3].transform, "Rating explanation", new Vector2(0, 65), new Vector2(530, 325), 20);
+            ratingGuide = ManagementWidgets.Label(pages[3].transform,"Rating guide",new Vector2(560,0),new Vector2(550,390),19);
             ShowPage(0);
         }
 
@@ -81,8 +85,8 @@ namespace Mythologicum
             summary.text = $"Funds: {economy.Balance:0.00}  |  Park rating: {reputation.Stars:0.00} / 5 stars  |  Visitors: {visitors.Population}";
             statistics.text = $"VISITORS\nIn the park: {visitors.Population} / {visitors.Definition.maximumVisitors}\n"
                 + $"Current satisfaction: {visitors.AverageSatisfaction:0}/100\nDeparted: {visitors.DepartedCount}  |  Visitor deaths: {visitors.LostCount}\n"
-                + $"Stranded visitors: {visitors.StrandedCount}\nAdmission refusals: {visitors.RejectedAdmissions}  |  Service price complaints: {visitors.ExpensiveServiceRefusals}\n"
-                + $"\nPARK\nBuildings: {buildings.Records.Count}  |  Employees: {employees}  |  Living creatures: {living}\n"
+                + $"Stranded visitors: {visitors.StrandedCount}\nAdmission refusals: {visitors.RejectedAdmissions}\nService price complaints: {visitors.ExpensiveServiceRefusals}";
+            parkStatistics.text=$"PARK\nBuildings: {buildings.Records.Count}  |  Employees: {employees}\nLiving creatures: {living}\n"
                 + $"Viewable exhibition: {reputation.DisplayedSpecies} species / {reputation.DisplayedCreatures} creatures\n"
                 + $"Potential paid arrivals: {visitors.ExpectedArrivalsPerMinute:0.0} / minute before capacity limits\n"
                 + $"\nBudgeted building upkeep and salaries: {upkeep:0.00} / minute\nSupplies, new construction and projects are charged separately.";
@@ -90,14 +94,14 @@ namespace Mythologicum
                 + $"Net cash flow: {economy.ProfitPerMinute:0.00}\n\nOPERATIONS / MINUTE\n"
                 + $"Operating expenses: {economy.OperatingExpensesPerMinute:0.00}\nOperating profit: {economy.OperatingProfitPerMinute:0.00}\n"
                 + $"One-off investments: {economy.InvestmentExpensesPerMinute:0.00}\n\nLIFETIME\n"
-                + $"Income: {economy.Income:0.00}\nExpenses: {economy.Expenses:0.00}\n"
-                + $"\nActual totals from the last 60 simulation seconds.\nRecorded so far: {economy.TrackedSeconds:0} / 60 seconds.\nOperating profit excludes one-off investments.";
+                + $"Income: {economy.Income:0.00}\nExpenses: {economy.Expenses:0.00}";
+            financeNotes.text=$"Actual totals from the last 60 simulation seconds. Recorded so far: {economy.TrackedSeconds:0} / 60 seconds.\nOperating profit excludes one-off investments.";
             var b = new StringBuilder("INCOME / MINUTE\n");
             Add(b, "Admission", economy.IncomeInWindow(ParkTransactionCategory.Admission));
             Add(b, "Food sales", economy.IncomeInWindow(ParkTransactionCategory.Food));
             Add(b, "Rest services", economy.IncomeInWindow(ParkTransactionCategory.Rest));
             Add(b, "Other income", economy.IncomeInWindow(ParkTransactionCategory.Other));
-            b.Append("\nEXPENSES / MINUTE\n");
+            b.Append("EXPENSES / MINUTE\n");
             Add(b, "Building upkeep", economy.ExpensesInWindow(ParkTransactionCategory.BuildingUpkeep));
             Add(b, "Salaries", economy.ExpensesInWindow(ParkTransactionCategory.Salary));
             Add(b, "Feeder supplies", economy.ExpensesInWindow(ParkTransactionCategory.Supplies));
@@ -106,7 +110,7 @@ namespace Mythologicum
             Add(b, "Research", economy.ExpensesInWindow(ParkTransactionCategory.Research));
             Add(b, "Expeditions, teams and permits", economy.ExpensesInWindow(ParkTransactionCategory.Expeditions));
             Add(b, "Other expenses", economy.OtherExpensesPerMinute);
-            breakdown.text = b.ToString();
+            breakdown.text = b.ToString().TrimEnd('\n');
             budget.text = $"Committed upkeep and salaries: {upkeep:0.00} / minute\n"
                 + $"Fair entry price: {reputation.RecommendedAdmissionPrice:0.00}  |  Admission acceptance: {visitors.AdmissionAcceptance:P0}\n"
                 + $"Potential paid arrivals: {visitors.ExpectedArrivalsPerMinute:0.0} / minute before capacity limits";
@@ -115,14 +119,11 @@ namespace Mythologicum
             stars.SetRating(reputation.Stars);
             rating.text = $"PARK RATING: {reputation.Stars:0.00} / 5 STARS\n"
                 + $"Exhibition appeal: {reputation.ExhibitionScore:0}/100  |  Visitor reputation: {reputation.GuestScore:0}/100\n"
-                + $"Safety penalty: {reputation.SafetyPenalty:0}/100  |  Visitor reviews: {reputation.ReviewedVisitors}  |  Fatalities: {reputation.Fatalities}\n\n"
-                + "Display different mythological species with accessible viewing spots to increase appeal.\n"
-                + "Higher-rated creatures contribute more. Extra specimens give diminishing returns.\n"
-                + "Satisfied departing guests improve reputation; unhappy departures reduce it.\n"
-                + "Visitor deaths reduce reputation and demand. Safe operation allows gradual recovery.\n\n"
-                + $"Current fair prices: admission {reputation.RecommendedAdmissionPrice:0.00}, meal {reputation.RecommendedFoodPrice:0.00}, rest {reputation.RecommendedRestPrice:0.00}.\n"
-                + "Higher stars support higher prices. Guests can refuse overpriced entry or services.\n"
-                + "Exhibition value comes from what visitors can see, wherever creatures choose to live.";
+                + $"Safety penalty: {reputation.SafetyPenalty:0}/100\nVisitor reviews: {reputation.ReviewedVisitors}\nFatalities: {reputation.Fatalities}\n\n"
+                + $"CURRENT FAIR PRICES\nAdmission: {reputation.RecommendedAdmissionPrice:0.00}\nMeal: {reputation.RecommendedFoodPrice:0.00}\nRest: {reputation.RecommendedRestPrice:0.00}";
+            ratingGuide.text="EXHIBITION\nDisplay different species with accessible viewing spots to increase appeal. Higher-rated creatures contribute more; extra specimens give diminishing returns.\n\n"
+                + "VISITORS & SAFETY\nSatisfied departures improve reputation; unhappy departures reduce it. Visitor deaths reduce reputation and demand. Safe operation allows gradual recovery.\n\n"
+                + "PRICES\nHigher stars support higher prices. Guests can refuse overpriced entry or services. Exhibition value comes from what visitors can see, wherever creatures choose to live.";
         }
         private static void Add(StringBuilder b, string name, float value) => b.Append(name).Append(": ").Append(value.ToString("0.00", CultureInfo.InvariantCulture)).Append('\n');
 

@@ -10,6 +10,7 @@ namespace Mythologicum
         public static UITheme Current => current != null ? current : (current = Resources.Load<UITheme>("SteampunkTheme"));
         public Font bodyFont, headingFont, titleFont;
         public Sprite windowFrame, panelFrame;
+        public Sprite verticalInfoFrame, horizontalInfoFrame, expeditionMapBackground;
         public Sprite buttonNormal, buttonHover, buttonPressed, buttonDisabled;
         public Sprite inputField, sliderTrack, sliderFill, sliderHandle, scrollbarTrack, scrollbarHandle;
         public Sprite checkmark, envelope, envelopeUnread, closeIcon;
@@ -50,5 +51,5 @@ namespace Mythologicum
         public Sprite normal, highlighted, pressed, disabled;
     }
 
-    public enum UIThemeRole { Auto, Text, Title, Heading, Button, Panel, Window, Input, Overlay, Track, Fill, Thumb, Icon, Badge, Ignore }
+    public enum UIThemeRole { Auto, Text, Title, Heading, Button, Panel, Window, Input, Overlay, Track, Fill, Thumb, Icon, Badge, Ignore, MapBackground }
 }

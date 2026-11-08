@@ -21,13 +21,29 @@ namespace Mythologicum
         {
             var rect=Rect(parent,name,position,size);var text=rect.gameObject.AddComponent<Text>();
             text.text=name;text.font=Font;text.fontSize=fontSize;text.color=new Color(.94f,.88f,.72f);
-            text.alignment=TextAnchor.UpperLeft;text.raycastTarget=false;return text;
+            text.alignment=TextAnchor.UpperLeft;text.raycastTarget=false;
+            if(parent.name=="Window content"&&position.y<30&&fontSize>=24)
+            {
+                var frame=parent.GetComponentInParent<UIFramedPanel>(true);
+                rect.SetParent(frame.Header,false);rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;
+                rect.offsetMin=new Vector2(8,4);rect.offsetMax=new Vector2(-8,-4);
+                text.alignment=TextAnchor.MiddleCenter;
+            }
+            return text;
         }
         internal static Button Button(Transform parent,string name,Vector2 position,Vector2 size,Action click,int fontSize=18)
         {
             var go=Box(parent,name,position,size,new Color(.18f,.28f,.31f));var button=go.AddComponent<Button>();button.targetGraphic=go.GetComponent<Image>();
             button.navigation=new Navigation {mode=Navigation.Mode.None};button.onClick.AddListener(()=>click());
             var label=Label(go.transform,name,new Vector2(5,3),size-new Vector2(10,6),fontSize);label.alignment=TextAnchor.MiddleCenter;
+            if(parent.name=="Window content"&&name.StartsWith("Close",StringComparison.Ordinal))
+            {
+                var frame=parent.GetComponentInParent<UIFramedPanel>(true);
+                var rect=(RectTransform)go.transform;rect.SetParent(frame.transform,false);
+                rect.anchorMin=rect.anchorMax=new Vector2(1,1);rect.pivot=new Vector2(1,.5f);
+                var frameRect=(RectTransform)frame.transform;
+                rect.anchoredPosition=new Vector2(-frameRect.rect.width*.09f,-frameRect.rect.height*.14f);
+            }
             return button;
         }
         internal static RectTransform Scroll(Transform parent,string name,Vector2 position,Vector2 size,float contentHeight)
@@ -39,7 +55,7 @@ namespace Mythologicum
             var content=Rect(view.transform,"Content",Vector2.zero,new Vector2(size.x,contentHeight));
             content.anchorMin=new Vector2(0,1);content.anchorMax=new Vector2(1,1);content.sizeDelta=new Vector2(0,contentHeight);
             scroll.viewport=vr;scroll.content=content;scroll.horizontal=false;scroll.vertical=true;scroll.scrollSensitivity=25;
-            scroll.movementType=ScrollRect.MovementType.Clamped;return content;
+            scroll.movementType=ScrollRect.MovementType.Clamped;UIOverflowScroll.Attach(scroll);return content;
         }
         internal static GameObject Modal(Canvas canvas,string name)
         {
@@ -49,13 +65,13 @@ namespace Mythologicum
         }
         internal static RectTransform Card(GameObject root,Canvas canvas)
         {
-            var parent=(RectTransform)canvas.transform;
-            var card=Rect(root.transform,"Window",Vector2.zero,new Vector2(1160,660));
-            card.localScale=Vector3.one*Mathf.Min(1f,(parent.rect.width-30)/1160,(parent.rect.height-30)/660);
+            var card=Rect(root.transform,"Window",Vector2.zero,Vector2.one);
             card.anchorMin=card.anchorMax=card.pivot=new Vector2(.5f,.5f);
             var image=card.gameObject.AddComponent<Image>();image.color=new Color(.07f,.045f,.025f,1f);
-            var style=UIThemeElement.Mark(card.gameObject,UIThemeRole.Window);style.Initialize(image);style.Apply(UITheme.Current);
-            return card;
+            var frame=UIFramedPanel.Attach(card.gameObject,false,1400f);
+            var content=Rect(frame.Content,"Window content",Vector2.zero,new Vector2(1160,500));
+            frame.SetLogicalContent(content,new Vector2(1160,500));frame.Refresh();
+            return content;
         }
         internal static void Clear(Transform root)
         {for(int i=root.childCount-1;i>=0;i--){var go=root.GetChild(i).gameObject;go.SetActive(false);UnityEngine.Object.Destroy(go);}}

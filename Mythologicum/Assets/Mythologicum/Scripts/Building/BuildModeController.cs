@@ -222,6 +222,7 @@ namespace Mythologicum
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
+            GetComponent<IsometricCameraController>()?.StopFollowing();
             if (selected != Tool.None) notifications?.Close();
             if (selected == Tool.None && status != null) status.text = "";
             gatePreviewKind = null;
@@ -423,33 +424,55 @@ namespace Mythologicum
             Vector2 pointer = mouse.position.ReadValue();
             if (!view.pixelRect.Contains(pointer)) return;
             if (Physics.Raycast(view.ScreenPointToRay(pointer), out RaycastHit creatureHit, view.farClipPlane,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
-            {
-                CreatureAgent creature = creatureHit.collider.GetComponentInParent<CreatureAgent>();
-                if (creature != null && creature.Alive)
-                {
-                    StaffAgent employee = creature.GetComponent<StaffAgent>();
-                    buildingInspection.Select(employee != null ? employee.Home : null);
-                    VisitorAgent visitor = creature.GetComponent<VisitorAgent>();
-                    visitorPresentation.Select(visitor);
-                    creatureInspection.Select(visitor == null && employee == null ? creature : null);
-                    enclosurePresentation.Select(null); return;
-                }
-                BuildingSelection selected = creatureHit.collider.GetComponentInParent<BuildingSelection>();
-                if (selected != null)
-                {
-                    buildingInspection.Select(selected.Record); creatureInspection.Select(null);
-                    visitorPresentation.Select(null); enclosurePresentation.Select(null);
-                    if (selected.Record.Footprint.Definition.kind == BuildingKind.ExpeditionCentre) OpenExpeditions(selected.Record);
-                    return;
-                }
-            }
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide) && TryInspectObject(creatureHit.collider)) return;
+            GetComponent<IsometricCameraController>()?.StopFollowing();
             buildingInspection.Select(null);
             creatureInspection.Select(null);
             visitorPresentation.Select(null);
             if (GroundHit(view.ScreenPointToRay(pointer), out RaycastHit hit, view.farClipPlane))
                 enclosurePresentation.Select(grid.WorldToCell(hit.point));
             else enclosurePresentation.Select(null);
+        }
+
+        private bool TryInspectObject(Collider hit)
+        {
+            CreatureAgent creature = hit.GetComponentInParent<CreatureAgent>();
+            if (creature != null && creature.Alive)
+            {
+                StaffAgent employee = creature.GetComponent<StaffAgent>();
+                buildingInspection.Select(employee != null ? employee.Home : null);
+                VisitorAgent visitor = creature.GetComponent<VisitorAgent>();
+                visitorPresentation.Select(visitor);
+                creatureInspection.Select(visitor == null && employee == null ? creature : null);
+                enclosurePresentation.Select(null);
+                FollowInspectedObject(creature.transform, hit);
+                return true;
+            }
+            BuildingSelection selected = hit.GetComponentInParent<BuildingSelection>();
+            if (selected != null)
+            {
+                buildingInspection.Select(selected.Record); creatureInspection.Select(null);
+                visitorPresentation.Select(null); enclosurePresentation.Select(null);
+                if (selected.Record.Footprint.Definition.kind == BuildingKind.ExpeditionCentre) OpenExpeditions(selected.Record);
+                FollowInspectedObject(selected.transform, hit);
+                return true;
+            }
+            return false;
+        }
+
+        private void FollowInspectedObject(Transform target, Collider hit)
+        {
+            // Selection may happen between physics ticks, including immediately after spawning.
+            Physics.SyncTransforms();
+            Collider body = target.GetComponent<Collider>();
+            RectTransform info = target.GetComponent<VisitorAgent>() != null ? visitorPresentation.PanelRect
+                : target.GetComponent<BuildingSelection>() != null || target.GetComponent<StaffAgent>() != null
+                    ? buildingInspection.PanelRect : creatureInspection.PanelRect;
+            info.GetComponent<UIFramedPanel>().Refresh();
+            var corners=new Vector3[4];info.GetWorldCorners(corners);
+            float left=RectTransformUtility.WorldToScreenPoint(null,corners[0]).x;
+            float viewportX = (left - 24f * status.canvas.scaleFactor) / (2f * view.pixelWidth);
+            GetComponent<IsometricCameraController>()?.Follow(target, body != null ? body.bounds : hit.bounds, viewportX);
         }
 
         private void ApplyGate(Mouse mouse, Vector3 point)

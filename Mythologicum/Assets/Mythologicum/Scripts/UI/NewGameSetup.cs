@@ -57,15 +57,15 @@ namespace Mythologicum
             var card = ManagementWidgets.Card(gameObject, canvas);
             ManagementWidgets.Label(card, "Create a new park", new Vector2(24, 12), new Vector2(850, 42), 28);
             ManagementWidgets.Button(card, "Close", new Vector2(1040, 10), new Vector2(100, 38), Close);
-            ManagementWidgets.Label(card, "Map size", new Vector2(24, 76), new Vector2(470, 30), 21);
+            ManagementWidgets.Label(card, "Map size", new Vector2(24, 4), new Vector2(470, 30), 21);
             for (int i = 0; i < Sizes.Length; i++)
             {
                 int size = Sizes[i];
                 sizeButtons[i] = ManagementWidgets.Button(card, SizeNames[i] + "\n" + (size * 2) + " x " + (size * 2) + " m",
-                    new Vector2(24 + i * 157, 111), new Vector2(147, 52), () => { options.width = options.depth = size; Refresh(); }, 18);
+                    new Vector2(24 + i * 157, 38), new Vector2(147, 44), () => { options.width = options.depth = size; Refresh(); }, 18);
             }
-            ManagementWidgets.Label(card, "Map seed", new Vector2(24, 180), new Vector2(470, 30), 21);
-            seedInput = SeedInput(card, new Vector2(24, 216), new Vector2(292, 38));
+            ManagementWidgets.Label(card, "Map seed", new Vector2(24, 94), new Vector2(470, 30), 21);
+            seedInput = SeedInput(card, new Vector2(24, 128), new Vector2(292, 38));
             seedInput.SetTextWithoutNotify(options.seed.ToString(CultureInfo.InvariantCulture));
             seedInput.onEndEdit.AddListener(value => { if (ReadSeed()) Refresh(); });
             seedInput.onValueChanged.AddListener(value =>
@@ -75,38 +75,38 @@ namespace Mythologicum
                 errorLabel.text = valid ? "" : "Enter a whole-number seed, for example 2471.";
                 create.interactable = valid;
             });
-            ManagementWidgets.Button(card, "Random seed", new Vector2(326, 216), new Vector2(159, 38), () =>
+            ManagementWidgets.Button(card, "Random seed", new Vector2(326, 128), new Vector2(159, 38), () =>
             {
                 options.seed = Guid.NewGuid().GetHashCode();
                 seedInput.SetTextWithoutNotify(options.seed.ToString(CultureInfo.InvariantCulture)); Refresh();
             }, 18);
 
-            ManagementWidgets.Label(card, "Terrain style", new Vector2(24, 274), new Vector2(470, 30), 21);
-            styleButtons[0] = ManagementWidgets.Button(card, "Flat", new Vector2(24, 309), new Vector2(147, 38), () => SetStyle(0, 28));
-            styleButtons[1] = ManagementWidgets.Button(card, "Rolling hills", new Vector2(181, 309), new Vector2(147, 38), () => SetStyle(7, 28));
-            styleButtons[2] = ManagementWidgets.Button(card, "Rugged", new Vector2(338, 309), new Vector2(147, 38), () => SetStyle(14, 18));
-            hillsLabel = ManagementWidgets.Label(card, "Hill height", new Vector2(24, 365), new Vector2(470, 26));
-            hills = SliderControl(card, "Hill height", new Vector2(24, 397), 0, 20,
+            ManagementWidgets.Label(card, "Terrain style", new Vector2(24, 178), new Vector2(470, 30), 21);
+            styleButtons[0] = ManagementWidgets.Button(card, "Flat", new Vector2(24, 212), new Vector2(147, 38), () => SetStyle(0, 28));
+            styleButtons[1] = ManagementWidgets.Button(card, "Rolling hills", new Vector2(181, 212), new Vector2(147, 38), () => SetStyle(7, 28));
+            styleButtons[2] = ManagementWidgets.Button(card, "Rugged", new Vector2(338, 212), new Vector2(147, 38), () => SetStyle(14, 18));
+            hillsLabel = ManagementWidgets.Label(card, "Hill height", new Vector2(24, 262), new Vector2(470, 26));
+            hills = SliderControl(card, "Hill height", new Vector2(24, 290), 0, 20,
                 value => { options.relief = value; Refresh(); });
-            widthLabel = ManagementWidgets.Label(card, "Hill width", new Vector2(24, 436), new Vector2(470, 26));
-            hillWidth = SliderControl(card, "Hill width", new Vector2(24, 468), 12, 64,
+            widthLabel = ManagementWidgets.Label(card, "Hill width", new Vector2(24, 322), new Vector2(470, 26));
+            hillWidth = SliderControl(card, "Hill width", new Vector2(24, 350), 12, 64,
                 value => { options.featureSize = value; Refresh(); });
-            forestLabel = ManagementWidgets.Label(card, "Forest density", new Vector2(24, 507), new Vector2(470, 26));
-            forest = SliderControl(card, "Forest density", new Vector2(24, 539), 0, 1,
+            forestLabel = ManagementWidgets.Label(card, "Forest density", new Vector2(24, 382), new Vector2(470, 26));
+            forest = SliderControl(card, "Forest density", new Vector2(24, 410), 0, 1,
                 value => { options.forestDensity = value; Refresh(); });
-            errorLabel = ManagementWidgets.Label(card, "", new Vector2(24, 577), new Vector2(710, 30), 17);
+            errorLabel = ManagementWidgets.Label(card, "", new Vector2(24, 444), new Vector2(710, 30), 17);
             errorLabel.color = new Color(1f, .45f, .25f);
 
-            ManagementWidgets.Label(card, "Map preview", new Vector2(596, 50), new Vector2(510, 32), 22);
-            var box = ManagementWidgets.Box(card, "Map preview frame", new Vector2(599, 90), new Vector2(486, 486), new Color(.08f,.14f,.12f));
-            var imageRect = ManagementWidgets.Rect(box.transform, "Generated map preview", new Vector2(7, 7), new Vector2(472, 472));
+            ManagementWidgets.Label(card, "Map preview", new Vector2(620, 4), new Vector2(510, 32), 22);
+            var box = ManagementWidgets.Box(card, "Map preview frame", new Vector2(620, 42), new Vector2(382, 382), new Color(.08f,.14f,.12f));
+            var imageRect = ManagementWidgets.Rect(box.transform, "Generated map preview", new Vector2(7, 7), new Vector2(368, 368));
             preview = imageRect.gameObject.AddComponent<RawImage>(); preview.raycastTarget = false;
-            previewSummary = ManagementWidgets.Label(card, "", new Vector2(596, 578), new Vector2(530, 34), 14);
+            previewSummary = ManagementWidgets.Label(card, "", new Vector2(596, 430), new Vector2(530, 34), 14);
             previewSummary.resizeTextForBestFit = true;
             previewSummary.resizeTextMinSize = 11; previewSummary.resizeTextMaxSize = 14;
-            ManagementWidgets.Button(card, "Cancel", new Vector2(24, 612), new Vector2(170, 38), Close);
-            create = ManagementWidgets.Button(card, "Create park", new Vector2(884, 612), new Vector2(235, 38), CreatePark, 21);
-            ManagementWidgets.Label(card, "Place the park entrance anywhere you choose.", new Vector2(214, 619), new Vector2(650, 28), 18);
+            ManagementWidgets.Button(card, "Cancel", new Vector2(24, 462), new Vector2(170, 38), Close);
+            create = ManagementWidgets.Button(card, "Create park", new Vector2(884, 462), new Vector2(235, 38), CreatePark, 21);
+            ManagementWidgets.Label(card, "Place the park entrance anywhere you choose.", new Vector2(214, 468), new Vector2(650, 28), 18);
         }
 
         private void SetStyle(float relief, float feature)

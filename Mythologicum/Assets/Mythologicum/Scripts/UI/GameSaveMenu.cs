@@ -58,14 +58,18 @@ namespace Mythologicum
             var rect = (RectTransform)overlay.transform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
             rect.offsetMin = rect.offsetMax = Vector2.zero;
             overlay.GetComponent<Image>().color = new Color(.025f,.04f,.06f,.97f);
-            Label(overlay.transform, "Paused", new Vector2(0,205), new Vector2(500,50));
-            Button(overlay.transform, "Resume", new Vector2(0,150), Toggle);
-            Button(overlay.transform, "Save game", new Vector2(0,90), Save);
-            Button(overlay.transform, "Load game", new Vector2(0,30), Load);
-            Button(overlay.transform, "Settings", new Vector2(0,-30), () => SettingsPresentation.Open(canvas));
-            Button(overlay.transform, "Quit to main menu", new Vector2(0,-90), () => Confirm("Return to the main menu? Unsaved changes will be lost.", () => Navigate("MainMenuScene")));
-            Button(overlay.transform, "Quit game", new Vector2(0,-150), () => Confirm("Quit the game? Unsaved changes will be lost.", () => { Time.timeScale = 1f; FindFirstObjectByType<SceneNavigation>().QuitGame(); }));
-            message = Label(overlay.transform, "", new Vector2(0,-245), new Vector2(650,90));
+            var window=ManagementWidgets.Rect(overlay.transform,"Pause window",Vector2.zero,Vector2.one);
+            window.anchorMin=window.anchorMax=window.pivot=new Vector2(.5f,.5f);
+            var body=UIFramedPanel.Attach(window.gameObject,true,500).Content;
+            float top=body.rect.height*.5f;
+            Label(body, "Paused", new Vector2(0,top-20), new Vector2(340,38));
+            Button(body, "Resume", new Vector2(0,top-75), Toggle);
+            Button(body, "Save game", new Vector2(0,top-135), Save);
+            Button(body, "Load game", new Vector2(0,top-195), Load);
+            Button(body, "Settings", new Vector2(0,top-255), () => SettingsPresentation.Open(canvas));
+            Button(body, "Quit to main menu", new Vector2(0,top-315), () => Confirm("Return to the main menu? Unsaved changes will be lost.", () => Navigate("MainMenuScene")));
+            Button(body, "Quit game", new Vector2(0,top-375), () => Confirm("Quit the game? Unsaved changes will be lost.", () => { Time.timeScale = 1f; FindFirstObjectByType<SceneNavigation>().QuitGame(); }));
+            message = Label(body, "", new Vector2(0,-top+35), new Vector2(330,60));
             overlay.SetActive(false);
             UIThemeApplicator.ApplyAll(canvas);
         }
@@ -122,9 +126,12 @@ namespace Mythologicum
             confirmation = dialog;
             var r = (RectTransform)dialog.transform; r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
             dialog.GetComponent<Image>().color = new Color(.03f,.05f,.07f,.99f);
-            Label(dialog.transform, question, new Vector2(0,70),new Vector2(600,100));
-            Button(dialog.transform,"Confirm",new Vector2(0,-10),() => { CloseConfirmation(); action(); });
-            Button(dialog.transform,"Cancel",new Vector2(0,-70),CloseConfirmation);
+            var window=ManagementWidgets.Rect(dialog.transform,"Confirmation window",Vector2.zero,Vector2.one);
+            window.anchorMin=window.anchorMax=window.pivot=new Vector2(.5f,.5f);
+            var body=UIFramedPanel.Attach(window.gameObject,false,900).Content;
+            Label(body, question, new Vector2(0,70),new Vector2(600,100));
+            Button(body,"Confirm",new Vector2(0,-10),() => { CloseConfirmation(); action(); });
+            Button(body,"Cancel",new Vector2(0,-70),CloseConfirmation);
             UIThemeApplicator.ApplyAll(dialog.GetComponentInParent<Canvas>());
         }
         private void CloseConfirmation()

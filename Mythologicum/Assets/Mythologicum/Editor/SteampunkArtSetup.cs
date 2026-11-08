@@ -31,6 +31,9 @@ namespace Mythologicum.Editor
 
             theme.windowFrame = Sprite("Steampunk_UI_Frames_3", 3);
             theme.panelFrame = Sprite("Steampunk_UI_Frames_1", 3);
+            theme.verticalInfoFrame = Sprite("Steampunk_UI_Frames_1", 2);
+            theme.horizontalInfoFrame = Sprite("Steampunk_UI_Dialogue_2", 0);
+            theme.expeditionMapBackground = Sprite("Steampunk_UI_Dialogue_1", 1);
             theme.buttonNormal = Sprite("Steampunk_UI_Buttons_2", 3);
             theme.buttonHover = Sprite("Steampunk_UI_Buttons_2", 4);
             theme.buttonPressed = Sprite("Steampunk_UI_Buttons_2", 5);

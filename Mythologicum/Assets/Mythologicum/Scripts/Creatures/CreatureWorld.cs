@@ -10,7 +10,6 @@ namespace Mythologicum
         private readonly SquareBuildGrid grid;
         private readonly FenceLayout fences;
         private readonly ParkBuildingNetwork buildings;
-        private readonly Camera camera;
         private readonly GameObject root;
         private readonly Material material;
         private readonly CreatureNavigation navigation;
@@ -34,7 +33,7 @@ namespace Mythologicum
             Camera camera, Material material, CreatureDefinition[] profiles, EnvironmentGrid environment = null)
         {
             this.grid = grid; this.fences = fences; this.buildings = buildings;
-            this.camera = camera; this.material = material;
+            this.material = material;
             this.environment = environment ?? new EnvironmentGrid(grid);
             root = new GameObject("Creatures");
             navigation = new CreatureNavigation(grid, fences, IsPhysicallyClear);
@@ -147,7 +146,6 @@ namespace Mythologicum
             agents.Remove(actor);
             actor.GetComponent<Collider>().enabled = false;
             actor.gameObject.SetActive(false);
-            if (actor.Label != null) UnityEngine.Object.Destroy(actor.Label.gameObject);
             UnityEngine.Object.Destroy(actor.gameObject);
         }
 
@@ -183,13 +181,6 @@ namespace Mythologicum
             agent.StateTimer = PauseDuration(agent);
             agent.DecisionTimer = UnityEngine.Random.Range(0f, definition.decisionInterval);
             go.transform.position = GroundPosition(agent, cell);
-            var labelObject = new GameObject("Creature stats", typeof(TextMesh));
-            labelObject.transform.SetParent(root.transform);
-            agent.Label = labelObject.GetComponent<TextMesh>();
-            agent.Label.font = UITheme.BodyFont;
-            agent.Label.GetComponent<MeshRenderer>().sharedMaterial = agent.Label.font.material;
-            agent.Label.fontSize = 48; agent.Label.characterSize = 0.085f;
-            agent.Label.anchor = TextAnchor.LowerCenter; agent.Label.alignment = TextAlignment.Center;
             agents.Add(agent);
             return true;
         }
@@ -275,7 +266,6 @@ namespace Mythologicum
                 if (!agents[i].Alive && agents[i].CorpseTimer <= 0f)
                 {
                     CreatureAgent dead = agents[i]; agents.RemoveAt(i);
-                    UnityEngine.Object.Destroy(dead.Label.gameObject);
                     UnityEngine.Object.Destroy(dead.gameObject);
                 }
         }
@@ -879,27 +869,7 @@ namespace Mythologicum
             && target.Activity != CreatureActivity.PhasingFence && agent.Activity != CreatureActivity.PhasingFence
             && (agent.Cell == target.Cell || navigation.CanCross(agent.Cell, target.Cell));
 
-        private void RefreshVisual(CreatureAgent agent)
-        {
-            agent.Label.transform.position = agent.transform.position + Vector3.up * (agent.Definition.bodyScale.y + 0.4f);
-            agent.Label.transform.rotation = camera.transform.rotation;
-            bool agitated = !agent.ExternallyControlled && agent.Wellbeing.Agitation > 0f;
-            if (agent.ExternallyControlled)
-            {
-                string state = !agent.Alive ? "Dying" : agent.CapturedBy != null ? "Captured"
-                    : string.IsNullOrEmpty(agent.ExternalStatus) ? agent.Activity.ToString() : agent.ExternalStatus;
-                agent.Label.text = $"{agent.Definition.displayName} - {state}"
-                    + $"\nHunger {agent.Vitals.Hunger:0} | Fear {agent.Vitals.Fear:0} | Energy {agent.Energy.Energy:0}";
-            }
-            else
-                agent.Label.text = $"{agent.Definition.displayName} - {agent.Activity}" + (agitated ? " (Agitated)" : "")
-                    + $"\nHappiness {agent.Wellbeing.Happiness:0} | Hunger {agent.Vitals.Hunger:0} | Fear {agent.Vitals.Fear:0}"
-                    + $"\nEnergy {agent.Energy.Energy:0}";
-            if (!agent.ExternallyControlled) agent.Label.text += $" | Health {agent.Health.Current:0}/{agent.Health.Maximum:0}";
-            agent.Label.color = agitated ? new Color(1f, 0.4f, 0.2f)
-                : agent.Activity == CreatureActivity.Fleeing ? new Color(1f, 0.65f, 0.2f) : Color.white;
-            Animate(agent);
-        }
+        private void RefreshVisual(CreatureAgent agent) => Animate(agent);
 
         private void Animate(CreatureAgent agent)
         {

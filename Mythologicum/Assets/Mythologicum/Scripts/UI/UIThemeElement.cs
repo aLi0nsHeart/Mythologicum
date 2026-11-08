@@ -13,12 +13,19 @@ namespace Mythologicum
         private bool applied;
         private int originalFontSize;
         private Image hintBacking;
+        public bool FitToCanvas { get; set; }
         public UIThemeRole Role { get => role; set { role = value; applied = false; } }
 
         public static UIThemeElement Mark(GameObject target, UIThemeRole role)
         {
             var element = target.GetComponent<UIThemeElement>() ?? target.AddComponent<UIThemeElement>();
             element.Role = role; return element;
+        }
+        /// <summary>Creates a safe area inside an illustrated information frame.</summary>
+        public static RectTransform InfoContent(GameObject panel, Vector2 minimum, Vector2 maximum)
+        {
+            var rect = (RectTransform)panel.transform;
+            return UIFramedPanel.Attach(panel, rect.rect.height > rect.rect.width, rect.rect.width).Content;
         }
         public void Initialize(Graphic value)
         {
@@ -30,6 +37,14 @@ namespace Mythologicum
         public void Apply(UITheme theme)
         {
             if (theme == null || graphic == null || role == UIThemeRole.Ignore) return;
+            if (FitToCanvas && graphic.canvas != null)
+            {
+                var canvasRect = (RectTransform)graphic.canvas.rootCanvas.transform;
+                var rect = graphic.rectTransform;
+                float scale = Mathf.Min(1f, (canvasRect.rect.width - 30f) / Mathf.Max(1f, rect.rect.width),
+                    (canvasRect.rect.height - 30f) / Mathf.Max(1f, rect.rect.height));
+                rect.localScale = Vector3.one * Mathf.Max(.1f, scale);
+            }
             if (!applied || graphic.color != assignedColor) sourceColor = graphic.color;
             if (graphic is Text text) ApplyText(text, theme);
             else if (graphic is Image image) ApplyImage(image, theme);
@@ -123,8 +138,22 @@ namespace Mythologicum
                     }
                     image.pixelsPerUnitMultiplier = 4f;
                     break;
-                case UIThemeRole.Window: sprite = theme.windowFrame; image.pixelsPerUnitMultiplier = 2f; break;
-                case UIThemeRole.Panel: sprite = theme.panelFrame; image.pixelsPerUnitMultiplier = 2f; break;
+                case UIThemeRole.Window:
+                    var frame = image.GetComponent<UIFramedPanel>();
+                    if (frame != null) { frame.Refresh(); return; }
+                    sprite = image.rectTransform.rect.height > image.rectTransform.rect.width
+                        ? theme.verticalInfoFrame : theme.horizontalInfoFrame;
+                    if (sprite == null) sprite = theme.windowFrame;
+                    UIFramedPanel.ApplyArtwork(image, sprite);
+                    return;
+                case UIThemeRole.Panel:
+                    // Row, list and tooltip backgrounds are quiet surfaces; the outer frame owns the ornament.
+                    image.sprite = null;
+                    tint = new Color(.055f, .035f, .02f, .65f);
+                    break;
+                case UIThemeRole.MapBackground:
+                    UIFramedPanel.ApplyArtwork(image, theme.expeditionMapBackground);
+                    return;
                 case UIThemeRole.Input: sprite = theme.inputField; image.pixelsPerUnitMultiplier = 3f; break;
                 case UIThemeRole.Track:
                     sprite = image.GetComponentInParent<Scrollbar>(true) != null ? theme.scrollbarTrack : theme.sliderTrack;

@@ -11,6 +11,7 @@ namespace Mythologicum
         private readonly SquareBuildGrid grid;
         private readonly GameObject root, panel, overlay;
         private readonly Text information, warning;
+        private readonly UIFramedPanel frame;
         private readonly Material material;
         private Mesh mesh;
         private Vector2Int? selectedCell;
@@ -32,14 +33,14 @@ namespace Mythologicum
             panel.transform.SetParent(root.transform, false);
             var panelRect = (RectTransform)panel.transform;
             panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(0f, 1f);
-            panelRect.anchoredPosition = new Vector2(15f, -170f);
-            panelRect.sizeDelta = new Vector2(340f, 270f);
+            panelRect.anchoredPosition = new Vector2(24f, -180f);
             panel.GetComponent<Image>().color = new Color(0.04f, 0.07f, 0.09f, 0.95f);
-            information = Label(panel.transform, font, 20);
+            frame=UIFramedPanel.Attach(panel,false,640f);var body=frame.Content;
+            information = Label(body, font, 18);
             information.alignment = TextAnchor.UpperLeft;
             information.rectTransform.anchorMin = Vector2.zero; information.rectTransform.anchorMax = Vector2.one;
-            information.rectTransform.offsetMin = new Vector2(15f, 12f);
-            information.rectTransform.offsetMax = new Vector2(-15f, -12f);
+            information.rectTransform.offsetMin = Vector2.zero;
+            information.rectTransform.offsetMax = Vector2.zero;
             warning = Label(root.transform, font, 21);
             warning.color = new Color(1f, 0.35f, 0.22f);
             warning.rectTransform.anchorMin = warning.rectTransform.anchorMax = new Vector2(0.5f, 1f);
@@ -58,7 +59,7 @@ namespace Mythologicum
             var go = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             go.transform.SetParent(parent, false);
             Text text = go.GetComponent<Text>();
-            text.font = font; text.fontSize = size;
+            text.font = UITheme.BodyFont; text.fontSize = size;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(0.94f, 0.86f, 0.66f);
             text.raycastTarget = false;
@@ -90,6 +91,7 @@ namespace Mythologicum
             }
             SetInspecting(inspecting);
             if (selected == null) return;
+            frame.Refresh();
             EnvironmentStats stats = selected.Environment;
             information.text = $"Enclosure #{selected.Id}\n"
                 + (selected.IsSecured ? "Secured perimeter\n" : "UNSECURED: fence gap\n")

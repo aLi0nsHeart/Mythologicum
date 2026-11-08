@@ -11,6 +11,7 @@ namespace Mythologicum
     public sealed class UIThemeApplicator : MonoBehaviour
     {
         private readonly List<UIThemeElement> elements = new List<UIThemeElement>();
+        private readonly List<UIOverflowScroll> scrolls = new List<UIOverflowScroll>();
         private float nextScan;
         private Canvas canvas;
 
@@ -41,6 +42,8 @@ namespace Mythologicum
             if (canvas == null) canvas = GetComponent<Canvas>();
             if (canvas == null) return;
             foreach (var button in canvas.GetComponentsInChildren<Button>(true)) UIIcon.AttachAutomatic(button);
+            scrolls.Clear();
+            foreach (var scroll in canvas.GetComponentsInChildren<ScrollRect>(true)) scrolls.Add(UIOverflowScroll.Attach(scroll));
             elements.Clear();
             foreach (var graphic in canvas.GetComponentsInChildren<Graphic>(true))
             {
@@ -52,6 +55,7 @@ namespace Mythologicum
         {
             var theme = UITheme.Current; if (theme == null) return;
             foreach (var element in elements) if (element != null) element.Apply(theme);
+            foreach (var scroll in scrolls) if (scroll != null) scroll.Refresh();
         }
     }
 }

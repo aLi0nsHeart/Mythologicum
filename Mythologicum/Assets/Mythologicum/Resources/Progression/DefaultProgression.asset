@@ -16,7 +16,7 @@ MonoBehaviour:
     teamCost: 250
     additionalTeamCost: 100
     extraTeamSuccess: 0.12
-    maximumSuccess: 0.95
+    maximumSuccess: 0.92
     maximumTeams: 12
     regions:
     - id: north-america
