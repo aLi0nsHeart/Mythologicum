@@ -18,11 +18,18 @@ runtime, and the new menu retains the existing scene navigation component.
 
 ## Artist controls
 
+Start with **Mythologicum > UI > Designer Tools**. The appearance Inspector now has
+Typography, Colours, Artwork, Icons and Overrides tabs. Layout controls live in
+`UI/Resources/ExhibitionLayout.asset`. The full beginner-friendly reference is
+[UI-Designer-Guide.md](UI-Designer-Guide.md), including per-label exceptions,
+persistent position/size edits, live preview and theme variants.
+
 Select `UI/Resources/SteampunkTheme.asset` in the Inspector to adjust the active
 artwork, fonts and palette. Windows, inset panels, buttons and their states, input
-fields, slider tracks and handles, and scrollbars have shared roles. The theme uses
-Roboto Slab body text, Arvo headings, Bebas Neue titles, cream lettering, copper
-controls, brass accents and dark leather backing. Disabled controls are dimmed.
+fields, slider tracks and handles, and scrollbars have shared roles. Text uses the
+asset's selected fonts, with optional category and individual-label exceptions.
+Typography, palette, text effects, control tints and icon spacing are editable;
+disabled and warning states have their own configurable colours.
 
 Research, expedition, park management, encyclopedia, notification, new-game, pause
 and confirmation panels share the same theme. Controls keep their existing gameplay
@@ -88,9 +95,9 @@ mark a graphic Ignore to preserve maps, previews and special data graphics. Nati
 viewport masks stay transparent, and selected/disabled/warning states remain
 readable. The application uses unscaled time so pause menus continue responding.
 
-**Mythologicum > UI > Rebuild Steampunk Theme** rebuilds the default theme from the
-retained artwork. This deliberately resets the theme's asset choices and colours;
-ordinary Play mode does not reset artist edits. No source-pack scripts or TMP demo
+**Mythologicum > UI > Repair Missing Steampunk References** supplies missing default
+references without replacing saved fonts, colours, text profiles or overrides.
+Ordinary Play mode does not reset artist edits. No source-pack scripts or TMP demo
 prefabs are required.
 
 ## Icons and cursor

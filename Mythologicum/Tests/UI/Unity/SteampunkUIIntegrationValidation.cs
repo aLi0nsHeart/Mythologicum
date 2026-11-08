@@ -400,6 +400,8 @@ public static class SteampunkUIIntegrationValidation
                 Capture("Building-Kiosk-1920", shortPanel, 1920, 1080);
             }
         }
+        var designerChecks = ValidateDesignerControls(controller, buildingInfo, records[BuildingKind.Kiosk]);
+        while (designerChecks.MoveNext()) yield return designerChecks.Current;
         buildingInfo.SetInspecting(true); buildingInfo.Select(records[BuildingKind.ResearchCentre]);
         yield return null;
         ValidateInfoFrame(Field<GameObject>(buildingInfo, "panel"), true);
@@ -681,6 +683,322 @@ public static class SteampunkUIIntegrationValidation
                 : Vector2.Distance(scroll.content.anchoredPosition, start) < .01f,
             report + (overflowExpected ? " responds to a real drag event" : " does not drag when all content fits"));
         scroll.verticalNormalizedPosition = 1; scroll.StopMovement();
+    }
+
+    static bool SameColor(Color a, Color b) => Mathf.Abs(a.r - b.r) < .005f && Mathf.Abs(a.g - b.g) < .005f
+        && Mathf.Abs(a.b - b.b) < .005f && Mathf.Abs(a.a - b.a) < .005f;
+
+    static Text DesignerText(Transform parent, string name, Color color)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        go.transform.SetParent(parent, false);
+        var text = go.GetComponent<Text>(); text.font = UITheme.BodyFont; text.fontSize = 18;
+        text.text = name; text.color = color; text.raycastTarget = false;
+        text.rectTransform.sizeDelta = new Vector2(350, 50);
+        UIThemeElement.Mark(go, UIThemeRole.Text);
+        return text;
+    }
+
+    static void ApplyDesignerChanges(Canvas canvas)
+    {
+        UIThemeApplicator.ApplyAll(canvas); Canvas.ForceUpdateCanvases();
+        RefreshResponsiveInspectors(); UIThemeApplicator.ApplyAll(canvas); Canvas.ForceUpdateCanvases();
+    }
+
+    static Type DesignerEditorType(string name)
+    {
+        var type = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(name, false)).FirstOrDefault(candidate => candidate != null);
+        Check(type != null, "The designer authoring command is available: " + name);
+        return type;
+    }
+
+    static object DesignerCommand(Type owner, string method, params object[] arguments)
+    {
+        var command = owner.GetMethod(method, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        Check(command != null, "The designer authoring operation is available: " + method);
+        return command.Invoke(null, arguments);
+    }
+
+    static T DesignerAssetReadback<T>(string sourcePath, string readbackPath) where T : UnityEngine.Object
+    {
+        if (AssetDatabase.LoadMainAssetAtPath(readbackPath) != null) AssetDatabase.DeleteAsset(readbackPath);
+        File.WriteAllBytes(readbackPath, File.ReadAllBytes(sourcePath));
+        AssetDatabase.ImportAsset(readbackPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+        var loaded = AssetDatabase.LoadAssetAtPath<T>(readbackPath);
+        Check(loaded != null, "The saved designer asset is readable from a fresh disk copy: " + typeof(T).Name);
+        return loaded;
+    }
+
+    static IEnumerator ValidateDesignerControls(BuildModeController controller, BuildingInspection inspector, ParkBuildingRecord kiosk)
+    {
+        var canvas = CurrentCanvas; var theme = UITheme.Current; var layout = UILayoutSettings.Current;
+        Check(theme != null && layout != null && AssetDatabase.GetAssetPath(layout) == "Assets/Mythologicum/UI/Resources/ExhibitionLayout.asset",
+            "Designer layout settings load from the persistent project asset rather than a temporary runtime default");
+        Check(Path.GetFullPath(Directory.GetCurrentDirectory()).EndsWith(Path.Combine("LocalCache", "SaveValidation"), StringComparison.OrdinalIgnoreCase),
+            "Designer asset-writing checks run only inside the disposable validation project");
+        string originalTheme = EditorJsonUtility.ToJson(theme), originalLayout = EditorJsonUtility.ToJson(layout);
+        string themeAssetPath = AssetDatabase.GetAssetPath(theme), layoutAssetPath = AssetDatabase.GetAssetPath(layout);
+        byte[] originalThemeBytes = File.ReadAllBytes(themeAssetPath), originalLayoutBytes = File.ReadAllBytes(layoutAssetPath);
+        var originalSelection = Selection.activeObject;
+        bool designerSettingsOpen = false;
+        var fixtures = new GameObject("Designer configuration fixtures", typeof(RectTransform));
+        fixtures.transform.SetParent(canvas.transform, false);
+        var unrelated = DesignerText(fixtures.transform, "Operating accounts", Color.white);
+        var warning = DesignerText(fixtures.transform, "Designer warning", new Color(.95f, .1f, .1f));
+        inspector.SetInspecting(true); inspector.Select(kiosk);
+        var panel = Field<GameObject>(inspector, "panel"); var frame = panel.GetComponent<UIFramedPanel>();
+        var accounts = Field<Text>(inspector, "accounts");
+        var apply = panel.GetComponentsInChildren<Button>().Single(button => button.name == "Apply price");
+        var applyText = apply.GetComponentInChildren<Text>(); var price = Field<InputField>(inspector, "price");
+        var funds = GameObject.Find("Park status").GetComponentsInChildren<Text>().Single(text => text.name == "Park funds");
+        bool originalInteractable = apply.interactable;
+        var accountsStyle = accounts.GetComponent<UIThemeElement>();
+        const string savedThemePath = "Assets/Editor/DesignerValidationTheme.asset";
+        const string textReadbackPath = "Assets/Editor/DesignerAuthoringThemeReadback.asset";
+        const string layoutReadbackPath = "Assets/Editor/DesignerAuthoringLayoutReadback.asset";
+        UITheme savedTheme = null;
+        try
+        {
+            ApplyDesignerChanges(canvas);
+            var alternativeFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Mythologicum/UI/Fonts/Arvo.ttf");
+            Check(alternativeFont != null, "A retained project font is available for the live designer preview");
+            Color bodyColor = new Color(.24f, .82f, .58f), buttonColor = new Color(.51f, .78f, .98f);
+            Color inputColor = new Color(.97f, .86f, .35f), hudColor = new Color(.76f, .85f, 1f);
+            theme.bodyText.font = alternativeFont; theme.bodyText.overrideColor = true; theme.bodyText.color = bodyColor;
+            theme.bodyText.fitMode = UITextFitMode.FixedSize;
+            var serializedTheme = new SerializedObject(theme);
+            var bodySize = serializedTheme.FindProperty("bodyText")?.FindPropertyRelative("fontSize");
+            Check(bodySize != null, "Body font size is a serialized Inspector control");
+            bodySize.intValue = 20; serializedTheme.ApplyModifiedPropertiesWithoutUndo();
+            theme.buttonText.fontSize = 19; theme.buttonText.fitMode = UITextFitMode.FixedSize;
+            theme.buttonText.overrideColor = true; theme.buttonText.color = buttonColor;
+            theme.inputText.fontSize = 21; theme.inputText.fitMode = UITextFitMode.FixedSize;
+            theme.inputText.overrideColor = true; theme.inputText.color = inputColor;
+            theme.hudText.fontSize = 31; theme.hudText.fitMode = UITextFitMode.FixedSize;
+            theme.hudText.overrideColor = true; theme.hudText.color = hudColor;
+            theme.textShadows = true; theme.shadowColor = new Color(.12f, .04f, .2f, .7f); theme.shadowOffset = new Vector2(2, -2);
+            theme.frameTint = new Color(.87f, .93f, 1f);
+            theme.panelLiningColor = new Color(.12f, .08f, .035f, .9f);
+            theme.iconTint = new Color(.83f, .94f, 1f);
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(accounts.font == alternativeFont && accounts.fontSize == 20 && SameColor(accounts.color, bodyColor),
+                "Editing the theme updates the real building report's font, size and colour while the screen is open");
+            Check(applyText.fontSize == 19 && SameColor(applyText.color, buttonColor),
+                "Button captions use their independently editable size and colour profile");
+            Check(price.textComponent.fontSize == 21 && SameColor(price.textComponent.color, inputColor),
+                "Editable prices use the input text profile rather than inheriting button styling");
+            Check(funds.fontSize == 31 && SameColor(funds.color, hudColor),
+                "The funds HUD responds to its separate editable typography profile");
+            var shadow = accounts.GetComponent<Shadow>();
+            Check(shadow != null && shadow.enabled && SameColor(shadow.effectColor, theme.shadowColor)
+                && shadow.effectDistance == theme.shadowOffset, "Text shadow colour and offset are live theme controls");
+            Check(SameColor(panel.GetComponentsInChildren<Image>().Single(image => image.name == "Panel artwork").color, theme.frameTint)
+                && SameColor(panel.GetComponentsInChildren<Image>().Single(image => image.name == "Panel lining").color, theme.panelLiningColor),
+                "Panel artwork tint and backing colour update through the shared appearance asset");
+            var dockIcon = FindButton(Field<ConstructionPalette>(controller, "palette").Root.transform, "Building").GetComponent<UIIcon>();
+            dockIcon.Refresh();
+            Check(SameColor(dockIcon.IconImage.color, theme.iconTint), "The icon tint responds to the shared appearance asset");
+            for (int repeat = 0; repeat < 3; repeat++) UIThemeApplicator.ApplyAll(canvas);
+            Check(accounts.fontSize == 20, "Repeated theme refreshes do not compound font-size adjustments");
+            theme.buttonHover = theme.buttonPressed;
+            var buttonPointer = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+            ExecuteEvents.Execute(apply.gameObject, buttonPointer, ExecuteEvents.pointerEnterHandler);
+            for (int repeat = 0; repeat < 3; repeat++) UIThemeApplicator.ApplyAll(canvas);
+            Check(apply.GetComponent<Image>().sprite == theme.buttonHover,
+                "A designer's hover artwork survives repeated shared-theme refreshes");
+            ExecuteEvents.Execute(apply.gameObject, buttonPointer, ExecuteEvents.pointerExitHandler);
+            theme.globalTextScale = 1.25f;
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(accounts.fontSize == 25 && price.textComponent.fontSize == 26 && funds.fontSize == 39,
+                "Global text scaling applies predictably across body, input and HUD profiles");
+            theme.globalTextScale = 1f;
+            yield return null; ApplyDesignerChanges(canvas);
+            float normalHeight = accounts.preferredHeight;
+            theme.bodyText.fontSize = 36;
+            yield return null; ApplyDesignerChanges(canvas);
+            var reportScroll = panel.GetComponentsInChildren<ScrollRect>().Single(scroll => scroll.gameObject.activeInHierarchy);
+            Check(accounts.preferredHeight > normalHeight + 40f, "Larger designer text remeasures the real report content");
+            ValidateScrollInput(reportScroll, true, "Kiosk report with intentionally large designer text");
+            theme.bodyText.fontSize = 20;
+            yield return null; ApplyDesignerChanges(canvas);
+            ValidateScrollInput(reportScroll, false, "Kiosk report after restoring a fitting designer text size");
+
+            Color individualColor = new Color(.72f, .46f, .95f);
+            theme.textOverrides = (theme.textOverrides ?? Array.Empty<UITextOverride>()).Concat(new[]
+            {
+                new UITextOverride { elementNameOrPath = "Operating accounts", screenName = "Building information",
+                    appearance = new UITextAppearance { fontSize = 23, fitMode = UITextFitMode.FixedSize,
+                        overrideColor = true, color = individualColor } }
+            }).ToArray();
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(accounts.fontSize == 23 && SameColor(accounts.color, individualColor),
+                "A persistent named text exception changes the intended inspector label");
+            Check(unrelated.fontSize == 20 && SameColor(unrelated.color, bodyColor),
+                "A screen-scoped text exception leaves an identically named label on another screen unchanged");
+            accountsStyle.LocalAppearance = new UITextAppearance { fontSize = 25, fitMode = UITextFitMode.FixedSize,
+                overrideColor = true, color = new Color(.9f, .6f, .45f), overrideAlignment = true, alignment = TextAnchor.MiddleCenter };
+            accountsStyle.LocalAppearanceEnabled = true;
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(accounts.fontSize == 25 && accounts.alignment == TextAnchor.MiddleCenter
+                && SameColor(accounts.color, accountsStyle.LocalAppearance.color),
+                "An authored element's local appearance can override the shared profile without editing code");
+            accountsStyle.LocalAppearanceEnabled = false;
+            theme.bodyText.overrideColor = false; theme.buttonText.overrideColor = false;
+            theme.dangerColor = new Color(.93f, .43f, .17f); theme.mutedColor = new Color(.46f, .56f, .66f);
+            theme.buttonDisabledTint = new Color(.28f, .38f, .45f, .65f); apply.interactable = false;
+            theme.buttonDisabled = theme.buttonPressed;
+            theme.textShadows = false;
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(SameColor(warning.color, theme.dangerColor), "Warnings use the editable warning colour after typography changes");
+            Check(SameColor(applyText.color, theme.mutedColor) && SameColor(apply.GetComponent<Image>().color, theme.buttonDisabledTint),
+                "Disabled controls retain the editable disabled text and surface colours");
+            Check(apply.GetComponent<Image>().sprite == theme.buttonDisabled,
+                "A designer's disabled artwork remains applied while a control is unavailable");
+            Check(!accounts.GetComponent<Shadow>().enabled, "Text shadows can be switched off through the theme asset");
+            theme.textOutlines = true; theme.outlineColor = new Color(.15f,.1f,.3f,1); theme.outlineOffset = new Vector2(2,-1);
+            ApplyDesignerChanges(canvas);
+            var textOutline = accounts.GetComponent<Outline>();
+            Check(textOutline != null && textOutline.enabled && SameColor(textOutline.effectColor, theme.outlineColor)
+                && textOutline.effectDistance == theme.outlineOffset, "Enabling outlines adds the configured effect to ordinary labels");
+            theme.textOutlines = false; ApplyDesignerChanges(canvas);
+            Check(!textOutline.enabled, "Ordinary text outlines can be disabled again without changing HUD outlines");
+
+            EditorJsonUtility.FromJsonOverwrite(originalTheme, theme); apply.interactable = originalInteractable;
+            yield return null; ApplyDesignerChanges(canvas);
+            var settings = SettingsPresentation.Open(canvas); designerSettingsOpen = true;
+            var display = settings.GetComponentsInChildren<Dropdown>().Single(dropdown => dropdown.name == "Window mode");
+            int authoredOptionSize = display.itemText.fontSize;
+            theme.globalTextScale = 1.1f; theme.inputText.fontSize = 20; theme.inputText.fitMode = UITextFitMode.FixedSize;
+            yield return null; ApplyDesignerChanges(canvas);
+            display.Show(); yield return null; ApplyDesignerChanges(canvas);
+            var optionLabels = GameObject.Find("Dropdown List").GetComponentsInChildren<Text>()
+                .Where(text => text.GetComponentInParent<Toggle>() != null).ToArray();
+            Check(optionLabels.Length == display.options.Count && optionLabels.All(text => text.fontSize == 22),
+                "Opened dropdown choices retain the configured input size and global text scale");
+            display.Hide(); yield return null;
+            theme.inputText.fontSize = 0; theme.inputText.sizeScale = 1.1f;
+            ApplyDesignerChanges(canvas); display.Show(); yield return null; ApplyDesignerChanges(canvas);
+            optionLabels = GameObject.Find("Dropdown List").GetComponentsInChildren<Text>()
+                .Where(text => text.GetComponentInParent<Toggle>() != null).ToArray();
+            int inheritedOptionSize = Mathf.RoundToInt(authoredOptionSize * 1.1f * 1.1f);
+            Check(optionLabels.All(text => text.fontSize == inheritedOptionSize),
+                "Cloned dropdown choices inherit their authored base size without applying scale a second time; expected "
+                    + inheritedOptionSize + "; actual " + string.Join(",", optionLabels.Select(text => text.fontSize)));
+            display.Hide(); SettingsPresentation.CloseActive(); designerSettingsOpen = false;
+            EditorJsonUtility.FromJsonOverwrite(originalTheme, theme);
+            yield return null; ApplyDesignerChanges(canvas);
+            var panelSettings = layout.Panel("Building information");
+            Check(panelSettings != null, "Building inspector geometry has a named entry in the editable layout asset");
+            var rect = (RectTransform)panel.transform; Vector2 authoredPosition = rect.anchoredPosition;
+            panelSettings.preferredWidth = 420f; panelSettings.overridePosition = true;
+            panelSettings.position = authoredPosition + new Vector2(-12, -10);
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(Near(rect.rect.width, 420f) && Vector2.Distance(rect.anchoredPosition, panelSettings.position) < .1f,
+                "Changing panel width and position in the layout asset updates the open inspector");
+            ValidateInfoFrame(panel, true);
+            float bodyWidth = frame.Content.rect.width;
+            var insets = layout.verticalBodyInsets; insets.left += .03f; layout.verticalBodyInsets = insets;
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(frame.Content.rect.width < bodyWidth - 10f,
+                "Frame safe-area settings adjust the actual content area without reshaping the artwork");
+            layout.elementOverrides = (layout.elementOverrides ?? Array.Empty<UIElementLayoutOverride>()).Concat(new[]
+            {
+                new UIElementLayoutOverride { elementNameOrPath = "Apply price", screenName = "Building information",
+                    overridePosition = true, position = new Vector2(100, -3), overrideSize = true, size = new Vector2(110, 32) }
+            }).ToArray();
+            yield return null; ApplyDesignerChanges(canvas);
+            var applyRect = (RectTransform)apply.transform;
+            Check(Vector2.Distance(applyRect.anchoredPosition, new Vector2(100, -3)) < .1f
+                && Vector2.Distance(applyRect.rect.size, new Vector2(110, 32)) < .1f,
+                "A persistent element geometry exception overrides a generated control's position and dimensions");
+            var palette = Field<ConstructionPalette>(controller, "palette");
+            layout.toolbarIconSize = 72f; layout.buildingIconPosition += new Vector2(5, 6);
+            palette.Refresh(true);
+            yield return null; ApplyDesignerChanges(canvas);
+            var buildingIcon = (RectTransform)FindButton(palette.Root.transform, "Building").transform;
+            Check(Vector2.Distance(buildingIcon.sizeDelta, new Vector2(72, 72)) < .1f
+                && Vector2.Distance(buildingIcon.anchoredPosition, layout.buildingIconPosition) < .1f,
+                "The icon dock's size and curved positions are controlled by the layout asset");
+
+            var designerWindow = DesignerEditorType("Mythologicum.Editor.UIDesignerWindow");
+            Selection.activeGameObject = accounts.gameObject;
+            string textPath = (string)DesignerCommand(designerWindow, "ElementPath", accounts.transform);
+            var savedAppearance = new UITextAppearance { font = alternativeFont, fontSize = 22, fitMode = UITextFitMode.FixedSize,
+                overrideColor = true, color = new Color(.58f, .81f, .94f) };
+            DesignerCommand(designerWindow, "SaveText", theme, textPath, savedAppearance);
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(accounts.fontSize == 22 && accounts.font == alternativeFont && SameColor(accounts.color, savedAppearance.color),
+                "The Designer Tools text-save command updates the actual selected label");
+            var themeReadback = DesignerAssetReadback<UITheme>(themeAssetPath, textReadbackPath);
+            Check(AssetDatabase.IsOpenForEdit(theme) && themeReadback.textOverrides.Any(entry => entry != null
+                && entry.elementNameOrPath == textPath && entry.appearance != null && entry.appearance.fontSize == 22
+                && entry.appearance.font == alternativeFont && SameColor(entry.appearance.color, savedAppearance.color)),
+                "The Designer Tools text exception is written to the editable theme asset on disk");
+            Selection.activeGameObject = apply.gameObject;
+            string geometryPath = (string)DesignerCommand(designerWindow, "ElementPath", apply.transform);
+            applyRect.anchoredPosition = new Vector2(120, -4);
+            applyRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 128);
+            applyRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 34);
+            DesignerCommand(designerWindow, "SaveGeometry", applyRect, geometryPath);
+            applyRect.anchoredPosition = new Vector2(-30, -20);
+            applyRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 80);
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(Vector2.Distance(applyRect.anchoredPosition, new Vector2(120, -4)) < .1f
+                && Vector2.Distance(applyRect.rect.size, new Vector2(128, 34)) < .1f,
+                "The Designer Tools geometry-save command persists after a generated control is laid out again");
+            var layoutReadback = DesignerAssetReadback<UILayoutSettings>(layoutAssetPath, layoutReadbackPath);
+            Check(AssetDatabase.IsOpenForEdit(layout) && layoutReadback.elementOverrides.Any(entry => entry != null
+                && entry.elementNameOrPath == geometryPath && entry.overridePosition && entry.overrideSize
+                && Vector2.Distance(entry.position, new Vector2(120, -4)) < .1f
+                && Vector2.Distance(entry.size, new Vector2(128, 34)) < .1f),
+                "The selected control's saved dimensions are serialized in the layout asset on disk");
+            theme.bodyFont = alternativeFont; theme.textColor = new Color(.72f, .84f, .91f);
+            theme.bodyText.fontSize = 19;
+            theme.sliderFill = null;
+            var savedBodyColor = theme.textColor;
+            DesignerCommand(DesignerEditorType("Mythologicum.Editor.SteampunkArtSetup"), "Apply");
+            Check(theme.sliderFill != null && theme.bodyFont == alternativeFont && SameColor(theme.textColor, savedBodyColor)
+                && theme.bodyText.fontSize == 19 && theme.textOverrides.Any(entry => entry.elementNameOrPath == textPath),
+                "Repairing a missing UI reference preserves the designer's font, palette, typography and saved exceptions");
+            Check(AssetDatabase.GetAssetPath(theme.sliderFill).StartsWith("Assets/Mythologicum/UI/", StringComparison.Ordinal),
+                "The repair command restores missing control artwork from retained project assets");
+
+            savedTheme = UnityEngine.Object.Instantiate(theme);
+            savedTheme.bodyText = new UITextAppearance { font = alternativeFont, fontSize = 21, fitMode = UITextFitMode.FixedSize,
+                overrideColor = true, color = individualColor };
+            savedTheme.textOverrides = Array.Empty<UITextOverride>();
+            if (AssetDatabase.LoadMainAssetAtPath(savedThemePath) != null) AssetDatabase.DeleteAsset(savedThemePath);
+            AssetDatabase.CreateAsset(savedTheme, savedThemePath); EditorUtility.SetDirty(savedTheme); AssetDatabase.SaveAssetIfDirty(savedTheme);
+            Resources.UnloadAsset(savedTheme); savedTheme = AssetDatabase.LoadAssetAtPath<UITheme>(savedThemePath);
+            Check(savedTheme != null && savedTheme.bodyText.fontSize == 21 && savedTheme.bodyText.font == alternativeFont
+                && SameColor(savedTheme.bodyText.color, individualColor),
+                "A designer theme retains its font, size and colour after an actual asset save and reload");
+            layout.activeTheme = savedTheme;
+            yield return null; ApplyDesignerChanges(canvas);
+            Check(UITheme.Current == savedTheme && accounts.fontSize == 21 && SameColor(accounts.color, individualColor),
+                "Assigning another saved active theme switches the real open interface to that appearance");
+        }
+        finally
+        {
+            if (designerSettingsOpen) SettingsPresentation.CloseActive();
+            accountsStyle.LocalAppearanceEnabled = false; accountsStyle.LocalAppearance = new UITextAppearance();
+            apply.interactable = originalInteractable;
+            EditorJsonUtility.FromJsonOverwrite(originalTheme, theme); EditorJsonUtility.FromJsonOverwrite(originalLayout, layout);
+            EditorUtility.SetDirty(theme); AssetDatabase.SaveAssetIfDirty(theme);
+            EditorUtility.SetDirty(layout); AssetDatabase.SaveAssetIfDirty(layout);
+            File.WriteAllBytes(themeAssetPath, originalThemeBytes); File.WriteAllBytes(layoutAssetPath, originalLayoutBytes);
+            AssetDatabase.ImportAsset(themeAssetPath, ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset(layoutAssetPath, ImportAssetOptions.ForceUpdate);
+            Selection.activeObject = originalSelection;
+            fixtures.SetActive(false); UnityEngine.Object.Destroy(fixtures);
+            ApplyDesignerChanges(canvas); Field<ConstructionPalette>(controller, "palette").Refresh(true);
+            if (AssetDatabase.LoadMainAssetAtPath(savedThemePath) != null) AssetDatabase.DeleteAsset(savedThemePath);
+            if (AssetDatabase.LoadMainAssetAtPath(textReadbackPath) != null) AssetDatabase.DeleteAsset(textReadbackPath);
+            if (AssetDatabase.LoadMainAssetAtPath(layoutReadbackPath) != null) AssetDatabase.DeleteAsset(layoutReadbackPath);
+        }
+        yield return null; ApplyDesignerChanges(canvas);
+        Check(UITheme.Current == theme, "The designer checks restore the original active theme and preserve the artist's existing font choices");
+        inspector.Select(null);
     }
 
     static void ValidateFrameworkEdgeCases(Canvas canvas)

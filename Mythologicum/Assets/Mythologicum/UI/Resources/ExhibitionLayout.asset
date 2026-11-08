@@ -1,0 +1,200 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82052314501c463f95427036332ec0d7, type: 3}
+  m_Name: ExhibitionLayout
+  m_EditorClassIdentifier: 
+  activeTheme: {fileID: 11400000, guid: fff3111b34bcacd42894f535252411c5, type: 2}
+  canvasMargin: 24
+  verticalBodyInsets:
+    left: 0.13
+    bottom: 0.12
+    right: 0.13
+    top: 0.21
+  verticalLiningInsets:
+    left: 0.075
+    bottom: 0.075
+    right: 0.075
+    top: 0.16
+  verticalHeadingInsets:
+    left: 0.25
+    bottom: 0.79
+    right: 0.25
+    top: 0.12
+  horizontalBodyInsets:
+    left: 0.07
+    bottom: 0.13
+    right: 0.07
+    top: 0.22
+  horizontalLiningInsets:
+    left: 0.055
+    bottom: 0.11
+    right: 0.055
+    top: 0.18
+  horizontalHeadingInsets:
+    left: 0.28
+    bottom: 0.8
+    right: 0.28
+    top: 0.08
+  panels:
+  - key: Building information
+    preferredWidth: 500
+    widthScale: 1
+    overridePosition: 0
+    position: {x: -24, y: -24}
+    overrideAnchor: 0
+    anchor: {x: 1, y: 1}
+    pivot: {x: 1, y: 1}
+  - key: Creature needs
+    preferredWidth: 500
+    widthScale: 1
+    overridePosition: 0
+    position: {x: -24, y: -24}
+    overrideAnchor: 0
+    anchor: {x: 1, y: 1}
+    pivot: {x: 1, y: 1}
+  - key: Visitor needs
+    preferredWidth: 500
+    widthScale: 1
+    overridePosition: 0
+    position: {x: -24, y: -24}
+    overrideAnchor: 0
+    anchor: {x: 1, y: 1}
+    pivot: {x: 1, y: 1}
+  - key: Enclosure information
+    preferredWidth: 640
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 24, y: -180}
+    overrideAnchor: 0
+    anchor: {x: 0, y: 1}
+    pivot: {x: 0, y: 1}
+  - key: Notification inbox
+    preferredWidth: 720
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 24, y: 210}
+    overrideAnchor: 0
+    anchor: {x: 0, y: 0}
+    pivot: {x: 0, y: 0}
+  - key: Terrain editing controls
+    preferredWidth: 640
+    widthScale: 1
+    overridePosition: 0
+    position: {x: -24, y: 24}
+    overrideAnchor: 0
+    anchor: {x: 1, y: 0}
+    pivot: {x: 1, y: 0}
+  - key: Pause window
+    preferredWidth: 500
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Confirmation window
+    preferredWidth: 900
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Main menu
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Settings window
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: New park setup
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Park management window
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Encyclopedia window
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Expedition world map
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Technology research
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  toolbarIconSize: 64
+  buildingIconPosition: {x: 56, y: 150}
+  managementIconPosition: {x: 126, y: 146}
+  encyclopediaIconPosition: {x: 196, y: 126}
+  mailIconPosition: {x: 266, y: 90}
+  pauseIconPosition: {x: 336, y: 44}
+  fundsPosition: {x: 15, y: -12}
+  statusSize: {x: 300, y: 82}
+  fundsSize: {x: 300, y: 44}
+  starsPosition: {x: 0, y: 45}
+  starsSize: {x: 154, y: 28}
+  categoryPosition: {x: 24, y: 210}
+  categoryCellSize: {x: 134, y: 44}
+  categoryColumns: 4
+  choicePosition: {x: 24, y: 342}
+  choiceCellSize: {x: 184, y: 72}
+  choiceColumns: 4
+  compactThreshold: 600
+  compactPosition: {x: 616, y: 210}
+  compactColumns: 3
+  flyoutPadding: 10
+  flyoutGap: 8
+  scrollSensitivity: 25
+  scrollbarWidth: 9
+  scrollbarGutter: 14
+  overflowTolerance: 0.5
+  tooltipDelay: 0.4
+  tooltipPadding: {x: 13, y: 9}
+  tooltipMinimumWidth: 90
+  tooltipMaximumWidth: 340
+  tooltipScreenMargin: 8
+  tooltipOffset: {x: 0, y: 10}
+  elementOverrides: []

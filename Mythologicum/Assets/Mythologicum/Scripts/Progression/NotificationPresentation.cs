@@ -22,6 +22,7 @@ namespace Mythologicum
             r.anchoredPosition=new Vector2(266,90);r.sizeDelta=new Vector2(64,64);
             mailLabel=letter.GetComponentInChildren<Text>();mailLabel.text="Mail";
             UIIcon.AttachStandalone(button,UIIconKind.Mail);
+            UILayoutElement.Bind(r,UILayoutBinding.MailIcon);
             panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,Vector2.one);
             r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,0);r.anchoredPosition=new Vector2(24,210);
             var frame=UIFramedPanel.Attach(panel,false,720);var body=frame.Content;

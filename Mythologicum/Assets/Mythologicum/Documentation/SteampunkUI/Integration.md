@@ -11,7 +11,7 @@ The publisher's original PDF and the supplied font and environment-map license n
 
 The original `.meta` GUIDs, atlas sprite rectangles, sprite IDs, and subasset IDs are preserved. A few selected sprite borders have been set for nine-slice resizing: the main window, dark inset panel, slider track, and bronze slider fill. All other imported artwork keeps its original slicing.
 
-The active palette combines cream text, brass headings, copper controls, and warm leather panels. The main window uses dark chestnut leather with a subtle built-in rim. Roboto Slab is used for body text, Arvo for headings, and Bebas Neue for large titles. The setup can be rebuilt with **Mythologicum > UI > Rebuild Steampunk Theme**. This updates the theme and generated cursor without editing scenes or source atlases.
+The theme exposes fonts, text sizes, colours and artwork through **Mythologicum > UI > Designer Tools**. Layout controls live in `UI/Resources/ExhibitionLayout.asset`. **Repair Missing Steampunk References** supplies missing defaults while preserving saved artist settings. These tools do not edit scenes or source atlases. See `Documentation/UI-Designer-Guide.md` for the current authoring workflow.
 
 The quill-and-scroll artwork supplies the normal and unread Mail icons. Matching art is used for the primary building, park management, encyclopedia, pause, settings, expedition and research controls, including hover, press and disabled variants. Simple cross and tick controls keep their existing fallbacks.
 

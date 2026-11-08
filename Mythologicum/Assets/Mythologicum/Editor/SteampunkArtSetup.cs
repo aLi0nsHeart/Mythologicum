@@ -1,28 +1,25 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
 namespace Mythologicum.Editor
 {
-    /// <summary>Rebuilds the project's shared UGUI theme from the retained UI artwork.</summary>
+    /// <summary>Supplies missing artwork without resetting the designer's saved appearance.</summary>
     public static class SteampunkArtSetup
     {
         private const string Root = "Assets/Mythologicum/UI";
         private const string ThemePath = Root + "/Resources/SteampunkTheme.asset";
 
-        [MenuItem("Mythologicum/UI/Rebuild Steampunk Theme")]
+        [MenuItem("Mythologicum/UI/Repair Missing Steampunk References")]
         public static void Apply()
         {
             EnsureFolder(Root + "/Resources");
-            var theme = AssetDatabase.LoadAssetAtPath<UITheme>(ThemePath);
-            if (theme == null)
-            {
-                theme = ScriptableObject.CreateInstance<UITheme>();
-                theme.name = "Steampunk Theme";
-                AssetDatabase.CreateAsset(theme, ThemePath);
-            }
+            var existing = AssetDatabase.LoadAssetAtPath<UITheme>(ThemePath);
+            var theme = ScriptableObject.CreateInstance<UITheme>();
+            theme.name = "Steampunk Theme";
 
             theme.bodyFont = RequiredAsset<Font>("Fonts/RobotoSlab.ttf");
             theme.headingFont = RequiredAsset<Font>("Fonts/Arvo.ttf");
@@ -72,7 +69,8 @@ namespace Mythologicum.Editor
                 Icons(UIIconKind.Funds, "Steampunk_UI_inventory_cursor_icons", 31, 31, 31, 31)
             };
             theme.cursorSource = Sprite("Steampunk_UI_inventory_cursor_icons", 6);
-            theme.cursorTexture = BuildCursor(theme.cursorSource);
+            theme.cursorTexture = existing != null && existing.cursorTexture != null
+                ? existing.cursorTexture : BuildCursor(theme.cursorSource);
             theme.cursorHotspot = new Vector2(2, 2);
             theme.icons = new[]
             {
@@ -105,9 +103,26 @@ namespace Mythologicum.Editor
             theme.dangerColor = new Color(1f, 0.47f, 0.35f);
             theme.accentColor = new Color(0.83f, 0.59f, 0.28f);
 
+            if (existing != null)
+            {
+                Undo.RecordObject(existing, "Repair missing UI references");
+                foreach (var field in typeof(UITheme).GetFields(BindingFlags.Instance | BindingFlags.Public))
+                {
+                    object saved = field.GetValue(existing);
+                    if (typeof(UnityEngine.Object).IsAssignableFrom(field.FieldType))
+                    {
+                        if ((UnityEngine.Object)saved == null) field.SetValue(existing, field.GetValue(theme));
+                    }
+                    else if (saved is Array array && array.Length == 0 || saved == null && field.FieldType.IsArray)
+                        field.SetValue(existing, field.GetValue(theme));
+                }
+                UnityEngine.Object.DestroyImmediate(theme);
+                theme = existing;
+            }
+            else AssetDatabase.CreateAsset(theme, ThemePath);
             EditorUtility.SetDirty(theme);
             AssetDatabase.SaveAssets();
-            Debug.Log("Built Mythologicum's Steampunk theme from project UI art and fonts.");
+            Debug.Log("Repaired missing UI references. Existing fonts, colours, sizes and overrides were preserved.");
         }
 
         private static T RequiredAsset<T>(string relativePath) where T : UnityEngine.Object

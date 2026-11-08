@@ -40,9 +40,8 @@ namespace Mythologicum
             {
                 var frame=parent.GetComponentInParent<UIFramedPanel>(true);
                 var rect=(RectTransform)go.transform;rect.SetParent(frame.transform,false);
-                rect.anchorMin=rect.anchorMax=new Vector2(1,1);rect.pivot=new Vector2(1,.5f);
-                var frameRect=(RectTransform)frame.transform;
-                rect.anchoredPosition=new Vector2(-frameRect.rect.width*.09f,-frameRect.rect.height*.14f);
+                rect.anchorMin=rect.anchorMax=new Vector2(.91f,.86f);rect.pivot=new Vector2(1,.5f);
+                rect.anchoredPosition=Vector2.zero;
             }
             return button;
         }

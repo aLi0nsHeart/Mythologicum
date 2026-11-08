@@ -10,7 +10,6 @@ namespace Mythologicum
     [RequireComponent(typeof(Button))]
     public sealed class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler
     {
-        private const float Delay = .4f;
         private readonly List<RaycastResult> hits = new List<RaycastResult>();
         private readonly Vector3[] corners = new Vector3[4];
         private Button button;
@@ -57,18 +56,31 @@ namespace Mythologicum
         {
             if (popup == null && !CreatePopup()) return;
             caption.text = Caption;
-            float width = Mathf.Clamp(caption.preferredWidth + 26, 90, Mathf.Min(340, canvasRect.rect.width - 16));
+            var layout = UILayoutSettings.Current;
+            float paddingX = Mathf.Max(0,layout.tooltipPadding.x), paddingY = Mathf.Max(0,layout.tooltipPadding.y);
+            float margin = Mathf.Max(0,layout.tooltipScreenMargin);
+            float maximum = Mathf.Max(1,Mathf.Min(layout.tooltipMaximumWidth, canvasRect.rect.width - margin*2));
+            float minimum = Mathf.Clamp(layout.tooltipMinimumWidth,1,maximum);
+            float width = Mathf.Clamp(caption.preferredWidth + paddingX*2, minimum, maximum);
             popup.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-            caption.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width - 26);
-            float height = caption.preferredHeight + 18;
-            caption.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height - 18);
+            caption.rectTransform.anchoredPosition = new Vector2(paddingX,-paddingY);
+            caption.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Max(1,width - paddingX*2));
+            float height = caption.preferredHeight + paddingY*2;
+            caption.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(1,height - paddingY*2));
             popup.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
             var source = (RectTransform)transform;
             source.GetWorldCorners(corners);
             Vector3 topLeft = canvasRect.InverseTransformPoint(corners[1]);
             Rect area = canvasRect.rect;
-            popup.anchoredPosition = new Vector2(Mathf.Clamp(topLeft.x, area.xMin + 8, area.xMax - width - 8),
-                Mathf.Clamp(topLeft.y + 10, area.yMin + 8, area.yMax - height - 8));
+            popup.anchoredPosition = new Vector2(Mathf.Clamp(topLeft.x+layout.tooltipOffset.x, area.xMin + margin, area.xMax - width - margin),
+                Mathf.Clamp(topLeft.y + layout.tooltipOffset.y, area.yMin + margin, Mathf.Max(area.yMin+margin,area.yMax - height - margin)));
+            var theme = UITheme.Current;
+            if(theme!=null)
+            {
+                var background=popup.GetComponent<Image>();
+                background.sprite=theme.tooltipFrame!=null?theme.tooltipFrame:theme.windowFrame;
+                background.color=theme.frameTint;
+            }
             popup.gameObject.SetActive(true); popup.SetAsLastSibling();
         }
 
@@ -84,7 +96,7 @@ namespace Mythologicum
             var theme = UITheme.Current;
             if (theme != null)
             {
-                image.sprite = theme.windowFrame; image.type = Image.Type.Sliced;
+                image.sprite = theme.tooltipFrame!=null?theme.tooltipFrame:theme.windowFrame; image.type = Image.Type.Sliced;
                 image.pixelsPerUnitMultiplier = 4; image.color = Color.white;
             }
             UIThemeElement.Mark(box, UIThemeRole.Ignore);
@@ -100,8 +112,13 @@ namespace Mythologicum
             if (popup != null) popup.gameObject.SetActive(false);
         }
 
+        public void RefreshVisible()
+        {
+            if (IsVisible && hovered) Show();
+        }
+
         public void OnPointerEnter(PointerEventData data)
-        { pointer = data; hovered = true; showAt = Time.unscaledTime + Delay; }
+        { pointer = data; hovered = true; showAt = Time.unscaledTime + Mathf.Max(0,UILayoutSettings.Current.tooltipDelay); }
         public void OnPointerExit(PointerEventData data) => Hide();
         public void OnPointerDown(PointerEventData data) => Hide();
         private void OnDisable() => Hide();

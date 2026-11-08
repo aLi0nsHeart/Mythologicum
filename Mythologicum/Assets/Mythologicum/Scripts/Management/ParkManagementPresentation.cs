@@ -179,8 +179,16 @@ namespace Mythologicum
     public sealed class StarRatingGraphic : MaskableGraphic
     {
         private float rating;
+        private Color filledColor = new Color(1f, .78f, .2f), emptyColor = new Color(.18f, .24f, .25f);
         public void SetRating(float value)
-        { float next = float.IsNaN(value) ? 0 : Mathf.Clamp(value, 0, 5); if (next == rating) return; rating = next; SetVerticesDirty(); }
+        {
+            float next = float.IsNaN(value) ? 0 : Mathf.Clamp(value, 0, 5);
+            var theme = UITheme.Current;
+            Color filled = theme != null ? theme.starFilledColor : new Color(1f, .78f, .2f);
+            Color empty = theme != null ? theme.starEmptyColor : new Color(.18f, .24f, .25f);
+            if (next == rating && filled == filledColor && empty == emptyColor) return;
+            rating = next; filledColor = filled; emptyColor = empty; SetVerticesDirty();
+        }
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear(); var rect = rectTransform.rect;
@@ -188,7 +196,7 @@ namespace Mythologicum
             {
                 Vector2 center = new Vector2(rect.xMin + (star + .5f) * rect.width / 5, rect.center.y);
                 float radius = Mathf.Min(rect.height * .45f, rect.width / 5 * .43f);
-                Color tint = Color.Lerp(new Color(.18f, .24f, .25f), new Color(1f, .78f, .2f), Mathf.Clamp01(rating - star));
+                Color tint = Color.Lerp(emptyColor, filledColor, Mathf.Clamp01(rating - star));
                 int first = vh.currentVertCount; vh.AddVert(center, tint, Vector2.zero);
                 for (int i = 0; i < 10; i++)
                 {

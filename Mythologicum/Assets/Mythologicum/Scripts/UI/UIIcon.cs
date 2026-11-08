@@ -24,7 +24,8 @@ namespace Mythologicum
         public UIIconKind Kind => kind;
         public Image IconImage => icon;
         public bool IconOnly => iconOnly;
-        public float LabelPadding => iconOnly ? 0f : icon != null && icon.enabled && icon.sprite != null ? labelPadding : 10f;
+        public float LabelPadding => iconOnly ? 0f : icon != null && icon.enabled && icon.sprite != null
+            ? labelPadding : UITheme.Current != null ? UITheme.Current.buttonTextPadding.x : 10f;
 
         /// <summary>Assign a specific symbol; automatic name matching will leave this choice alone.</summary>
         public static UIIcon Attach(Button target, UIIconKind value)
@@ -93,9 +94,10 @@ namespace Mythologicum
                 : hovered || selected ? symbols.highlighted : symbols.normal;
             if (sprite == null) sprite = symbols.normal;
             if (icon.sprite != sprite) icon.sprite = sprite;
-            icon.color = !available && symbols.disabled == null ? new Color(.65f, .65f, .65f, .75f) : Color.white;
+            icon.color = !available && (symbols.disabled == null || theme.tintDisabledIconArtwork) ? theme.disabledIconTint : theme.iconTint;
             var size = ((RectTransform)transform).rect.size;
-            if (size != previousSize)
+            // Spacing settings can change live even when the button's own rectangle stays the same.
+            if (size != previousSize || !iconOnly)
             {
                 previousSize = size;
                 var rect = icon.rectTransform;
@@ -107,10 +109,10 @@ namespace Mythologicum
                 }
                 else
                 {
-                    float side = Mathf.Clamp(size.y - 12f, 18f, 44f);
+                    float side = Mathf.Clamp(size.y - theme.iconInset, Mathf.Max(1f, theme.iconMinSize), Mathf.Max(theme.iconMinSize, theme.iconMaxSize));
                     rect.anchorMin = rect.anchorMax = new Vector2(0, .5f); rect.pivot = new Vector2(.5f, .5f);
-                    rect.anchoredPosition = new Vector2(14f + side * .5f, 0); rect.sizeDelta = Vector2.one * side;
-                    labelPadding = 14f + side + 9f;
+                    rect.anchoredPosition = new Vector2(theme.iconPadding + side * .5f, 0); rect.sizeDelta = Vector2.one * side;
+                    labelPadding = theme.iconPadding + side + theme.iconGap;
                 }
             }
         }

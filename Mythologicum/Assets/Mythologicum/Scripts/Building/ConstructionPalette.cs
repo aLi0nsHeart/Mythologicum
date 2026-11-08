@@ -25,7 +25,6 @@ namespace Mythologicum
         private readonly Action categoryOpened;
         private bool hasEntrance;
         private ConstructionCategory? expanded;
-        private Vector2 lastCanvasSize = new Vector2(-1, -1);
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
@@ -122,6 +121,7 @@ namespace Mythologicum
             Status.rectTransform.anchorMin = Status.rectTransform.anchorMax = new Vector2(0.5f, 0f);
             Status.rectTransform.anchoredPosition = new Vector2(0f, 320f);
             Status.rectTransform.sizeDelta = new Vector2(1100f, 65f);
+            UILayoutElement.Attach(rootRect).RefreshLayout = LayoutFlyouts;
             Refresh(false);
         }
 
@@ -133,22 +133,25 @@ namespace Mythologicum
             rect.pivot = new Vector2(.5f, .5f);
             rect.anchoredPosition = position; rect.sizeDelta = new Vector2(64, 64);
             UIIcon.AttachStandalone(button, icon, title);
+            UILayoutBinding binding = icon == UIIconKind.Building ? UILayoutBinding.BuildingIcon
+                : icon == UIIconKind.ParkManagement ? UILayoutBinding.ManagementIcon
+                : icon == UIIconKind.Encyclopedia ? UILayoutBinding.EncyclopediaIcon : UILayoutBinding.PauseIcon;
+            UILayoutElement.Bind(rect, binding);
         }
 
         private void LayoutFlyouts()
         {
             var canvasSize = ((RectTransform)Root.transform.parent).rect.size;
-            if (canvasSize == lastCanvasSize) return;
-            lastCanvasSize = canvasSize;
-            LayoutGrid(buildingMenu, 4, new Vector2(134, 44));
-            ((RectTransform)buildingMenu.transform).anchoredPosition = new Vector2(24, 210);
-            bool besideCategories = canvasSize.y < 600f;
+            var layout = UILayoutSettings.Current;
+            LayoutGrid(buildingMenu, layout.categoryColumns, layout.categoryCellSize);
+            ((RectTransform)buildingMenu.transform).anchoredPosition = layout.categoryPosition;
+            bool besideCategories = canvasSize.y < layout.compactThreshold;
             foreach (var group in groups.Values)
             {
-                int columns = besideCategories ? 3 : 4;
-                LayoutGrid(group, columns, new Vector2(184, 72));
+                int columns = besideCategories ? layout.compactColumns : layout.choiceColumns;
+                LayoutGrid(group, columns, layout.choiceCellSize);
                 var rect = (RectTransform)group.transform;
-                rect.anchoredPosition = besideCategories ? new Vector2(616, 210) : new Vector2(24, 342);
+                rect.anchoredPosition = besideCategories ? layout.compactPosition : layout.choicePosition;
                 float availableWidth = Mathf.Max(100, canvasSize.x - rect.anchoredPosition.x - 20);
                 float availableHeight = Mathf.Max(80, canvasSize.y - rect.anchoredPosition.y - 100);
                 rect.localScale = Vector3.one * Mathf.Min(1f, availableWidth / rect.rect.width, availableHeight / rect.rect.height);
@@ -157,11 +160,11 @@ namespace Mythologicum
 
         private static void LayoutGrid(GameObject group, int maximumColumns, Vector2 cellSize)
         {
-            const float padding = 10, gap = 8;
+            float padding = UILayoutSettings.Current.flyoutPadding, gap = UILayoutSettings.Current.flyoutGap;
             var buttons = new List<Button>();
             foreach (Transform child in group.transform)
                 if (child.TryGetComponent<Button>(out var button)) buttons.Add(button);
-            int columns = Mathf.Clamp(buttons.Count, 1, maximumColumns);
+            int columns = Mathf.Clamp(buttons.Count, 1, Mathf.Max(1,maximumColumns));
             int rows = Mathf.Max(1, Mathf.CeilToInt(buttons.Count / (float)columns));
             ((RectTransform)group.transform).sizeDelta = new Vector2(
                 padding * 2 + columns * cellSize.x + (columns - 1) * gap,

@@ -12,6 +12,7 @@ namespace Mythologicum
     {
         private readonly List<UIThemeElement> elements = new List<UIThemeElement>();
         private readonly List<UIOverflowScroll> scrolls = new List<UIOverflowScroll>();
+        private readonly List<UILayoutElement> layoutElements = new List<UILayoutElement>();
         private float nextScan;
         private Canvas canvas;
 
@@ -50,11 +51,15 @@ namespace Mythologicum
                 var element = graphic.GetComponent<UIThemeElement>() ?? graphic.gameObject.AddComponent<UIThemeElement>();
                 element.Initialize(graphic); elements.Add(element);
             }
+            layoutElements.Clear();
+            foreach (var rect in canvas.GetComponentsInChildren<RectTransform>(true))
+                layoutElements.Add(UILayoutElement.Attach(rect));
         }
         private void Apply()
         {
             var theme = UITheme.Current; if (theme == null) return;
             foreach (var element in elements) if (element != null) element.Apply(theme);
+            foreach (var element in layoutElements) if (element != null) element.Refresh();
             foreach (var scroll in scrolls) if (scroll != null) scroll.Refresh();
         }
     }

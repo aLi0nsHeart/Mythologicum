@@ -10,6 +10,9 @@ namespace Mythologicum
     {
         private ScrollRect scroll;
         private readonly Vector3[] corners = new Vector3[4];
+        private bool ownsGutter;
+        private RectTransform gutterViewport;
+        private float originalViewportRight;
         public bool HasOverflow { get; private set; }
 
         public static UIOverflowScroll Attach(ScrollRect target)
@@ -27,7 +30,8 @@ namespace Mythologicum
             track.transform.SetParent(scroll.transform, false);
             var rect = (RectTransform)track.transform;
             rect.anchorMin = new Vector2(1, 0); rect.anchorMax = Vector2.one;
-            rect.pivot = new Vector2(1, .5f); rect.anchoredPosition = Vector2.zero; rect.sizeDelta = new Vector2(9, 0);
+            rect.pivot = new Vector2(1, .5f); rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(Mathf.Max(1f, UILayoutSettings.Current.scrollbarWidth), 0);
             var handle = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             handle.transform.SetParent(track.transform, false);
             var handleRect = (RectTransform)handle.transform;
@@ -39,9 +43,11 @@ namespace Mythologicum
             bar.navigation = new Navigation { mode = Navigation.Mode.None };
             scroll.verticalScrollbar = bar;
             scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
-            // A stable gutter avoids a wrap/scrollbar feedback loop when content just fits.
-            var maximum = scroll.viewport.offsetMax;
-            maximum.x -= 14f; scroll.viewport.offsetMax = maximum;
+            // Capture the authored edge once; live gutter edits must not accumulate extra padding.
+            ownsGutter = true;
+            gutterViewport = scroll.viewport;
+            originalViewportRight = scroll.viewport.offsetMax.x;
+            ApplyLayout();
         }
 
         public void Refresh()
@@ -49,9 +55,10 @@ namespace Mythologicum
             if (scroll == null) scroll = GetComponent<ScrollRect>();
             if (scroll == null || scroll.content == null || scroll.viewport == null) return;
             EnsureScrollbar();
+            ApplyLayout();
             float height = MeasureHeight(scroll.content);
             scroll.content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
-            HasOverflow = height > scroll.viewport.rect.height + .5f;
+            HasOverflow = height > scroll.viewport.rect.height + Mathf.Clamp(UILayoutSettings.Current.overflowTolerance, 0f, 5f);
             scroll.horizontal = false;
             scroll.vertical = HasOverflow;
             scroll.movementType = ScrollRect.MovementType.Clamped;
@@ -72,6 +79,27 @@ namespace Mythologicum
                 position.y = Mathf.Clamp(position.y, 0f, height - scroll.viewport.rect.height);
                 scroll.content.anchoredPosition = position;
             }
+        }
+
+        private void ApplyLayout()
+        {
+            var layout = UILayoutSettings.Current;
+            scroll.scrollSensitivity = Mathf.Max(0f, layout.scrollSensitivity);
+            if (scroll.verticalScrollbar != null)
+            {
+                var track = scroll.verticalScrollbar.transform as RectTransform;
+                if (track != null && Mathf.Approximately(track.anchorMin.x, track.anchorMax.x))
+                    track.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Max(1f, layout.scrollbarWidth));
+            }
+            if (!ownsGutter || scroll.viewport == null) return;
+            if (gutterViewport != scroll.viewport)
+            {
+                gutterViewport = scroll.viewport;
+                originalViewportRight = gutterViewport.offsetMax.x;
+            }
+            var maximum = gutterViewport.offsetMax;
+            maximum.x = originalViewportRight - Mathf.Max(layout.scrollbarWidth, layout.scrollbarGutter);
+            gutterViewport.offsetMax = maximum;
         }
 
         private float MeasureHeight(RectTransform content)
