@@ -10,6 +10,8 @@ namespace Mythologicum
         private NotificationPresentation notifications;
         private EncyclopediaPresentation encyclopedia;
         private ParkStatusPresentation parkStatus;
+        private ParkAlertMonitor alerts;
+        private ParkOverlayPresentation overlays;
         public bool ManagementOpen => (management?.IsOpen ?? false)||(parkManagement?.IsOpen ?? false)
             ||(encyclopedia?.IsOpen ?? false)||SettingsPresentation.IsOpen;
         private void InitializeProgression()
@@ -34,6 +36,20 @@ namespace Mythologicum
             parkStatus=new ParkStatusPresentation(canvas,economy,visitorWorld);
             management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.displayName??id);
             parkManagement=new ParkManagementPresentation(canvas,buildingConstruction.Network,visitorWorld,creatureWorld,economy);
+            overlays=new ParkOverlayPresentation(canvas,grid,fences.Layout,buildingConstruction.Network,enclosureMap,creatureWorld.IsClear);
+            parkManagement.ConfigureOverlays(mode =>
+            {
+                if(mode!=ParkOverlayMode.Off)
+                {
+                    buildingInspection.Select(null);creatureInspection.Select(null);visitorPresentation.Select(null);enclosurePresentation.Select(null);
+                    GetComponent<IsometricCameraController>()?.StopFollowing();
+                }
+                overlays.SetMode(mode);
+            });
+            alerts=new ParkAlertMonitor(grid,fences.Layout,buildingConstruction.Network,creatureWorld,visitorWorld,staffWorld,enclosureMap,Progression.Inbox);
+            alerts.ResetBaseline();
+            SimulationSpeedControls.Attach(canvas);
+            InitializeConstructionHistory(canvas);
             encyclopedia=new EncyclopediaPresentation(canvas,creatureCatalog,staffWorld.Research);
             notifications=new NotificationPresentation(canvas,Progression.Inbox,cell=>{
                 management.Close();parkManagement.Close();encyclopedia.Close();SelectTool(Tool.None);GetComponent<IsometricCameraController>()?.FocusOn(grid.CellCenter(cell));

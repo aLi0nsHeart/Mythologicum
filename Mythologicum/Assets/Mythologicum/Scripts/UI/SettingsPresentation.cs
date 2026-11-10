@@ -10,9 +10,12 @@ namespace Mythologicum
     {
         private static SettingsPresentation active;
         public static bool IsOpen => active != null && active.gameObject.activeSelf;
-        private Slider volume, movement, rotation, zoom;
+        private Slider volume, movement, rotation, zoom, interfaceScale;
         private Dropdown display, quality;
-        private Text volumeLabel, movementLabel, rotationLabel, zoomLabel, notice;
+        private Text volumeLabel, movementLabel, rotationLabel, zoomLabel, scaleLabel, notice, movementKeys;
+        private GameObject shortcutsWindow;
+        private Text bindingMessage;
+        private readonly Dictionary<GameplayAction, Button> bindingButtons = new Dictionary<GameplayAction, Button>();
         private bool refreshing;
         private float saveAt;
 
@@ -29,9 +32,14 @@ namespace Mythologicum
             active = root.AddComponent<SettingsPresentation>(); active.Build(canvas);
             root.SetActive(true); root.transform.SetAsLastSibling(); active.Refresh(); UIThemeApplicator.ApplyAll(canvas); return active;
         }
-        public static void CloseActive() { if (active != null) active.Close(); }
+        public static void CloseActive()
+        {
+            if (active == null) return;
+            if (active.shortcutsWindow != null) active.CloseShortcuts(); else active.Close();
+        }
         public void Close()
         {
+            CloseShortcuts();
             GameSettings.Save(); gameObject.SetActive(false);
             if (active == this) active = null;
             Destroy(gameObject);
@@ -50,6 +58,9 @@ namespace Mythologicum
             ManagementWidgets.Label(card, "Graphics quality", new Vector2(40, 192), new Vector2(470, 30), 20);
             string[] names = QualitySettings.names;
             quality = DropdownControl(card, "Quality", new Vector2(40, 225), names.Length > 0 ? names : new[] { "Default" }, GameSettings.SetQuality);
+            scaleLabel = ManagementWidgets.Label(card, "Interface scale", new Vector2(40, 278), new Vector2(470, 28), 20);
+            interfaceScale = SliderControl(card, "Interface scale", new Vector2(40, 311),
+                PlayControlsDefinition.Current.minimumUIScale, PlayControlsDefinition.Current.maximumUIScale, GameSettings.SetUIScale);
             movementLabel = ManagementWidgets.Label(card, "Camera movement", new Vector2(640, 52), new Vector2(470, 30), 20);
             movement = SliderControl(card, "Camera movement", new Vector2(640, 85), .25f, 3, GameSettings.SetMoveSensitivity);
             rotationLabel = ManagementWidgets.Label(card, "Camera rotation", new Vector2(640, 122), new Vector2(470, 30), 20);
@@ -57,12 +68,12 @@ namespace Mythologicum
             zoomLabel = ManagementWidgets.Label(card, "Camera zoom", new Vector2(640, 192), new Vector2(470, 30), 20);
             zoom = SliderControl(card, "Camera zoom", new Vector2(640, 225), .25f, 3, GameSettings.SetZoomSensitivity);
             ManagementWidgets.Label(card, "Movement controls", new Vector2(640, 278), new Vector2(470, 28), 20);
-            var keys = ManagementWidgets.Label(card, "Movement keys", new Vector2(640, 312), new Vector2(470, 70), 16);
-            keys.text = "WASD / arrows: move | Q / E: rotate\nMouse wheel: zoom | Click: focus / follow\nMove / empty ground: release | Esc: close / pause";
-            ManagementWidgets.Label(card, "Credits", new Vector2(40, 286), new Vector2(470, 28), 20);
-            var credits = ManagementWidgets.Label(card, "Vegetation credits", new Vector2(40, 322), new Vector2(470, 30), 17);
+            movementKeys = ManagementWidgets.Label(card, "Movement keys", new Vector2(640, 312), new Vector2(470, 70), 16);
+            ManagementWidgets.Label(card, "Credits", new Vector2(40, 350), new Vector2(470, 20), 16);
+            var credits = ManagementWidgets.Label(card, "Vegetation credits", new Vector2(40, 374), new Vector2(470, 24), 15);
             credits.text = "Vegetation assets: LUX ART STUDIOS";
-            notice = ManagementWidgets.Label(card, "Preferences apply immediately and are saved automatically.", new Vector2(40, 400), new Vector2(1070, 26), 15);
+            ManagementWidgets.Button(card, "Keyboard shortcuts", new Vector2(850, 390), new Vector2(260, 36), () => OpenShortcuts(canvas), 17);
+            notice = ManagementWidgets.Label(card, "Preferences apply immediately and are saved automatically.", new Vector2(40, 410), new Vector2(780, 26), 15);
             ManagementWidgets.Button(card, "Reset defaults", new Vector2(40, 441), new Vector2(280, 44), () => { GameSettings.ResetDefaults(); Refresh(); });
             ManagementWidgets.Button(card, "Back", new Vector2(850, 441), new Vector2(260, 44), Close);
         }
@@ -73,6 +84,7 @@ namespace Mythologicum
         }
         private void Update()
         {
+            GameInput.UpdateCapture();
             // Escape is handled once by GameSaveMenu, preventing a close from also toggling Pause.
             if (GameSettings.HasUnsavedChanges && Time.unscaledTime >= saveAt) GameSettings.Save();
         }
@@ -83,15 +95,76 @@ namespace Mythologicum
             movement.SetValueWithoutNotify(GameSettings.MoveSensitivity);
             rotation.SetValueWithoutNotify(GameSettings.RotationSensitivity);
             zoom.SetValueWithoutNotify(GameSettings.ZoomSensitivity);
+            interfaceScale.SetValueWithoutNotify(GameSettings.UIScale);
             display.SetValueWithoutNotify(GameSettings.WindowMode); quality.SetValueWithoutNotify(GameSettings.Quality);
             volumeLabel.text = $"Master volume: {GameSettings.MasterVolume:P0}";
             movementLabel.text = $"Camera movement: {GameSettings.MoveSensitivity:0.00}x";
             rotationLabel.text = $"Camera rotation: {GameSettings.RotationSensitivity:0.00}x";
             zoomLabel.text = $"Camera zoom: {GameSettings.ZoomSensitivity:0.00}x";
+            scaleLabel.text = $"Interface scale: {GameSettings.UIScale:P0}";
+            bool defaults = GameInput.GetKey(GameplayAction.MoveForward) == GameInput.DefaultKey(GameplayAction.MoveForward)
+                && GameInput.GetKey(GameplayAction.MoveBack) == GameInput.DefaultKey(GameplayAction.MoveBack)
+                && GameInput.GetKey(GameplayAction.MoveLeft) == GameInput.DefaultKey(GameplayAction.MoveLeft)
+                && GameInput.GetKey(GameplayAction.MoveRight) == GameInput.DefaultKey(GameplayAction.MoveRight);
+            string movementCaption = defaults ? "WASD / arrows" : string.Join("/", GameInput.KeyCaption(GameplayAction.MoveForward),
+                GameInput.KeyCaption(GameplayAction.MoveLeft), GameInput.KeyCaption(GameplayAction.MoveBack), GameInput.KeyCaption(GameplayAction.MoveRight)) + " / arrows";
+            movementKeys.text = movementCaption + ": move | " + GameInput.KeyCaption(GameplayAction.RotateLeft) + " / " + GameInput.KeyCaption(GameplayAction.RotateRight)
+                + ": rotate\nMouse wheel: zoom | Click: focus / follow\nMove / empty ground: release | Esc: close / pause";
             if (notice != null) notice.text = Application.isEditor
                 ? "Preferences apply immediately and are saved automatically. Window mode applies to standalone builds."
                 : "Preferences apply immediately and are saved automatically.";
             refreshing = false;
+        }
+
+        private void OpenShortcuts(Canvas canvas)
+        {
+            if (shortcutsWindow != null) return;
+            shortcutsWindow = ManagementWidgets.Modal(canvas, "Keyboard shortcuts window");
+            var card = ManagementWidgets.Card(shortcutsWindow, canvas);
+            ManagementWidgets.Label(card, "Keyboard shortcuts", new Vector2(20, 12), new Vector2(900, 38), 27);
+            ManagementWidgets.Button(card, "Close keyboard shortcuts", new Vector2(1030, 8), new Vector2(110, 36), CloseShortcuts, 16)
+                .GetComponentInChildren<Text>().text = "Close";
+            bindingMessage = ManagementWidgets.Label(card, "Select a key to change. Esc cancels capture. Arrow keys always move the camera.",
+                new Vector2(20, 48), new Vector2(1100, 42), 17);
+            var actions = (GameplayAction[])Enum.GetValues(typeof(GameplayAction));
+            int rows = (actions.Length + 1) / 2;
+            var content = ManagementWidgets.Scroll(card, "Shortcut list", new Vector2(20, 100), new Vector2(1100, 330), rows * 50);
+            bindingButtons.Clear();
+            for (int i = 0; i < actions.Length; i++)
+            {
+                GameplayAction action = actions[i];
+                float x = (i / rows) * 550, y = (i % rows) * 50;
+                ManagementWidgets.Label(content, GameInput.Name(action), new Vector2(x + 8, y + 6), new Vector2(320, 36), 18);
+                var button = ManagementWidgets.Button(content, "Rebind " + action, new Vector2(x + 330, y), new Vector2(190, 36), () =>
+                {
+                    bindingMessage.text = "Press a new key for " + GameInput.Name(action) + ". Esc cancels.";
+                    GameInput.BeginCapture(action, (success, message) =>
+                    {
+                        if (this == null || bindingMessage == null) return;
+                        bindingMessage.text = message; RefreshBindingButtons(); Refresh();
+                    });
+                    RefreshBindingButtons();
+                }, 17);
+                bindingButtons.Add(action, button);
+            }
+            ManagementWidgets.Button(card, "Reset keyboard shortcuts", new Vector2(20, 448), new Vector2(320, 38), () =>
+            {
+                GameInput.ResetDefaults(); RefreshBindingButtons(); Refresh();
+                bindingMessage.text = "Default keyboard shortcuts restored.";
+            }, 17);
+            shortcutsWindow.SetActive(true); shortcutsWindow.transform.SetAsLastSibling();
+            RefreshBindingButtons(); UIThemeApplicator.ApplyAll(canvas);
+        }
+        private void RefreshBindingButtons()
+        {
+            foreach (var pair in bindingButtons)
+                if (pair.Value != null) pair.Value.GetComponentInChildren<Text>().text = GameInput.KeyCaption(pair.Key);
+        }
+        private void CloseShortcuts()
+        {
+            GameInput.CancelCapture();
+            if (shortcutsWindow == null) return;
+            shortcutsWindow.SetActive(false); Destroy(shortcutsWindow); shortcutsWindow = null; bindingButtons.Clear();
         }
 
         private Slider SliderControl(Transform parent, string name, Vector2 position, float min, float max, Action<float> changed)
@@ -133,6 +206,6 @@ namespace Mythologicum
             scroll.viewport = viewport; scroll.content = content; scroll.scrollSensitivity = 24;
             template.SetActive(false); dropdown.onValueChanged.AddListener(value => Changed(() => changed(value))); return dropdown;
         }
-        private void OnDestroy() { GameSettings.Save(); if (active == this) active = null; }
+        private void OnDestroy() { CloseShortcuts(); GameSettings.Save(); if (active == this) active = null; }
     }
 }

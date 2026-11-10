@@ -165,6 +165,22 @@ MonoBehaviour:
     overrideAnchor: 0
     anchor: {x: 0.5, y: 0.5}
     pivot: {x: 0.5, y: 0.5}
+  - key: Save browser
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
+  - key: Keyboard shortcuts window
+    preferredWidth: 1400
+    widthScale: 1
+    overridePosition: 0
+    position: {x: 0, y: 0}
+    overrideAnchor: 0
+    anchor: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5, y: 0.5}
   toolbarIconSize: 64
   buildingIconPosition: {x: 56, y: 150}
   managementIconPosition: {x: 126, y: 146}

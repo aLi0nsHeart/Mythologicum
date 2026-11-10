@@ -46,10 +46,12 @@ try {
     $checks += @('..\Terrain\TerrainArtChecks')
     $checks += @('..\Management\FinanceChecks', '..\Management\ReputationChecks', '..\Management\BalanceChecks')
     $checks += @('CreatureBalanceChecks', '..\Staff\PeopleProgressionTuningChecks', '..\Buildings\ConstructionBalanceChecks', '..\Management\ParkTuningChecks')
+    $checks += @('..\Saving\SaveSlotModelChecks', '..\UI\PlayControlChecks', '..\Progression\ParkAlertChecks')
+    $checks += @('..\Buildings\ConstructionUndoChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force
-    $env:MONO_PATH = $unityAssemblies
+    $env:MONO_PATH = $unityAssemblies + [System.IO.Path]::PathSeparator + (Join-Path $projectRoot 'Library\ScriptAssemblies')
     if ($originalMonoPath) { $env:MONO_PATH += [System.IO.Path]::PathSeparator + $originalMonoPath }
 
     foreach ($check in $checks) {

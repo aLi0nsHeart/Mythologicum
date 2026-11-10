@@ -76,7 +76,7 @@ namespace Mythologicum
                 var item = action;
                 var button = ManagementWidgets.Button(content, item.Name, new Vector2(10, y), new Vector2(500, 56), () =>
                 {
-                    if (SettingsPresentation.IsOpen || NewGameSetup.IsOpen || !(item.Enabled?.Invoke() ?? true)) return;
+                    if (SettingsPresentation.IsOpen || NewGameSetup.IsOpen || SaveBrowserPresentation.IsOpen || !(item.Enabled?.Invoke() ?? true)) return;
                     item.Execute();
                 }, 24);
                 button.navigation = new Navigation { mode = Navigation.Mode.Automatic };

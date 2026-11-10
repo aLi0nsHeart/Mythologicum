@@ -8,9 +8,10 @@ outside Documentation. The original PDF and licenses are in
 ## Main menu
 
 The menu is built at runtime from a list of actions: **New Game**, **Load Game**,
-**Settings** and **Quit**. Load Game is greyed out while no save file exists. New
-Game opens the existing map setup and preview; loading preserves the existing park
-save flow. Add future menu entries in `MainMenuPresentation.CreateActions`; the
+**Settings** and **Quit**. Load Game is greyed out while no saved park exists. New
+Game opens the existing map setup and preview; Load Game opens the named-slot
+browser, including autosaves, available backups and the earlier legacy save.
+Add future menu entries in `MainMenuPresentation.CreateActions`; the
 scrolling layout does not need rebuilding for another action.
 
 The authored scenes are preserved. Their earlier menu graphics are hidden at
@@ -86,6 +87,13 @@ and top-right pause button are hidden or removed at runtime.
 Idle construction no longer displays a category-selection prompt. Tool-specific
 placement instructions remain visible when needed.
 
+Park Management also provides **Map overlays** for path connections, enclosure
+space and staff access. Mail preserves unread letters until clicked or explicitly
+marked read, and distinguishes warning and critical safety notices. Compact
+simulation-speed and construction-Undo controls sit near the bottom centre.
+The [park operations guide](Park-Operations-Guide.md) explains these controls, the
+save browser and how to test them.
+
 The encyclopedia has Park, Creatures and Management sections, with entry lists and
 scrollable articles. Its creature catalogue comes from the game's existing creature
 definitions. Species entries use the same `SpeciesResearch.Description` and progress
@@ -141,6 +149,10 @@ Settings are available from the main menu and Pause:
   1x preserving current controls.
 - Movement instructions are listed here instead of over the park: WASD/arrow keys,
   Q/E rotation and mouse-wheel zoom.
+- UI scale changes the complete interface within the configured player range.
+- Keyboard shortcuts opens a capture window for remapping primary camera,
+  construction, pause and speed keys. Arrow keys remain alternate movement keys;
+  Escape remains available for closing menus.
 - The vegetation asset credit is displayed here instead of on the play view.
 
 Changes apply immediately and persist through PlayerPrefs. Back saves the current

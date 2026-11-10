@@ -25,6 +25,9 @@ namespace Mythologicum
         private readonly Action categoryOpened;
         private bool hasEntrance;
         private ConstructionCategory? expanded;
+        private readonly GameplayAction[] categoryActions = { GameplayAction.Buildings, GameplayAction.Enclosures, GameplayAction.Terrain,
+            GameplayAction.Paths, GameplayAction.Fences, GameplayAction.Creatures, GameplayAction.Demolish };
+        private readonly string[] categoryNames = { "Buildings", "Enclosures", "Terrain", "Paths", "Fences", "Creatures", "Demolish" };
 
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
@@ -232,6 +235,9 @@ namespace Mythologicum
         {
             LayoutFlyouts();
             hasEntrance = entranceExists;
+            var categoryButtons = buildingMenu.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < categoryButtons.Length && i < categoryActions.Length; i++)
+                categoryButtons[i].GetComponentInChildren<Text>().text = categoryNames[i] + " (" + GameInput.KeyCaption(categoryActions[i]) + ")";
             pathsCategory.interactable = fencesCategory.interactable = pathChoice.interactable = fenceChoice.interactable
                 = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
@@ -245,6 +251,8 @@ namespace Mythologicum
             foreach (var pair in creatureButtons)
             {
                 pair.Value.interactable = hasEntrance && (progression==null || progression.Stock(pair.Key.name)>0);
+                UIHoverTooltip.Attach(pair.Value, !hasEntrance ? "Place the park entrance first."
+                    : !pair.Value.interactable ? "No specimens available. Obtain this species through expeditions, or use its dispenser." : pair.Key.displayName);
                 if(progression!=null) pair.Value.GetComponentInChildren<Text>().text=pair.Key.displayName
                     +(pair.Key.origin=="Domestic"?"\nUse the goat dispenser":$" x{progression.Stock(pair.Key.name)} | Rating {pair.Key.rating}/5");
             }
@@ -254,9 +262,18 @@ namespace Mythologicum
                 pair.Value.interactable = unlocked && (pair.Key.kind == BuildingKind.ParkEntrance ? !hasEntrance : hasEntrance);
                 pair.Value.GetComponentInChildren<Text>().text=unlocked?$"{pair.Key.displayName}\n{pair.Key.width} x {pair.Key.depth} tiles | Cost {pair.Key.constructionCost:0}"
                     :pair.Key.displayName+" [locked]\nResearch: "+progression.BuildingResearch(pair.Key.kind);
+                UIHoverTooltip.Attach(pair.Value, !unlocked ? "Research required: " + progression.BuildingResearch(pair.Key.kind)
+                    : pair.Key.kind == BuildingKind.ParkEntrance && hasEntrance ? "The park already has its main entrance."
+                    : !hasEntrance && pair.Key.kind != BuildingKind.ParkEntrance ? "Place the park entrance first." : pair.Key.displayName);
             }
+            foreach (var button in new[] { pathsCategory, fencesCategory, creaturesCategory, enclosuresCategory, pathChoice, fenceChoice, gateChoice, treeChoice, gravestoneChoice })
+                UIHoverTooltip.Attach(button, !hasEntrance ? "Place the park entrance first." : button.GetComponentInChildren<Text>().text);
         }
         private void SetFenceLabel(Button button,string title,FenceKind kind)
-        {button.GetComponentInChildren<Text>().text=title+((progression?.FenceUnlocked(kind)??true)?"":"\nResearch required");}
+        {
+            bool unlocked=progression?.FenceUnlocked(kind)??true;
+            button.GetComponentInChildren<Text>().text=title+(unlocked?"":"\nResearch required");
+            UIHoverTooltip.Attach(button, !hasEntrance ? "Place the park entrance first." : !unlocked ? title + ": technology research required." : title);
+        }
     }
 }

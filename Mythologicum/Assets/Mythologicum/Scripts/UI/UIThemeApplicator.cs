@@ -29,6 +29,7 @@ namespace Mythologicum
         public static void ApplyAll(Canvas canvas)
         {
             if (canvas == null) return;
+            PlayerUIScale.Attach(canvas);
             var applicator = canvas.GetComponent<UIThemeApplicator>() ?? canvas.gameObject.AddComponent<UIThemeApplicator>();
             applicator.canvas = canvas; applicator.Scan(); applicator.Apply();
         }

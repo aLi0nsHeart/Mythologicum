@@ -216,6 +216,7 @@ namespace Mythologicum
 
         private void SelectTool(Tool selected)
         {
+            if (terrainStroke) ResetTerrainStroke();
             if (selected != Tool.MoveCreature) movingCreature = null;
             if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
                 && !buildingConstruction.Network.HasEntrance) return;
@@ -276,27 +277,32 @@ namespace Mythologicum
             palette.Refresh(buildingConstruction.Network.HasEntrance);
             enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
             enclosurePresentation.Refresh();
+            alerts?.Tick(Time.deltaTime);
+            overlays?.Refresh();
             management.Refresh();
             parkManagement.Refresh();
             notifications.Refresh();
             encyclopedia?.Refresh();
-            if (ManagementOpen) return;
+            UpdateConstructionHistoryUI();
+            if (terrainStroke && Mouse.current != null && !Mouse.current.leftButton.isPressed) ResetTerrainStroke();
+            if (ManagementOpen || GameInput.BlocksGameplayInput) return;
             if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);
             Keyboard keyboard = Keyboard.current;
             InputField focusedInput = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
             if (keyboard != null && (focusedInput == null || !focusedInput.isFocused))
             {
+                if (HandleConstructionUndoInput()) return;
                 if (keyboard.escapeKey.wasPressedThisFrame) { SelectTool(Tool.None); return; }
-                if (keyboard.bKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Buildings);
-                if (keyboard.pKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Paths);
-                if (keyboard.fKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Fences);
-                if (keyboard.cKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Creatures);
-                if (keyboard.hKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Enclosures);
-                if (keyboard.tKey.wasPressedThisFrame) palette.Toggle(ConstructionCategory.Terrain);
-                if (keyboard.xKey.wasPressedThisFrame) SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish);
-                if (keyboard.gKey.wasPressedThisFrame) SelectTool(tool == Tool.Gate ? Tool.None : Tool.Gate);
-                if (tool == Tool.Building && keyboard.rKey.wasPressedThisFrame) buildingRotation = (buildingRotation + 1) % 4;
+                if (GameInput.Pressed(GameplayAction.Buildings)) palette.Toggle(ConstructionCategory.Buildings);
+                if (GameInput.Pressed(GameplayAction.Paths)) palette.Toggle(ConstructionCategory.Paths);
+                if (GameInput.Pressed(GameplayAction.Fences)) palette.Toggle(ConstructionCategory.Fences);
+                if (GameInput.Pressed(GameplayAction.Creatures)) palette.Toggle(ConstructionCategory.Creatures);
+                if (GameInput.Pressed(GameplayAction.Enclosures)) palette.Toggle(ConstructionCategory.Enclosures);
+                if (GameInput.Pressed(GameplayAction.Terrain)) palette.Toggle(ConstructionCategory.Terrain);
+                if (GameInput.Pressed(GameplayAction.Demolish)) SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish);
+                if (GameInput.Pressed(GameplayAction.Gate)) SelectTool(tool == Tool.Gate ? Tool.None : Tool.Gate);
+                if (tool == Tool.Building && GameInput.Pressed(GameplayAction.RotateBuilding)) buildingRotation = (buildingRotation + 1) % 4;
             }
             if (tool == Tool.None)
             {
@@ -310,11 +316,11 @@ namespace Mythologicum
             entrancePreview.SetActive(false);
             HideRoutePreviews();
             status.text = tool == Tool.Building
-                ? "Click: place building | R: rotate 90 degrees | Cyan tile: path entrance | Esc: cancel"
+                ? $"Click: place building | {GameInput.KeyCaption(GameplayAction.RotateBuilding)}: rotate 90 degrees | Cyan tile: path entrance | Esc: cancel"
                 : tool == Tool.Creature ? "Click: place creature anywhere on clear ground | Esc: cancel"
                 : tool == Tool.MoveCreature ? "Choose a reachable drop-off for a zookeeper | Staff gates provide access | Esc: cancel"
-                : tool == Tool.Tree ? "Click: plant tree | X tool: remove trees | Esc: finish"
-                : tool == Tool.Gravestone ? "Click: place gravestone | X tool: remove gravestones | Esc: finish"
+                : tool == Tool.Tree ? $"Click: plant tree | {GameInput.KeyCaption(GameplayAction.Demolish)} tool: remove trees | Esc: finish"
+                : tool == Tool.Gravestone ? $"Click: place gravestone | {GameInput.KeyCaption(GameplayAction.Demolish)} tool: remove gravestones | Esc: finish"
                 : tool == Tool.Path
                     ? "Startpunkt anklicken | Esc: Abbrechen"
                     : tool == Tool.Fence
@@ -378,8 +384,13 @@ namespace Mythologicum
             if (!valid) status.text = "Cannot place: keep footprint and entrance clear; flattening must preserve nearby foundations and walkable slopes. | R: rotate";
             if (valid) status.text += $" | Cost: {selectedBuilding.constructionCost:0}";
             if (valid && !affordable) status.text = $"Not enough funds: need {selectedBuilding.constructionCost:0}. Enable Infinite funds to build freely.";
-            if (valid && affordable && mouse.leftButton.wasPressedThisFrame && buildingConstruction.TryPlace(footprint))
-            { economy.TrySpend(selectedBuilding.constructionCost,ParkTransactionCategory.Construction); SelectTool(Tool.None); }
+            if (valid && affordable && mouse.leftButton.wasPressedThisFrame)
+            {
+                BeginConstructionAction("Place " + selectedBuilding.displayName);
+                if (buildingConstruction.TryPlace(footprint))
+                { economy.TrySpend(selectedBuilding.constructionCost,ParkTransactionCategory.Construction); CommitConstructionAction(selectedBuilding.constructionCost); SelectTool(Tool.None); }
+                else CancelConstructionAction();
+            }
         }
 
         private void ApplyTree(Mouse mouse, Vector2Int cell)
@@ -388,8 +399,12 @@ namespace Mythologicum
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, trees.CreateVisual);
             if (!valid) status.text = "Choose clear natural ground without a tree, path or building.";
-            if (valid && mouse.leftButton.wasPressedThisFrame && trees.TryPlace(cell))
-            { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+            if (valid && mouse.leftButton.wasPressedThisFrame)
+            {
+                BeginConstructionAction("Plant tree");
+                if (trees.TryPlace(cell)) { CommitConstructionAction(); modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+                else CancelConstructionAction();
+            }
         }
 
         private void ApplyGravestone(Mouse mouse, Vector2Int cell)
@@ -398,8 +413,12 @@ namespace Mythologicum
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, graves.CreateVisual);
             if (!valid) status.text = "Choose clear ground without a tree, gravestone, path or building.";
-            if (valid && mouse.leftButton.wasPressedThisFrame && graves.TryPlace(cell))
-            { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+            if (valid && mouse.leftButton.wasPressedThisFrame)
+            {
+                BeginConstructionAction("Place gravestone");
+                if (graves.TryPlace(cell)) { CommitConstructionAction(); modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+                else CancelConstructionAction();
+            }
         }
 
         private void ApplyCreature(Mouse mouse, Vector2Int cell)
@@ -492,7 +511,12 @@ namespace Mythologicum
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowFencePreview(edge);
             if (!valid) status.text = "Choose any existing fence without a gate. Its protection is preserved. | Esc: cancel";
-            if (valid && mouse.leftButton.wasPressedThisFrame && fences.TryPlaceGate(edge)) SelectTool(Tool.None);
+            if (valid && mouse.leftButton.wasPressedThisFrame)
+            {
+                BeginConstructionAction("Place staff gate");
+                if (fences.TryPlaceGate(edge)) { CommitConstructionAction(); SelectTool(Tool.None); }
+                else CancelConstructionAction();
+            }
         }
 
         private bool CanPlace(Vector2Int cell)
@@ -554,9 +578,11 @@ namespace Mythologicum
             foreach (T step in selection.Route)
                 if (!canBuild(step))
                 { selection.Invalidate(); status.text = "Strecke inzwischen blockiert | Ziel neu waehlen"; return; }
+            BeginConstructionAction(tool == Tool.Path ? "Build path route" : "Build fence route");
             foreach (T step in selection.Route)
                 if (!place(step))
-                { selection.Invalidate(); Debug.LogError("A validated construction route could not be placed.", this); return; }
+                { CommitConstructionAction(); selection.Invalidate(); Debug.LogError("A validated construction route could not be placed.", this); return; }
+            CommitConstructionAction();
             SelectTool(Tool.None);
         }
 
@@ -651,7 +677,7 @@ namespace Mythologicum
             {
                 dragging = true;
                 previousPointer = pointer;
-                if (target != null) target.Demolish();
+                if (target != null) { ResetConstructionHistory("Demolition clears construction undo history."); target.Demolish(); }
                 preview.SetActive(false);
                 return;
             }
@@ -662,7 +688,7 @@ namespace Mythologicum
             for (int i = 1; i <= samples; i++)
             {
                 DemolitionTarget selected = TargetAt(Vector2.Lerp(previousPointer, pointer, (float)i / samples));
-                if (selected != null) selected.Demolish();
+                if (selected != null) { ResetConstructionHistory("Demolition clears construction undo history."); selected.Demolish(); }
             }
             previousPointer = pointer;
             preview.SetActive(false);
@@ -684,6 +710,7 @@ namespace Mythologicum
             parkStatus?.Dispose();
             encyclopedia?.Dispose();
             notifications?.Dispose();
+            overlays?.Dispose();
             buildingInspection?.Dispose();
             staffWorld?.Dispose();
             visitorPresentation?.Dispose();

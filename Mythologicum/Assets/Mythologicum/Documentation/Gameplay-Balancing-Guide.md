@@ -19,6 +19,15 @@ The settings live under `Assets/Mythologicum/Resources`:
 | Individual species | `Creatures/Chupacabra`, `Goat`, `Hitotsume`, `Oni`, `Yurei` | Combat, diet, needs, habitat/space/group requirements, sleep, abilities, happiness weights and escape behaviour |
 | Terrain and brush | `Terrain/DefaultTerrain` | Generation defaults, slopes, uphill movement cost, foundation earthwork and brush ranges |
 | Vegetation and habitat | `Environment/Vegetation` | Forest contribution per tree and existing vegetation presentation settings |
+| Alerts | `Management/DefaultAlerts` | Safety/operations alert switches, injury thresholds, grace periods, delays and recurrence cooldown |
+| Autosaves | `Saving/DefaultSaveSettings` | Enable switch, active-play interval, rotating slot count, failure retry and status duration |
+| Overlays & history | `Management/DefaultOperations` | Map overlay colours, refresh interval, ground offset and construction Undo capacity |
+| Play controls | `Interface/DefaultPlayControls` | Three simulation speed values, player UI-scale range and speed-control dock geometry |
+
+The [park operations guide](Park-Operations-Guide.md) explains these tools in play,
+named save slots, construction Undo, data validation and repeatable performance
+measurements. **Validate gameplay data** in Balancing Tools checks the assets and
+links each finding to its source; it does not change the values.
 
 ## A useful testing workflow
 
@@ -59,8 +68,8 @@ domestic-animal appeal limits, guest review weight, safety penalties and recover
 The overall meter still uses five stars and percentage scores from 0 to 100.
 
 Paths, fences, habitat objects and terrain editing remain free, matching the
-existing game. This rework adds tuning for their existing rules; it does not add
-new purchase/refund systems.
+existing game. Successfully undoing paid building construction reverses its
+original purchase expense; this is separate from demolition.
 
 ## Creature needs and behaviour
 

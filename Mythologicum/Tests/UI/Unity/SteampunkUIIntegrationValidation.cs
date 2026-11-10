@@ -58,13 +58,12 @@ public static class SteampunkUIIntegrationValidation
         {
             if (EditorApplication.timeSinceStartup > deadline) throw new Exception("Timed out in UI validation stage " + stage);
             if (stage == 0) PrepareIsolatedSave();
-            else if (stage == 1 || stage == 2)
+            else if (stage == 1 || stage == 2 || stage == 3)
             {
-                if (steps == null) steps = stage == 1 ? ValidateMenuWithoutSave() : ValidateGame();
+                if (steps == null) steps = stage == 1 ? ValidateMenuWithoutSave() : stage == 2 ? ValidateGame() : ValidateMenuWithSave();
                 if (steps.MoveNext()) readyAt = EditorApplication.timeSinceStartup + .25;
                 else steps = null;
             }
-            else if (stage == 3) ValidateMenuWithSave();
             else ValidateLoadedGame();
         }
         catch (Exception error)
@@ -90,7 +89,28 @@ public static class SteampunkUIIntegrationValidation
             "Save and settings checks use their own validation application identity");
         Check(ParkSaveStore.SavePath.Contains("MythologicumValidation") && ParkSaveStore.SavePath.Contains("SteampunkUIValidation"),
             "The test save belongs to the disposable validation identity");
-        if (File.Exists(ParkSaveStore.SavePath)) File.Delete(ParkSaveStore.SavePath);
+        string saveDirectory = Path.GetFullPath(Path.GetDirectoryName(ParkSaveStore.SavePath));
+        foreach (string suffix in new[] { "", ".bak", ".tmp" })
+        {
+            string target = Path.GetFullPath(ParkSaveStore.SavePath + suffix);
+            Check(target.StartsWith(saveDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
+                "Legacy validation save cleanup remains inside its isolated application directory");
+            if (File.Exists(target)) File.Delete(target);
+        }
+        string slotsDirectory = Path.Combine(saveDirectory, "Saves");
+        if (Directory.Exists(slotsDirectory)) foreach (string file in Directory.GetFiles(slotsDirectory))
+        {
+            string target = Path.GetFullPath(file);
+            Check(target.StartsWith(slotsDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
+                "Slot cleanup remains inside the isolated validation save folder");
+            string name = Path.GetFileName(target);
+            if (name.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) name = name.Substring(0, name.Length - 4);
+            if (!name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) continue;
+            string id = name.Substring(0, name.Length - 5);
+            if (SaveSlotPaths.IsManual(id) || SaveSlotPaths.IsAutomatic(id)) File.Delete(target);
+        }
+        GameSettings.ResetDefaults();
+        Check(!ParkSaveStore.Exists, "Managed validation slots and their backups are empty before the no-save menu test");
         stage = 1; WaitForScene(); SceneManager.LoadScene("MainMenuScene");
     }
 
@@ -99,6 +119,7 @@ public static class SteampunkUIIntegrationValidation
         if (SceneManager.GetActiveScene().name != "MainMenuScene") yield break;
         var menu = GameObject.Find("Main menu"); if (menu == null) yield break;
         Check(SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null, "UI validation uses a real graphics device");
+        checks += SaveSlotNativeChecks.Run(Path.Combine(Directory.GetCurrentDirectory(), "LocalCache", "SaveSlotValidation"));
         ValidateThemeAssets(); ValidateFrameBackingShapes(); ValidateMenuActions(menu);
         ValidateCursor(true);
         ValidateButtonIcon(FindButton(menu.transform, "New Game"), UIIconKind.Play, true);
@@ -142,6 +163,17 @@ public static class SteampunkUIIntegrationValidation
         var options = settings.GetComponentsInChildren<Toggle>().Where(toggle => toggle.gameObject.activeInHierarchy).ToArray();
         Check(options.Length == mode.options.Count, "The display dropdown opens all real window-mode choices");
         mode.Hide(); yield return null;
+        FindButton(settings.transform, "Keyboard shortcuts").onClick.Invoke();
+        yield return null;
+        var shortcutWindow = GameObject.Find("Keyboard shortcuts window");
+        Check(shortcutWindow != null && shortcutWindow.GetComponentsInChildren<Button>(true).Count(button => button.name.StartsWith("Rebind "))
+            == Enum.GetValues(typeof(GameplayAction)).Length, "Settings expose every configurable gameplay shortcut");
+        Capture("Settings-KeyboardShortcuts", shortcutWindow, 1280, 720);
+        FindButton(shortcutWindow.transform, "Rebind Buildings").onClick.Invoke();
+        Check(GameInput.IsCapturing && GameInput.BlocksGameplayInput, "The visible shortcut button starts protected key capture");
+        FindButton(shortcutWindow.transform, "Close keyboard shortcuts").onClick.Invoke();
+        Check(!GameInput.IsCapturing && SettingsPresentation.IsOpen, "Closing keyboard shortcuts cancels capture and returns to Settings");
+        yield return null;
         FindButton(settings.transform, "Back").onClick.Invoke();
         Check(!SettingsPresentation.IsOpen && menu.activeInHierarchy, "Back returns from Settings to the main menu");
         Check(PlayerPrefs.HasKey("Mythologicum.Settings.Volume") && Near(PlayerPrefs.GetFloat("Mythologicum.Settings.Volume"), .35f)
@@ -353,6 +385,15 @@ public static class SteampunkUIIntegrationValidation
         building.Refresh(CurrentCamera);
         creatures.RefreshExternal(guest.Actor);
         CheckNoWorldLabels("Buildings, staff, visitors and creatures");
+        checks += ParkOperationsNativeChecks.Run(controller);
+        var overlayChecks = Field<ParkOverlayPresentation>(controller, "overlays");
+        overlayChecks.SetMode(ParkOverlayMode.PathConnections);
+        yield return null;
+        Capture("Overlay-PathConnections", canvas.gameObject, 1280, 720);
+        overlayChecks.SetMode(ParkOverlayMode.StaffAccess);
+        yield return null;
+        Capture("Overlay-StaffAccess", canvas.gameObject, 1280, 720);
+        overlayChecks.SetMode(ParkOverlayMode.Off);
         var cameraChecks = ValidateCameraFollow(controller, animal, guest, records[BuildingKind.ResearchCentre]);
         while (cameraChecks.MoveNext()) yield return cameraChecks.Current;
         controller.Visitors.RefreshReputation(); controller.Economy.Advance(10); BuildingEconomy.Tick(building.Network, controller.Economy, 10);
@@ -441,10 +482,19 @@ public static class SteampunkUIIntegrationValidation
         yield return null;
         Capture("InGame-UnreadMail", canvas.gameObject, 1280, 720);
         notifications.Toggle();
-        ValidateMailIcon(canvas, false);
+        ValidateMailIcon(canvas, true);
+        Check(controller.Progression.Inbox.UnreadCount > 0, "Opening the inbox keeps unread letters unread until the player reads them");
         yield return null;
         Capture("Notifications", Field<GameObject>(notifications, "panel"), 1280, 720);
-        Capture("Notifications-1920", Field<GameObject>(notifications, "panel"), 1920, 1080); notifications.Close();
+        Capture("Notifications-1920", Field<GameObject>(notifications, "panel"), 1920, 1080);
+        FindButton(Field<GameObject>(notifications, "panel").transform, "Mark all read").onClick.Invoke();
+        ValidateMailIcon(canvas, false);
+        Check(controller.Progression.Inbox.UnreadCount == 0, "Mark all read explicitly clears the inbox's unread state");
+        FindButton(Field<GameObject>(notifications, "panel").transform, "Filter unread letters").onClick.Invoke();
+        Check(Field<GameObject>(notifications, "panel").GetComponentsInChildren<Text>()
+            .Any(text => text.text == "No unread letters."), "The unread filter shows a clear empty state after letters are read");
+        FindButton(Field<GameObject>(notifications, "panel").transform, "Filter unread letters").onClick.Invoke();
+        notifications.Close();
         Invoke(controller, "OpenExpeditions", records[BuildingKind.ExpeditionCentre]);
         yield return null;
         var progression = Field<ProgressionPresentation>(controller, "management");
@@ -463,11 +513,13 @@ public static class SteampunkUIIntegrationValidation
         yield return null;
         var management = Field<ParkManagementPresentation>(controller, "parkManagement"); var managementRoot = Field<GameObject>(management, "root");
         ValidateInfoFrame(managementRoot, false);
-        foreach (string tab in new[] { "Statistics", "Finances", "Prices & budget", "Star rating" })
+        foreach (string tab in new[] { "Statistics", "Finances", "Prices & budget", "Star rating", "Map overlays" })
         {
             FindButton(managementRoot.transform, tab).onClick.Invoke(); yield return null;
             Capture("Management-" + tab.Replace(" & ", "-").Replace(' ', '-'), managementRoot, 1280, 720);
         }
+        Capture("Management-MapOverlays-1920", managementRoot, 1920, 1080);
+        FindButton(managementRoot.transform, "Star rating").onClick.Invoke();
         Capture("Management-Stars-1920", managementRoot, 1920, 1080); management.Close();
         FindButton(palette.Root.transform, "Encyclopedia").onClick.Invoke();
         yield return null;
@@ -583,19 +635,67 @@ public static class SteampunkUIIntegrationValidation
             Check(GameSaveMenu.IsOpen && Time.timeScale == 0, "Returning from settings preserves the pause state");
         }
         FindButton(overlay.transform, "Save game").onClick.Invoke();
-        Check(File.Exists(ParkSaveStore.SavePath), "The restyled Save game action writes the actual save slot");
+        yield return null;
+        Check(SaveBrowserPresentation.IsOpen && GameSaveMenu.IsOpen && Time.timeScale == 0,
+            "Save game opens the named-slot browser while the park stays paused");
+        var saveBrowser = GameObject.Find("Save browser");
+        ValidateInfoFrame(saveBrowser, false);
+        Capture("Save-Browser-NewPark", saveBrowser, 1280, 720);
+        Capture("Save-Browser-NewPark-1920", saveBrowser, 1920, 1080);
+        saveBrowser.GetComponentsInChildren<InputField>().Single(input => input.name == "Save name").text = "UI validation park";
+        FindButton(saveBrowser.transform, "Create new save").onClick.Invoke();
+        yield return null;
+        var manualSlot = ParkSaveStore.ListSlots().Single(slot => !slot.IsAutosave && !slot.IsLegacy && slot.Name == "UI validation park");
+        Check(manualSlot.IsValid, "Creating a named save writes a readable manual park slot");
+        saved = ParkSaveStore.ReadSlot(manualSlot.Id); controller.ValidateSave(saved);
+        Capture("Save-Browser-NamedPark", saveBrowser, 1280, 720);
+        FindButton(saveBrowser.transform, "Overwrite " + manualSlot.Id).onClick.Invoke();
+        yield return null;
+        confirm = GameObject.Find("Confirm action");
+        Check(confirm != null && confirm.GetComponentsInChildren<Text>().Any(text => text.text.Contains("UI validation park")),
+            "Overwriting a named park requires a confirmation identifying that park");
+        Capture("Save-Browser-OverwriteConfirmation", confirm, 1280, 720);
+        FindButton(confirm.transform, "Confirm").onClick.Invoke();
+        yield return null;
+        Check(ParkSaveStore.ListSlots().Single(slot => slot.Id == manualSlot.Id).BackupIsValid,
+            "Confirmed overwriting preserves the previous named save as a readable backup");
+        // Keep the original API represented as well: old park-save.json remains selectable in the browser.
+        ParkSaveStore.Write(saved);
+        FindButton(saveBrowser.transform, "Close save browser").onClick.Invoke();
+        FindButton(overlay.transform, "Load game").onClick.Invoke();
+        yield return null;
+        var loadBrowser = GameObject.Find("Save browser");
+        Check(SaveBrowserPresentation.IsOpen && FindButton(loadBrowser.transform, "Load legacy").interactable,
+            "Pause Load game lists the existing legacy park save alongside named slots");
+        Capture("Load-Browser-Pause", loadBrowser, 1280, 720);
+        Capture("Load-Browser-Pause-1920", loadBrowser, 1920, 1080);
+        FindButton(loadBrowser.transform, "Load legacy").onClick.Invoke();
+        yield return null;
+        confirm = GameObject.Find("Confirm action");
+        Check(confirm != null, "Loading a slot during play asks before discarding unsaved changes");
+        FindButton(confirm.transform, "Cancel").onClick.Invoke();
+        Check(SaveBrowserPresentation.IsOpen && GameSaveMenu.IsOpen && Time.timeScale == 0,
+            "Cancelling a slot load preserves the paused park and browser");
+        FindButton(loadBrowser.transform, "Close save browser").onClick.Invoke();
         saved = ParkSaveStore.Read(); controller.ValidateSave(saved);
         stage = 3; WaitForScene(); UnityEngine.Object.FindFirstObjectByType<SceneNavigation>().MainMenu();
     }
 
-    static void ValidateMenuWithSave()
+    static IEnumerator ValidateMenuWithSave()
     {
-        if (SceneManager.GetActiveScene().name != "MainMenuScene") return;
-        var menu = GameObject.Find("Main menu"); if (menu == null) return;
+        if (SceneManager.GetActiveScene().name != "MainMenuScene") yield break;
+        var menu = GameObject.Find("Main menu"); if (menu == null) yield break;
         ValidateMenuActions(menu);
         Check(FindButton(menu.transform, "Load Game").interactable, "Load Game becomes available when a save exists");
         Capture("MainMenu-WithSave", menu, 1920, 1080);
-        FindButton(menu.transform, "Load Game").onClick.Invoke(); stage = 4; WaitForScene(2);
+        FindButton(menu.transform, "Load Game").onClick.Invoke();
+        yield return null;
+        Check(SaveBrowserPresentation.IsOpen, "Main-menu Load Game opens the same save-slot browser");
+        var browser = GameObject.Find("Save browser");
+        Capture("Load-Browser-MainMenu", browser, 1280, 720);
+        Capture("Load-Browser-MainMenu-1920", browser, 1920, 1080);
+        FindButton(browser.transform, "Load legacy").onClick.Invoke();
+        stage = 4; WaitForScene(2);
     }
     static void ValidateLoadedGame()
     {
@@ -1484,6 +1584,10 @@ public static class SteampunkUIIntegrationValidation
         Check(instructions.preferredHeight <= instructions.rectTransform.rect.height + 2,
             "All movement instruction lines fit inside Settings; preferred " + instructions.preferredHeight
             + "; available " + instructions.rectTransform.rect.height);
+        var notice = Field<Text>(settings.GetComponent<SettingsPresentation>(), "notice");
+        Check(notice != null && notice.preferredHeight <= notice.rectTransform.rect.height + 2,
+            "The complete settings preference notice fits beside the keyboard-shortcuts control; preferred "
+            + notice.preferredHeight + "; available " + notice.rectTransform.rect.height);
     }
 
     static void ValidateCursor(bool exerciseLifecycle)

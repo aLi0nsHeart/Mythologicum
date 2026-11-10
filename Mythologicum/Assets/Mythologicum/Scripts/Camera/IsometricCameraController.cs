@@ -45,21 +45,21 @@ namespace Mythologicum
         private void Update()
         {
             if (hasFollowTarget && !IsFollowing) StopFollowing();
-            bool inputBlocked = GameSaveMenu.IsOpen || SettingsPresentation.IsOpen
+            bool inputBlocked = GameSaveMenu.IsOpen || SettingsPresentation.IsOpen || GameInput.BlocksGameplayInput
                 || GetComponent<BuildModeController>()?.ManagementOpen == true;
             Keyboard keys = Keyboard.current;
             InputField input = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null
                 ? EventSystem.current.currentSelectedGameObject.GetComponent<InputField>() : null;
             if (!inputBlocked && keys != null && (input == null || !input.isFocused))
             {
-                float horizontal = (keys.dKey.isPressed || keys.rightArrowKey.isPressed ? 1 : 0)
-                    - (keys.aKey.isPressed || keys.leftArrowKey.isPressed ? 1 : 0);
-                float vertical = (keys.wKey.isPressed || keys.upArrowKey.isPressed ? 1 : 0)
-                    - (keys.sKey.isPressed || keys.downArrowKey.isPressed ? 1 : 0);
+                float horizontal = (GameInput.Held(GameplayAction.MoveRight) ? 1 : 0)
+                    - (GameInput.Held(GameplayAction.MoveLeft) ? 1 : 0);
+                float vertical = (GameInput.Held(GameplayAction.MoveForward) ? 1 : 0)
+                    - (GameInput.Held(GameplayAction.MoveBack) ? 1 : 0);
                 Vector3 movement = Vector3.ClampMagnitude(new Vector3(horizontal, 0f, vertical), 1f);
                 if (movement.sqrMagnitude > 0f) StopFollowing();
                 focusPoint += Quaternion.Euler(0f, yaw, 0f) * movement * (moveSpeed * GameSettings.MoveSensitivity * Time.unscaledDeltaTime);
-                yaw += ((keys.eKey.isPressed ? 1 : 0) - (keys.qKey.isPressed ? 1 : 0))
+                yaw += ((GameInput.Held(GameplayAction.RotateRight) ? 1 : 0) - (GameInput.Held(GameplayAction.RotateLeft) ? 1 : 0))
                     * rotationSpeed * GameSettings.RotationSensitivity * Time.unscaledDeltaTime;
             }
             if (!inputBlocked && Mouse.current != null && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))

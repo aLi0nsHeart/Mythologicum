@@ -17,8 +17,10 @@ namespace Mythologicum
         private readonly ParkEconomy economy;
         private readonly Text summary, statistics, finances, breakdown, budget, rating, priceMessage;
         private readonly Text parkStatistics, financeNotes, ratingGuide;
-        private readonly GameObject[] pages = new GameObject[4];
-        private readonly Button[] tabs = new Button[4];
+        private readonly GameObject[] pages = new GameObject[5];
+        private readonly Button[] tabs = new Button[5];
+        private Action<ParkOverlayMode> chooseOverlay;
+        public void ConfigureOverlays(Action<ParkOverlayMode> choose) => chooseOverlay = choose;
         private readonly RectTransform priceContent;
         private readonly StarRatingGraphic stars;
         private readonly Button fundsMode;
@@ -36,11 +38,11 @@ namespace Mythologicum
             ManagementWidgets.Button(card, "Close park management", new Vector2(1034, 8), new Vector2(110, 38), Close, 16)
                 .GetComponentInChildren<Text>().text = "Close";
             summary = ManagementWidgets.Label(card, "Park management summary", new Vector2(16, 4), new Vector2(996, 32), 20);
-            string[] names = { "Statistics", "Finances", "Prices & budget", "Star rating" };
+            string[] names = { "Statistics", "Finances", "Prices & budget", "Star rating", "Map overlays" };
             for (int i = 0; i < pages.Length; i++)
             {
                 int index = i;
-                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(16 + i * 282, 48), new Vector2(270, 42), () => ShowPage(index));
+                tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(16 + i * 226, 48), new Vector2(214, 42), () => ShowPage(index));
                 pages[i] = ManagementWidgets.Rect(card, names[i] + " page", new Vector2(16, 104), new Vector2(1128, 396)).gameObject;
             }
             statistics = ManagementWidgets.Label(pages[0].transform, "Park statistics", Vector2.zero, new Vector2(530, 380), 20);
@@ -57,6 +59,16 @@ namespace Mythologicum
             stars = graphic.gameObject.AddComponent<StarRatingGraphic>(); stars.raycastTarget = false;
             rating = ManagementWidgets.Label(pages[3].transform, "Rating explanation", new Vector2(0, 65), new Vector2(530, 325), 20);
             ratingGuide = ManagementWidgets.Label(pages[3].transform,"Rating guide",new Vector2(560,0),new Vector2(550,390),19);
+            ManagementWidgets.Label(pages[4].transform, "Choose a temporary map overlay. It follows the terrain and updates after construction. Hide returns to the normal park view.", Vector2.zero, new Vector2(1100, 60), 20);
+            string[] overlayNames = { "Hide overlays", "Path connections", "Enclosure space", "Staff access" };
+            string[] explanations = { "Return to the normal park view.", "Find paths disconnected from the main entrance.", "See secured enclosure areas and breached perimeters.", "See ground reachable through gates from open workplaces with hired staff." };
+            for (int i = 0; i < overlayNames.Length; i++)
+            {
+                var mode = (ParkOverlayMode)i;
+                ManagementWidgets.Button(pages[4].transform, overlayNames[i], new Vector2(0, 76 + i * 72), new Vector2(300, 48),
+                    () => { chooseOverlay?.Invoke(mode); Close(); }, 19);
+                ManagementWidgets.Label(pages[4].transform, explanations[i], new Vector2(324, 82 + i * 72), new Vector2(775, 48), 18);
+            }
             ShowPage(0);
         }
 

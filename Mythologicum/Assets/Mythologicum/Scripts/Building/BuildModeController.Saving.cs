@@ -225,6 +225,8 @@ namespace Mythologicum
                 else Progression.AdoptLegacyPark(restored,fences.Layout.Edges,fences.Layout);
                 GetComponent<IsometricCameraController>()?.RestorePose(data.focus, data.yaw, data.zoom);
                 RefreshTerrainAttachments();groundVegetation.Refresh();
+                alerts?.ResetBaseline();
+                ResetConstructionHistory("Game loaded. Construction history starts here.");
                 GameSaveMenu.ShowMessage("Game loaded.");
             }
             catch (Exception error)

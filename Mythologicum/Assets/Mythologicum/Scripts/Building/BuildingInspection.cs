@@ -114,7 +114,9 @@ namespace Mythologicum
             staffGroup.SetActive(definition.IsEmployeeBuilding);
             if (definition.IsEmployeeBuilding)
             {
-                hire.interactable = selected.IsOpen && selected.HiredCount < selected.Capacity;
+                string hireReason = staff.HireUnavailableReason(selected);
+                hire.interactable = string.IsNullOrEmpty(hireReason);
+                UIHoverTooltip.Attach(hire, hire.interactable ? "Hire one employee for this workplace." : hireReason);
                 hire.GetComponentInChildren<Text>().text = $"Hire ({definition.hireCost:0.##})";
                 fire.interactable = selected.HiredCount > 0;
                 employees.text = "";

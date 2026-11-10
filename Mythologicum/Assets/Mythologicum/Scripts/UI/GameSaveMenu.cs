@@ -21,6 +21,8 @@ namespace Mythologicum
         {
             if (instance != null) return;
             instance = controller.gameObject.AddComponent<GameSaveMenu>(); instance.park = controller; instance.CreatePause();
+            if (ParkSaveStore.Pending == null) ParkSaveStore.BeginNewPark();
+            ParkAutosave.Attach(controller);
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Bootstrap()
@@ -75,10 +77,13 @@ namespace Mythologicum
         }
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (GameInput.BlocksGameplayInput) return;
+            if (Keyboard.current != null && (Keyboard.current.escapeKey.wasPressedThisFrame
+                || (!SaveBrowserPresentation.EditingName && GameInput.Pressed(GameplayAction.Pause))))
             {
                 if(SettingsPresentation.IsOpen){SettingsPresentation.CloseActive();return;}
                 if (confirmation != null) { CloseConfirmation(); return; }
+                if (SaveBrowserPresentation.IsOpen) { SaveBrowserPresentation.CloseActive(); return; }
                 if(park==null)return;
                 if (!IsOpen && park.CloseManagementWindow()) return;
                 Toggle();
@@ -87,14 +92,14 @@ namespace Mythologicum
         private void Toggle()
         {
             if(SettingsPresentation.IsOpen){SettingsPresentation.CloseActive();return;}
+            if (SaveBrowserPresentation.IsOpen) { SaveBrowserPresentation.CloseActive(); return; }
             if (overlay == null) return;
             if (IsOpen) { overlay.SetActive(false); Time.timeScale = previousScale; }
             else { previousScale = Time.timeScale; Time.timeScale = 0f; overlay.SetActive(true); overlay.transform.SetAsLastSibling(); message.text = ""; }
         }
         private void Save()
         {
-            if (ParkSaveStore.Exists) Confirm("Overwrite the current save?", Write);
-            else Write();
+            OpenBrowser(true);
         }
         private void Write()
         {
@@ -105,14 +110,70 @@ namespace Mythologicum
         {
             if(SettingsPresentation.IsOpen)return;
             if (!ParkSaveStore.Exists) { message.text = "No saved game yet."; return; }
-            if (park != null) Confirm("Load the saved game? Unsaved changes will be lost.", Read);
-            else Read();
+            OpenBrowser(false);
+        }
+        private void OpenBrowser(bool saving)
+        {
+            var canvas = GetComponentInParent<Canvas>() ?? FindFirstObjectByType<Canvas>();
+            SaveBrowserPresentation.Open(canvas, saving, LoadSlot, SaveSlot);
+        }
+        private void SaveSlot(string id, string name)
+        {
+            if (park == null) return;
+            Action write = () =>
+            {
+                try
+                {
+                    ParkSaveData data = park.CapturePark(); park.ValidateSave(data);
+                    ParkSaveStore.WriteSlot(data, id, name);
+                    park.GetComponent<ParkAutosave>()?.ResetSchedule();
+                    SaveBrowserPresentation.ShowFeedback("Game saved: " + ParkSaveStore.CleanName(name));
+                    message.text = "Game saved.";
+                }
+                catch (Exception error)
+                {
+                    SaveBrowserPresentation.ShowFeedback("Save failed. Your previous save has been kept.");
+                    Debug.LogException(error);
+                }
+            };
+            SaveSlotInfo existing = null;
+            try { foreach (SaveSlotInfo slot in ParkSaveStore.ListSlots()) if (slot.Id == id) { existing = slot; break; } }
+            catch (Exception error)
+            {
+                SaveBrowserPresentation.ShowFeedback("The save folder is unavailable. Your existing saves have been kept.");
+                Debug.LogWarning("Cannot inspect save slots: " + error.Message);
+                return;
+            }
+            if (existing != null) Confirm("Overwrite “" + existing.Name + "”? The previous version is retained as a backup.", () => write());
+            else write();
+        }
+        private void LoadSlot(SaveSlotInfo slot, bool backup)
+        {
+            Action read = () =>
+            {
+                try
+                {
+                    ParkSaveData data = ParkSaveStore.ReadSlot(slot.Id, backup);
+                    if (park != null) park.ValidateSave(data);
+                    ParkSaveStore.AdoptParkName(data);
+                    ParkSaveStore.Pending = data;
+                    SaveBrowserPresentation.CloseActive(); Navigate("GameScene");
+                }
+                catch (Exception error)
+                {
+                    SaveBrowserPresentation.ShowFeedback("This save could not be loaded. Choose another save or a readable backup.");
+                    Debug.LogWarning("Load failed: " + error.Message);
+                }
+            };
+            if (park != null) Confirm("Load this saved park? Unsaved changes will be lost.", () => read());
+            else read();
         }
         private void Read()
         {
             try
             {
                 var data = ParkSaveStore.Read(); if (park != null) park.ValidateSave(data);
+                ParkSaveStore.AdoptParkName(data);
                 ParkSaveStore.Pending = data; Navigate("GameScene");
             }
             catch (Exception error) { message.text = "Load failed: " + error.Message; Debug.LogException(error); }
@@ -121,7 +182,7 @@ namespace Mythologicum
         private void Confirm(string question, UnityEngine.Events.UnityAction action)
         {
             CloseConfirmation();
-            var host = overlay != null ? overlay.transform : transform;
+            var host = SaveBrowserPresentation.ActiveRoot ?? (overlay != null ? overlay.transform : transform);
             var dialog = new GameObject("Confirm action", typeof(RectTransform), typeof(Image)); dialog.transform.SetParent(host,false);
             confirmation = dialog;
             var r = (RectTransform)dialog.transform; r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
@@ -158,6 +219,7 @@ namespace Mythologicum
         {
             var go = new GameObject("Label",typeof(RectTransform),typeof(CanvasRenderer),typeof(Text)); go.transform.SetParent(parent,false);
             var label = go.GetComponent<Text>(); label.font = font; label.text = title; label.fontSize = 24; label.color = Color.white; label.alignment = TextAnchor.MiddleCenter; label.raycastTarget = false;
+            label.supportRichText = false;
             var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f,.5f); rect.sizeDelta = size; rect.anchoredPosition = position; return label;
         }
         private void OnDestroy() { if (instance == this) { instance = null; Time.timeScale = 1f; } }

@@ -17,6 +17,7 @@ namespace Mythologicum
         public RockConstruction(SquareBuildGrid grid,Transform parent,Material material,int seed=0,Predicate<Vector2Int> occupied=null)
         {this.grid=grid;this.parent=parent;this.material=material;this.seed=seed;this.occupied=occupied;}
         public bool Occupies(Vector2Int cell)=>rocks.ContainsKey(cell);
+        internal bool TryRemove(Vector2Int cell)=>rocks.TryGetValue(cell,out var root)&&root.GetComponent<DemolitionTarget>().Demolish();
         public bool CanPlace(Vector2Int cell)
         {
             if(disposed||!grid.IsAvailable(cell)||Occupies(cell)||(occupied?.Invoke(cell)??false))return false;

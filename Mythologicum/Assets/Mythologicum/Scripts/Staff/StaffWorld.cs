@@ -70,6 +70,16 @@ namespace Mythologicum
             return true;
         }
 
+        public string HireUnavailableReason(ParkBuildingRecord home)
+        {
+            if (home == null || !Buildings.Contains(home)) return "Select an existing employee building.";
+            if (!home.Footprint.Definition.IsEmployeeBuilding) return "This building does not employ staff.";
+            if (!home.IsOpen) return "Connect this workplace's entrance to the park entrance with paths.";
+            if (home.HiredCount >= home.Capacity) return "This workplace has reached its personnel capacity.";
+            if (!economy.CanAfford(home.Footprint.Definition.hireCost)) return "Not enough funds to pay the hiring cost.";
+            return "";
+        }
+
         internal StaffAgent RestoreEmployee(ParkBuildingRecord home, Vector2Int cell)
         {
             // Restoring existing personnel must not silently remove workers when the designer lowers the current hiring limit.

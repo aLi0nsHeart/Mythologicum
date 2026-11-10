@@ -21,7 +21,7 @@ namespace Mythologicum
         }
         private void SelectTerrainBrush(TerrainBrushMode mode)
         {SelectTool(Tool.Terraform);terrainEditing.SetMode(mode);ResetTerrainStroke();}
-        private void ResetTerrainStroke(){terrainStroke=false;terrainBudget=0;terrainMessage="";}
+        private void ResetTerrainStroke(){if(terrainStroke)CommitConstructionAction();terrainStroke=false;terrainBudget=0;terrainMessage="";}
         private void ApplyTerrainBrush(Mouse mouse,Vector3 point)
         {
             var center=new Vector2((point.x-grid.Origin.x)/grid.CellSize,(point.z-grid.Origin.z)/grid.CellSize);
@@ -35,9 +35,9 @@ namespace Mythologicum
                 :terrainEditing.Mode+" ground | Hold left mouse | Radius and rate below | Buildings and paths are protected";
             if(!mouse.leftButton.isPressed){ResetTerrainStroke();return;}
             if(mouse.leftButton.wasPressedThisFrame)
-            {terrainStroke=true;flattenTarget=grid.GroundHeight(point)-grid.Origin.y;terrainBudget=.12f;}
+            {BeginConstructionAction("Edit terrain");terrainStroke=true;flattenTarget=grid.GroundHeight(point)-grid.Origin.y;terrainBudget=.12f;}
             if(!terrainStroke)return;
-            terrainBudget+=Time.deltaTime;if(terrainBudget<.12f)return;
+            terrainBudget+=Time.unscaledDeltaTime;if(terrainBudget<.12f)return;
             float amount=terrainEditing.Strength*Mathf.Min(terrainBudget,.2f);terrainBudget=0;
             if(grid.Terrain.TryEdit(grid,center,radius,amount,terrainEditing.Mode,flattenTarget,out string reason))terrainMessage="";
             else terrainMessage=reason;

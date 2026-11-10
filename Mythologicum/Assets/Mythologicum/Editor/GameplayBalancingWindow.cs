@@ -34,6 +34,10 @@ namespace Mythologicum.Editor
             entries.Clear();
             Add("Park & economy", "Management/DefaultParkBalance",
                 "Starting funds, reputation, exhibition appeal, death penalties, fair prices and visitor demand. Starting funds apply to new parks; saves retain their cash and reputation.");
+            Add("Alerts", "Management/DefaultAlerts", "Operational alert thresholds, observation intervals and cooldowns.");
+            Add("Autosaves", "Saving/DefaultSaveSettings", "Autosave interval, number of rotating autosave slots and status display.");
+            Add("Overlays & history", "Management/DefaultOperations", "Overlay colours, update rate and construction Undo capacity.");
+            Add("Play controls", "Interface/DefaultPlayControls", "Simulation speeds, interface scale limits and the speed-control dock.");
             Add("Buildings", "Buildings/DefaultBuildings",
                 "Building dimensions, purchase/upkeep costs, default prices, food/rest services, staff capacity and salaries, goat supply stock and dispensing. Buildings use a copy at park start; restart Play mode after editing. Existing saved footprints and player-set prices are preserved.");
             Add("Fences", "Fences/DefaultFences",
@@ -80,6 +84,7 @@ namespace Mythologicum.Editor
                     if (GUILayout.Toggle(selected == i, entries[i].label, "Button", GUILayout.Height(30))) selected = i;
                 }
                 if (GUILayout.Button("Refresh asset list")) FindAssets();
+                if (GUILayout.Button("Validate gameplay data")) GameplayValidationWindow.Open();
                 EditorGUILayout.EndScrollView();
 
                 using (new EditorGUILayout.VerticalScope())

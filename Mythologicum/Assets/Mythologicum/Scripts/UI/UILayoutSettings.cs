@@ -156,6 +156,8 @@ namespace Mythologicum
             new UIPanelLayout("Confirmation window", 900, Vector2.zero, new Vector2(.5f, .5f)),
             new UIPanelLayout("Main menu", 1400, Vector2.zero, new Vector2(.5f, .5f)),
             new UIPanelLayout("Settings window", 1400, Vector2.zero, new Vector2(.5f, .5f)),
+            new UIPanelLayout("Save browser", 1400, Vector2.zero, new Vector2(.5f, .5f)),
+            new UIPanelLayout("Keyboard shortcuts window", 1400, Vector2.zero, new Vector2(.5f, .5f)),
             new UIPanelLayout("New park setup", 1400, Vector2.zero, new Vector2(.5f, .5f)),
             new UIPanelLayout("Park management window", 1400, Vector2.zero, new Vector2(.5f, .5f)),
             new UIPanelLayout("Encyclopedia window", 1400, Vector2.zero, new Vector2(.5f, .5f)),

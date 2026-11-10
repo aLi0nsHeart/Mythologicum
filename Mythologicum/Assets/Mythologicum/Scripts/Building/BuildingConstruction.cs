@@ -88,6 +88,14 @@ namespace Mythologicum
             return position;
         }
 
+        internal bool TryRemove(ParkBuildingRecord record)
+        {
+            if (record == null || !Network.Contains(record)) return false;
+            foreach (var selection in parent.GetComponentsInChildren<BuildingSelection>())
+                if (selection.Record == record) return selection.GetComponent<DemolitionTarget>().Demolish();
+            return false;
+        }
+
         // Shared by placement and its ghost; creates no occupancy, labels or gameplay components.
         public GameObject CreateVisual(Transform parent, BuildingDefinition definition)
         {
