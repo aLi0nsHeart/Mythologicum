@@ -56,7 +56,7 @@ namespace Mythologicum
                 if(!grid.Terrain.RegisterFoundation(record,footprint)){Network.Remove(record);return false;}
             }
             BuildingDefinition definition = footprint.Definition;
-            var root = new GameObject(definition.displayName);
+            var root = new GameObject(Loc.InternalName(definition.displayName));
             root.AddComponent<BuildingSelection>().Initialize(record);
             root.transform.SetParent(parent);
             root.transform.position = footprint.Center(grid);

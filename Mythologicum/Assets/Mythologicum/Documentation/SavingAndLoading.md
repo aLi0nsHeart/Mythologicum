@@ -1,6 +1,6 @@
 # Saving and loading
 
-Start a park as usual. The top-right **Pause** button (or Escape) freezes the simulation and opens:
+Start a park as usual. The bottom **Pause** icon (or Escape) freezes the simulation and opens:
 
 - Resume
 - Save game
@@ -8,7 +8,16 @@ Start a park as usual. The top-right **Pause** button (or Escape) freezes the si
 - Quit to main menu
 - Quit game
 
-There is one manual save slot. Overwriting it, loading during play, and quitting ask for confirmation. The main menu offers **Load game** beside Start; it is disabled until a save exists. Loading stays paused so you can inspect the restored park before resuming. In the Unity Editor, Quit game stops Play mode.
+Save game opens the named-slot browser, with separate manual saves and rotating
+autosaves. Overwriting, loading during play, and quitting ask for confirmation.
+The main menu's **Load Game** is disabled until a save exists. Loading stays
+paused so you can inspect the restored park before resuming. In the Unity Editor,
+Quit game stops Play mode. See [park operations](Park-Operations-Guide.md) for
+slots, backups and autosave settings.
+
+New games, save restoration and returning to the menu now use the
+[loading screen](Loading-Screen-Guide.md). It covers scene activation and park
+preparation, blocking input and simulation until the destination is ready.
 
 Saved data includes building footprints and rotation, prices and accounts, paths, fence types/gates/health, trees and gravestones, living creatures and their health/needs/sedation, visitors and their satisfaction/patience, hired staff and their home buildings, species research, finances, and camera framing. Creature assets are referenced by asset name; keep those names stable for this save format. Footprints are stored separately so later catalogue size adjustments do not resize existing saved buildings.
 

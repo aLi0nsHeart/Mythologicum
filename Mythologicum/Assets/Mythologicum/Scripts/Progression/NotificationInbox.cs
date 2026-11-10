@@ -10,12 +10,30 @@ namespace Mythologicum
     {
         public int id, count = 1;
         public string key, title, body;
+        public string titleId, bodyId;
+        public string[] titleArguments, bodyArguments;
+        public string LocalizedTitle => FormatStored(titleId, title, titleArguments);
+        public string LocalizedBody => FormatStored(bodyId, body, bodyArguments);
         public ParkNoticeKind kind;
         public ParkNoticeSeverity severity;
         public bool read, hasLocation;
         public Vector2Int location;
         public float time;
-        public ParkNotice Copy() => (ParkNotice)MemberwiseClone();
+        public ParkNotice Copy()
+        {
+            var copy = (ParkNotice)MemberwiseClone();
+            copy.titleArguments = titleArguments == null ? null : (string[])titleArguments.Clone();
+            copy.bodyArguments = bodyArguments == null ? null : (string[])bodyArguments.Clone();
+            return copy;
+        }
+        internal static string FormatStored(string textId, string legacy, string[] arguments)
+        {
+            if (string.IsNullOrEmpty(textId)) return legacy ?? "";
+            if (!Loc.Has(textId)) return Loc.Resolve(textId);
+            object[] values = arguments == null ? Array.Empty<object>() : new object[arguments.Length];
+            for (int i = 0; i < values.Length; i++) values[i] = Loc.Resolve(arguments[i]);
+            return Loc.Format(textId, values);
+        }
     }
     /// <summary>Bounded letter inbox. Nearby repeated events share one unread letter.</summary>
     public sealed class NotificationInbox
@@ -43,8 +61,18 @@ namespace Mythologicum
             }
             else { notice.count++; entries.Remove(notice); entries.Add(notice); }
             notice.title=title; notice.body=body; notice.read=false; notice.time=Time;
+            notice.titleId=notice.bodyId=null;notice.titleArguments=notice.bodyArguments=null;
             notice.severity=severity??SeverityFor(kind);
             notice.hasLocation=location.HasValue; notice.location=location.GetValueOrDefault(); Revision++;
+        }
+        public void PostLocalized(string key, ParkNoticeKind kind, string titleId, string bodyId, Vector2Int? location=null,
+            string[] titleArguments=null, string[] bodyArguments=null, ParkNoticeSeverity? severity=null)
+        {
+            Post(key, kind, ParkNotice.FormatStored(titleId, null, titleArguments), ParkNotice.FormatStored(bodyId, null, bodyArguments), location, severity);
+            var notice=entries[entries.Count-1];
+            notice.titleId=titleId;notice.bodyId=bodyId;
+            notice.titleArguments=titleArguments==null?null:(string[])titleArguments.Clone();
+            notice.bodyArguments=bodyArguments==null?null:(string[])bodyArguments.Clone();
         }
         public void MarkAllRead() { foreach(var n in entries) n.read=true; Revision++; }
         public static ParkNoticeSeverity SeverityFor(ParkNoticeKind kind)

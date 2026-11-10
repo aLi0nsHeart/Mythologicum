@@ -132,8 +132,13 @@ namespace Mythologicum
                 standalonePrepared = true;
             }
             icon.type = Image.Type.Simple;
-            button.targetGraphic = icon;
+            // The loading cover disables its parent CanvasGroup. A cloned, themed button
+            // can carry SpriteSwap state into this setup and override the icon with its
+            // disabled rectangular artwork. Stop swapping before changing the target,
+            // then clear any override that was already applied. UIIcon owns all states.
             button.transition = Selectable.Transition.None;
+            button.targetGraphic = icon;
+            icon.overrideSprite = null;
         }
 
         private static Text DirectLabel(Button target)
@@ -145,10 +150,8 @@ namespace Mythologicum
 
         private static UIIconKind Infer(Button target, Text text)
         {
-            string caption = text != null ? text.text.Trim().ToLowerInvariant() : "";
+            // Icon inference uses stable object identity; translated labels never drive behaviour.
             string name = target.name.Trim().ToLowerInvariant();
-            // The building inspector reuses its management button for two different workplaces.
-            if (caption == "open expedition world map") return UIIconKind.Expeditions;
             switch (name)
             {
                 case "building": return UIIconKind.Building;

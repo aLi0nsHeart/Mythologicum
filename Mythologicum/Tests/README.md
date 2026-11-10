@@ -36,8 +36,9 @@ Copy these test sources into **the disposable project's `Assets/Editor`**:
 - `Tests/UI/Unity/ParkOperationsNativeChecks.cs`
 - `Tests/Buildings/Unity/ConstructionUndoNativeChecks.cs`
 - `Tests/Saving/Unity/SaveSlotNativeChecks.cs`
+- `Tests/Localization/Unity/LocalizationNativeChecks.cs`
 
-The UI harness calls the other three helpers; they are not standalone entry
+The UI harness calls the other helpers; they are not standalone entry
 points. The normal editor/runtime code under `Assets/Mythologicum` must also be
 up to date in the copy, including the gameplay data validator.
 
@@ -70,6 +71,26 @@ Read these files inside `LocalCache/SaveValidation`:
 
 A stale result from an earlier run is not evidence for the current source. Check
 the process exit code and the result/log modification times together.
+
+## Native loading-screen checks
+
+Copy `Tests/UI/Unity/SceneTransitionNativeChecks.cs` into the disposable project's
+`Assets/Editor`. Run a separate batch editor after any other validation exits:
+
+```text
+-executeMethod SceneTransitionNativeChecks.Start
+-logFile <absolute project path>/LocalCache/SaveValidation/SceneTransitionValidation.log
+```
+
+Use the same real-graphics and self-exit flags described above. This helper uses
+the separate `MythologicumValidation/SceneTransitionValidation` save identity and
+cleans only its own unique test slot. It covers new games, save restoration,
+returning to menu, input blocking, progress, pause restoration, failure recovery,
+direct GameScene preparation and removal of temporary loading objects.
+Results are in `SceneTransitionValidationResults.txt`; rendered loading examples
+are in `LocalCache/SceneTransitionValidation` within the disposable project.
+The ordinary UI harness waits for `SceneTransition.IsLoading` to clear before
+interacting with the incoming scene.
 
 ## Native performance fixture
 

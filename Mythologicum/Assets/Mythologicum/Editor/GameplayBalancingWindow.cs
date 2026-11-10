@@ -38,6 +38,7 @@ namespace Mythologicum.Editor
             Add("Autosaves", "Saving/DefaultSaveSettings", "Autosave interval, number of rotating autosave slots and status display.");
             Add("Overlays & history", "Management/DefaultOperations", "Overlay colours, update rate and construction Undo capacity.");
             Add("Play controls", "Interface/DefaultPlayControls", "Simulation speeds, interface scale limits and the speed-control dock.");
+            Add("Loading screen", "Interface/DefaultLoadingScreen", "Transition timing, background, progress artwork, loading typography and layout.");
             Add("Buildings", "Buildings/DefaultBuildings",
                 "Building dimensions, purchase/upkeep costs, default prices, food/rest services, staff capacity and salaries, goat supply stock and dispensing. Buildings use a copy at park start; restart Play mode after editing. Existing saved footprints and player-set prices are preserved.");
             Add("Fences", "Fences/DefaultFences",

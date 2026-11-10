@@ -31,11 +31,11 @@ namespace Mythologicum
             for(int i=0;i<64;i++)
             {float angle=i*Mathf.PI*2/64;var p=point+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius*grid.CellSize;p.y=grid.GroundHeight(p)+.14f;terrainCursor.SetPosition(i,p);}
             terrainCursorMaterial.color=locked?new Color(.95f,.18f,.1f):new Color(.15f,.9f,.95f);
-            status.text=locked?"This brush touches a building foundation. Move it or reduce its radius.":terrainMessage!=""?terrainMessage
-                :terrainEditing.Mode+" ground | Hold left mouse | Radius and rate below | Buildings and paths are protected";
+            status.text=locked?Loc.Text("park.build_mode_controller__terrain_editing.this_brush_touches_a_building_foundation_move_it_or_reduce"):terrainMessage!=""?terrainMessage
+                :Loc.Format("park.build_mode_controller__terrain_editing.ground_hold_left_mouse_radius_and_rate_below_buildings_and", Loc.Enum(terrainEditing.Mode));
             if(!mouse.leftButton.isPressed){ResetTerrainStroke();return;}
             if(mouse.leftButton.wasPressedThisFrame)
-            {BeginConstructionAction("Edit terrain");terrainStroke=true;flattenTarget=grid.GroundHeight(point)-grid.Origin.y;terrainBudget=.12f;}
+            {BeginConstructionAction("park.build_mode_controller__terrain_editing.edit_terrain");terrainStroke=true;flattenTarget=grid.GroundHeight(point)-grid.Origin.y;terrainBudget=.12f;}
             if(!terrainStroke)return;
             terrainBudget+=Time.unscaledDeltaTime;if(terrainBudget<.12f)return;
             float amount=terrainEditing.Strength*Mathf.Min(terrainBudget,.2f);terrainBudget=0;

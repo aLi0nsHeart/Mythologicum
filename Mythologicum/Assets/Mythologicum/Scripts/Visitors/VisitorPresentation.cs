@@ -1,4 +1,3 @@
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -19,7 +18,7 @@ namespace Mythologicum
         {
             panel = Box(canvas, "Visitor needs", new Vector2(1f, 1f), new Vector2(-24f, -24f), Vector2.zero);
             frame=UIFramedPanel.Attach(panel,true,500f);var body=frame.Content;
-            Text title=Label(body,"Visitor",font,22);title.text="Visitor";
+            Text title=Label(body,"Visitor",font,22);Loc.Set(title,"visitor.name");
             title.rectTransform.anchorMin=new Vector2(0,1);title.rectTransform.anchorMax=Vector2.one;
             title.rectTransform.pivot=new Vector2(.5f,1);title.rectTransform.sizeDelta=new Vector2(0,38);
             var content=ManagementWidgets.Scroll(body,"Visitor details",Vector2.zero,new Vector2(370,400),0);
@@ -50,17 +49,12 @@ namespace Mythologicum
             frame.Refresh();
             CreatureAgent actor = selected.Actor;
             int seconds = Mathf.Max(0, Mathf.FloorToInt(selected.TimeInPark));
-            details.text = $"Activity: {Readable(selected.Activity.ToString())}\n"
-                + $"Satisfaction: {selected.Mood.Satisfaction:0}/100\n"
-                + $"Health: {actor.Health.Current:0}/{actor.Health.Maximum:0}\n"
-                + $"Hunger: {actor.Vitals.Hunger:0}/100\n"
-                + $"Fear: {actor.Vitals.Fear:0}/100\n"
-                + $"Energy: {actor.Energy.Energy:0}/100\n"
-                + $"Time in park: {seconds / 60}m {seconds % 60:00}s\n"
-                + $"Patience left: {100f * (1f - selected.Mood.VisitProgress):0}%\n"
-                + $"Willingness to stay: {100f * selected.Mood.Willingness:0}%\n\n"
+            details.text = Loc.Format("visitor.info.needs", Loc.Enum(selected.Activity), selected.Mood.Satisfaction,
+                actor.Health.Current, actor.Health.Maximum, actor.Vitals.Hunger, actor.Vitals.Fear,
+                actor.Energy.Energy, seconds / 60, seconds % 60, 100f * (1f - selected.Mood.VisitProgress),
+                100f * selected.Mood.Willingness)
                 + selected.Status + (string.IsNullOrEmpty(selected.PriceComplaint) ? "" : "\n" + selected.PriceComplaint)
-                + "\n\nClick elsewhere to deselect.";
+                + Loc.Text("visitor.info.deselect");
             float height=Mathf.Ceil(details.preferredHeight);
             details.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
             detailsScroll.content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
@@ -96,15 +90,5 @@ namespace Mythologicum
             return label;
         }
 
-        private static string Readable(string value)
-        {
-            var result = new StringBuilder(value.Length + 8);
-            for (int i = 0; i < value.Length; i++)
-            {
-                if (i > 0 && char.IsUpper(value[i]) && char.IsLower(value[i - 1])) result.Append(' ');
-                result.Append(value[i]);
-            }
-            return result.ToString();
-        }
     }
 }

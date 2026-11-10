@@ -135,13 +135,13 @@ namespace Mythologicum
                 var region = enclosures.At(actor.Cell);
                 bool escaped = state.containment.Observe(actor.Cell, region != null && region.IsSecured ? region.Cells : null, transported);
                 if (Observe("escaped:" + id, Rules.creatureEscapes && escaped, 0, silent))
-                    inbox.Post("escaped:" + id, ParkNoticeKind.CreatureEscaped, actor.Definition.displayName + " left a secured area",
-                        "This creature crossed out of a previously fenced area. Check its position and restore containment if needed.", actor.Cell);
+                    inbox.PostLocalized("escaped:" + id, ParkNoticeKind.CreatureEscaped, "park.notification.creature_escaped",
+                        "park.notification.creature_escaped_body", actor.Cell,titleArguments:new[]{actor.Definition.displayName});
                 bool exposed = Rules.publicPathExposure && !transported && actor.Definition.threat >= Rules.publicPathThreat
                     && latch.Time - state.firstSeen >= Math.Max(0, Rules.placementGraceSeconds) && CanReachVisitorPath(actor.Cell);
                 if (Observe("exposed:" + id, exposed, 0, silent))
-                    inbox.Post("exposed:" + id, ParkNoticeKind.CreatureExposed, actor.Definition.displayName + " can reach visitor paths",
-                        "A creature with a significant threat has an ordinary ground route to an entrance-connected visitor path. Add barriers or move it to safer ground.", actor.Cell);
+                    inbox.PostLocalized("exposed:" + id, ParkNoticeKind.CreatureExposed, "park.notification.creature_exposed",
+                        "park.notification.creature_exposed_body", actor.Cell,titleArguments:new[]{actor.Definition.displayName});
             }
             var removed = new List<int>();
             foreach (var pair in creatureStates) if (!living.Contains(pair.Key)) removed.Add(pair.Key);
@@ -155,16 +155,15 @@ namespace Mythologicum
                 float threshold = latch.IsActive(key) ? Rules.injuryRecoveryFraction : Rules.injuryHealthFraction;
                 bool injured = Rules.visitorInjuries && actor.Health.Current / actor.Health.Maximum <= threshold;
                 if (Observe(key, injured, 0, silent))
-                    inbox.Post(key, ParkNoticeKind.VisitorInjured, "Visitor injured",
-                        "A visitor has " + actor.Health.Current.ToString("0") + "/" + actor.Health.Maximum.ToString("0")
-                        + " health. Check nearby creatures and the safety of this route.", actor.Cell);
+                    inbox.PostLocalized(key, ParkNoticeKind.VisitorInjured, "park.notification.visitor_injured",
+                        "park.notification.visitor_injured_body", actor.Cell,bodyArguments:new[]{actor.Health.Current.ToString("0"),actor.Health.Maximum.ToString("0")});
             }
             int deaths = Math.Max(0, visitors.LostCount - lastVisitorDeaths);
             if (!silent && Rules.visitorDeaths && deaths > 0)
-                inbox.Post("visitor-fatality:" + visitors.LostCount, ParkNoticeKind.VisitorDied,
-                    deaths == 1 ? "Visitor died" : deaths + " visitors died",
-                    "The park has lost " + deaths + (deaths == 1 ? " visitor" : " visitors")
-                    + ". Review containment and staff response. Visitor deaths also damage park reputation.", deathLocation);
+                inbox.PostLocalized("visitor-fatality:" + visitors.LostCount, ParkNoticeKind.VisitorDied,
+                    deaths==1?"park.notification.visitor_died":"park.notification.visitors_died",
+                    deaths==1?"park.notification.visitor_died_body":"park.notification.visitors_died_body", deathLocation,
+                    titleArguments:new[]{deaths.ToString()},bodyArguments:new[]{deaths.ToString()});
             lastVisitorDeaths = visitors.LostCount;
 
             foreach (var building in buildings.Records)
@@ -172,16 +171,16 @@ namespace Mythologicum
                 if (building.Footprint.Definition.kind != BuildingKind.GoatDispenser) continue;
                 string key = "empty-feeder:" + building.RuntimeId;
                 if (Observe(key, Rules.emptyFeeders && building.FeedStock <= 0, Rules.emptyFeederDelaySeconds, silent))
-                    inbox.Post(key, ParkNoticeKind.FeederEmpty, "Goat dispenser needs supplies",
-                        "The dispenser is empty. A hired zookeeper needs a usable route and sufficient park funds to restock it.", building.Footprint.Anchor);
+                    inbox.PostLocalized(key, ParkNoticeKind.FeederEmpty, "park.notification.feeder_empty",
+                        "park.notification.feeder_empty_body", building.Footprint.Anchor);
             }
             foreach (var worker in staff.Staff)
             {
                 if (worker == null || worker.Actor == null || !worker.Actor.Alive) continue;
                 string key = "blocked-staff:" + worker.Actor.GetInstanceID();
                 if (Observe(key, Rules.blockedStaff && worker.Task == StaffTask.Blocked, Rules.blockedStaffDelaySeconds, silent))
-                    inbox.Post(key, ParkNoticeKind.StaffBlocked, worker.Role + " cannot complete a job",
-                        worker.Status + ". Check staff gates, paths and the target's access route.", worker.Actor.Cell);
+                    inbox.PostLocalized(key, ParkNoticeKind.StaffBlocked, "park.notification.staff_blocked",
+                        "park.notification.staff_blocked_body", worker.Actor.Cell,titleArguments:new[]{"enum.StaffRole."+worker.Role});
             }
             latch.Retain(observedKeys);
             // Dead actor IDs are only needed while a corpse remains in the simulation.

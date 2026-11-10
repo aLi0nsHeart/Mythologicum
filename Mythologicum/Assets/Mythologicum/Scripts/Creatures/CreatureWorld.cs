@@ -114,7 +114,7 @@ namespace Mythologicum
             if (!TrySpawn(definition, cell, null, visualPrefab)) return null;
             CreatureAgent actor = agents[agents.Count - 1];
             actor.ExternallyControlled = true;
-            actor.ExternalStatus = "Arriving";
+            actor.ExternalStatus = "visitor.status.arriving";
             return actor;
         }
 
@@ -164,8 +164,8 @@ namespace Mythologicum
         public bool TrySpawn(CreatureDefinition definition, Vector2Int cell, ParkBuildingRecord dispenser = null, GameObject visualPrefab = null)
         {
             if (definition == null || (RestoringSave ? !grid.Contains(cell) : !CanSpawn(cell))) return false;
-            var go = new GameObject(definition.displayName);
-            go.name = definition.displayName;
+            var go = new GameObject(Loc.InternalName(definition.displayName));
+            go.name = Loc.InternalName(definition.displayName);
             go.transform.SetParent(root.transform);
             var collider = go.AddComponent<CapsuleCollider>();
             collider.isTrigger = true; collider.radius = Mathf.Max(definition.bodyScale.x, definition.bodyScale.z) * 0.5f;
@@ -371,7 +371,7 @@ namespace Mythologicum
             if (UnityEngine.Random.value >= CreatureEscape.Probability(agent.EscapeChancePerMinute, dt)) return;
             agent.EscapeIntent = true; agent.EscapeUntil = time + data.Behaviour.escapeAttemptSeconds;
             agent.EscapeGoal = null; agent.EscapeBarrier = null;
-            agent.EscapeStatus = "Seeking a way out"; agent.DecisionTimer = 0f;
+            agent.EscapeStatus = "creature.escape.seeking_a_way_out"; agent.DecisionTimer = 0f;
         }
 
         private void EndEscape(CreatureAgent agent, string reason)
@@ -385,20 +385,20 @@ namespace Mythologicum
         {
             ReleaseClaim(agent);
             if (time >= agent.EscapeUntil)
-            { EndEscape(agent, "Attempt ended; resting before retry"); return false; }
+            { EndEscape(agent, "creature.escape.attempt_ended_resting_before_retry"); return false; }
             if (agent.EscapeGoal.HasValue)
             {
                 if (agent.Cell == agent.EscapeGoal.Value && agent.Route.Count == 0)
                 {
                     FenceEdge? barrier = agent.EscapeBarrier;
-                    EndEscape(agent, barrier.HasValue ? "Blocked by a fence" : "Reached new ground");
+                    EndEscape(agent, barrier.HasValue ? "creature.escape.blocked_by_a_fence" : "creature.escape.reached_new_ground");
                     if (barrier.HasValue && agent.Definition.canClimbWoodenFences && fences.HasFence(barrier.Value))
                     { agent.AttemptFence = barrier; BeginFailedClimb(agent); return true; }
                     return false;
                 }
                 if (SetGoal(agent, agent.EscapeGoal.Value))
                 { agent.Activity = CreatureActivity.Escaping; return true; }
-                EndEscape(agent, "Escape route blocked"); return false;
+                EndEscape(agent, "creature.escape.escape_route_blocked"); return false;
             }
             var ground = ReachableRegion(agent.Cell);
             Vector2Int? goal = null; FenceEdge? obstruction = null;
@@ -426,7 +426,7 @@ namespace Mythologicum
                 }
             }
             if (!goal.HasValue || !SetGoal(agent, goal.Value))
-            { EndEscape(agent, "No usable escape route"); return false; }
+            { EndEscape(agent, "creature.escape.no_usable_escape_route"); return false; }
             agent.EscapeGoal = goal; agent.EscapeBarrier = obstruction;
             agent.Activity = CreatureActivity.Escaping; return true;
         }
@@ -902,7 +902,7 @@ namespace Mythologicum
             else if (agent.Activity == CreatureActivity.Feeding || agent.Activity == CreatureActivity.Grazing)
                 rotation = Quaternion.Euler(18f + wave * 12f, 0f, 0f);
             else if (agent.ExternallyControlled && agent.Activity == CreatureActivity.Resting
-                && agent.ExternalStatus != null && agent.ExternalStatus.StartsWith("Resting", StringComparison.Ordinal))
+                && agent.ExternalResting)
             {
                 offset = Vector3.down * 0.3f;
                 rotation = Quaternion.Euler(-12f + Mathf.Sin(time * 2f) * 2f, 0f, 0f);

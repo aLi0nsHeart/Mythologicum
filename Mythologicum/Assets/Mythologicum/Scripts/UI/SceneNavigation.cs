@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Mythologicum
 {
@@ -7,29 +6,32 @@ namespace Mythologicum
     {
         public void StartGame()
         {
-            if(SettingsPresentation.IsOpen)return;
-            var canvas=FindFirstObjectByType<UnityEngine.Canvas>();
+            if(SettingsPresentation.IsOpen||SceneTransition.IsLoading)return;
+            var canvas=SceneTransition.GameplayCanvas;
             if(canvas==null){Debug.LogError("New-game setup requires the main menu canvas.",this);return;}
             NewGameSetup.Open(canvas,StartConfiguredGame);
         }
         public void StartConfiguredGame(MapGenerationOptions options)
         {
+            if(SceneTransition.IsLoading)return;
             if(options==null||!options.Validate(out _))throw new System.ArgumentException("Invalid new-game map settings.",nameof(options));
             SettingsPresentation.CloseActive();GameSettings.Save();
             NewGameSetup.Pending=options.Clone();
-            ParkSaveStore.Pending = null; Time.timeScale = 1f;
-            SceneManager.LoadScene("GameScene");
+            ParkSaveStore.Pending = null;
+            SceneTransition.Load("GameScene");
         }
         public void MainMenu()
         {
+            if(SceneTransition.IsLoading)return;
             SettingsPresentation.CloseActive();GameSettings.Save();
             NewGameSetup.Pending=null;
-            Time.timeScale = 1f; SceneManager.LoadScene("MainMenuScene");
+            SceneTransition.Load("MainMenuScene");
         }
 
         public void OpenSettings()
         {
-            var canvas=FindFirstObjectByType<UnityEngine.Canvas>();
+            if(SceneTransition.IsLoading)return;
+            var canvas=SceneTransition.GameplayCanvas;
             if(canvas==null){Debug.LogError("Settings require a UI canvas.",this);return;}
             SettingsPresentation.Open(canvas);
         }

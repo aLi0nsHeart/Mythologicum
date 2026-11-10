@@ -22,19 +22,19 @@ namespace Mythologicum
                 ()=>Random.value,id=>Species(id)?.displayName??id);
             staffWorld.Progression=Progression;
             fences.Layout.Opened+=edge=>{
-                if(!creatureWorld.RestoringSave)Progression.Inbox.Post("opened-fence",ParkNoticeKind.FenceOpened,"Fence opened",
-                    "A fence segment was removed or destroyed. Check containment and rebuild the gap if necessary.",edge.CellA);
+                if(!creatureWorld.RestoringSave)Progression.Inbox.PostLocalized("opened-fence",ParkNoticeKind.FenceOpened,"park.notification.fence_opened",
+                    "park.notification.fence_opened_body",edge.CellA);
             };
             staffWorld.Research.Finished+=species=>{
-                if(!creatureWorld.RestoringSave)Progression.Inbox.Post("creature-study:"+species.name,ParkNoticeKind.ResearchFinished,
-                    "Creature research finished: "+species.displayName,"All care notes for this species have been discovered.");
+                if(!creatureWorld.RestoringSave)Progression.Inbox.PostLocalized("creature-study:"+species.name,ParkNoticeKind.ResearchFinished,
+                    "park.notification.creature_study_finished","park.notification.creature_study_finished_body",titleArguments:new[]{species.displayName});
             };
         }
         private void CreateManagementUI()
         {
-            Canvas.ForceUpdateCanvases();var canvas=FindFirstObjectByType<Canvas>();
+            Canvas.ForceUpdateCanvases();var canvas=SceneTransition.GameplayCanvas;
             parkStatus=new ParkStatusPresentation(canvas,economy,visitorWorld);
-            management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.displayName??id);
+            management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.DisplayName??id);
             parkManagement=new ParkManagementPresentation(canvas,buildingConstruction.Network,visitorWorld,creatureWorld,economy);
             overlays=new ParkOverlayPresentation(canvas,grid,fences.Layout,buildingConstruction.Network,enclosureMap,creatureWorld.IsClear);
             parkManagement.ConfigureOverlays(mode =>

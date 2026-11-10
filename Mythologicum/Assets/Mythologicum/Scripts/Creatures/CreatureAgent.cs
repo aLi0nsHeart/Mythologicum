@@ -27,14 +27,17 @@ namespace Mythologicum
         public bool RetirementRequested { get; internal set; }
         public bool SedationRequested { get; internal set; }
         public Vector2Int? MoveRequestedDestination { get; internal set; }
-        public string StaffStatus { get; internal set; } = "";
+        private readonly StatusMessage staffStatus = new StatusMessage();
+        public string StaffStatus { get => staffStatus.Value; internal set => staffStatus.Set(value); }
         internal float ScareAfter;
         internal bool ScareSucceeded;
         internal FenceEdge? AttackedFence;
         internal int FenceStrikes;
         public float EscapeChancePerMinute { get; internal set; }
         public float Crowding { get; internal set; }
-        public string EscapeStatus { get; internal set; } = "No escape intention";
+        private readonly StatusMessage escapeStatus = new StatusMessage("creature.escape.no_escape_intention");
+        public string EscapeStatus { get => escapeStatus.Value; internal set => escapeStatus.Set(value); }
+        internal void SetEscapeStatus(string id, params object[] arguments) => escapeStatus.Set(id, arguments);
         internal bool EscapeIntent;
         internal float EscapeUntil, EscapeAfter, EscapeCheckTimer;
         internal Vector2Int? EscapeGoal;
@@ -42,6 +45,7 @@ namespace Mythologicum
         internal readonly CreatureExploration Exploration = new CreatureExploration();
         internal bool ExternallyControlled;
         internal string ExternalStatus;
+        internal bool ExternalResting;
         internal readonly List<Vector2Int> Route = new List<Vector2Int>();
         internal Vector2Int? Goal;
         internal CreatureAgent Threat, Prey;

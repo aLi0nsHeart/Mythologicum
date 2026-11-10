@@ -17,10 +17,10 @@ namespace Mythologicum
 
         public bool Validate(out string error)
         {
-            if (width != depth || !SupportedSize(width)) error = "Choose Small, Standard or Large map size.";
-            else if (!Finite(relief) || relief < 0f || relief > 20f) error = "Hill height must be between 0 and 20 metres.";
-            else if (!Finite(featureSize) || featureSize < 12f || featureSize > 64f) error = "Hill width must be between 12 and 64 metres.";
-            else if (!Finite(forestDensity) || forestDensity < 0f || forestDensity > 1f) error = "Forest density must be between 0 and 100%.";
+            if (width != depth || !SupportedSize(width)) error = Loc.Text("park.map_generation_options.choose_small_standard_or_large_map_size");
+            else if (!Finite(relief) || relief < 0f || relief > 20f) error = Loc.Text("park.map_generation_options.hill_height_must_be_between_0_and_20_metres");
+            else if (!Finite(featureSize) || featureSize < 12f || featureSize > 64f) error = Loc.Text("park.map_generation_options.hill_width_must_be_between_12_and_64_metres");
+            else if (!Finite(forestDensity) || forestDensity < 0f || forestDensity > 1f) error = Loc.Text("park.map_generation_options.forest_density_must_be_between_0_and_100");
             else { error = ""; return true; }
             return false;
         }

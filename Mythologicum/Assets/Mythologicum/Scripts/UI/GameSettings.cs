@@ -15,6 +15,8 @@ namespace Mythologicum
         public static float RotationSensitivity { get { EnsureLoaded(); return rotationSensitivity; } }
         public static float ZoomSensitivity { get { EnsureLoaded(); return zoomSensitivity; } }
         public static float UIScale { get { EnsureLoaded(); return uiScale; } }
+        public static GameLanguage Language => Loc.Language;
+        public static void SetLanguage(GameLanguage value) => Loc.SetLanguage(value);
         /// <summary>0 windowed, 1 borderless fullscreen, 2 exclusive fullscreen.</summary>
         public static int WindowMode { get { EnsureLoaded(); return windowMode; } }
         public static int Quality { get { EnsureLoaded(); return quality; } }
@@ -84,6 +86,7 @@ namespace Mythologicum
         {
             EnsureLoaded(); masterVolume = moveSensitivity = rotationSensitivity = zoomSensitivity = 1f;
             uiScale = 1f; GameInput.ResetDefaults(); PlayerUIScale.RefreshAll();
+            Loc.SetLanguage(GameLanguage.ENGLISH);
             quality = Math.Max(0, QualitySettings.names.Length - 1); windowMode = 1;
             AudioListener.volume = masterVolume; ApplyDisplay(); QualitySettings.SetQualityLevel(quality, true);
             Record(); Save();

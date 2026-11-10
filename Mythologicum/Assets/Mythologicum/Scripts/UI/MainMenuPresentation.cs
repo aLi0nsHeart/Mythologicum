@@ -40,10 +40,10 @@ namespace Mythologicum
 
         private static List<MenuAction> CreateActions(SceneNavigation navigation, Action load) => new List<MenuAction>
         {
-            new MenuAction("New Game", navigation.StartGame),
-            new MenuAction("Load Game", load, () => ParkSaveStore.Exists),
-            new MenuAction("Settings", navigation.OpenSettings),
-            new MenuAction("Quit", navigation.QuitGame)
+            new MenuAction("ui.menu.new_game", navigation.StartGame),
+            new MenuAction("ui.menu.load_game", load, () => ParkSaveStore.Exists),
+            new MenuAction("ui.menu.settings", navigation.OpenSettings),
+            new MenuAction("ui.menu.quit", navigation.QuitGame)
         };
 
         private void Build(Canvas canvas, SceneNavigation navigation, Action load)
@@ -59,11 +59,11 @@ namespace Mythologicum
             UIThemeElement.Mark(backdrop.gameObject, UIThemeRole.Ignore);
             var card = ManagementWidgets.Card(gameObject, canvas);
             UIThemeElement.Mark(card.gameObject, UIThemeRole.Window);
-            var title = ManagementWidgets.Label(card, "Main menu title", new Vector2(30, 8), new Vector2(1100, 62), 53);
-            title.text = "MYTHOLOGICUM"; title.alignment = TextAnchor.MiddleCenter;
+            var title = ManagementWidgets.Label(card, "ui.main_menu.main_menu_title", new Vector2(30, 8), new Vector2(1100, 62), 53);
+            Loc.Set(title, "ui.menu.title"); title.alignment = TextAnchor.MiddleCenter;
             UIThemeElement.Mark(title.gameObject, UIThemeRole.Title);
-            var subtitle = ManagementWidgets.Label(card, "Main menu subtitle", new Vector2(30, 70), new Vector2(1100, 42), 29);
-            subtitle.text = "The Grand Exhibition"; subtitle.alignment = TextAnchor.MiddleCenter;
+            var subtitle = ManagementWidgets.Label(card, "ui.main_menu.main_menu_subtitle", new Vector2(30, 70), new Vector2(1100, 42), 29);
+            Loc.Set(subtitle, "ui.menu.subtitle"); subtitle.alignment = TextAnchor.MiddleCenter;
             UIThemeElement.Mark(subtitle.gameObject, UIThemeRole.Heading);
             var content = ManagementWidgets.Scroll(card, "Main menu actions", new Vector2(313, 126), new Vector2(534, 282), 0);
             var actionBackground = content.GetComponentInParent<ScrollRect>(true).GetComponent<Image>();
@@ -83,7 +83,7 @@ namespace Mythologicum
                 actions.Add(new KeyValuePair<MenuAction, Button>(item, button)); y += 68;
             }
             content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, y);
-            Message = ManagementWidgets.Label(card, "Main menu message", new Vector2(130, 430), new Vector2(900, 56), 19);
+            Message = ManagementWidgets.Label(card, "ui.main_menu.main_menu_message", new Vector2(130, 430), new Vector2(900, 56), 19);
             Message.text = ""; Message.alignment = TextAnchor.MiddleCenter;
         }
 

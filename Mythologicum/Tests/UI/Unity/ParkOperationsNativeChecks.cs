@@ -77,7 +77,7 @@ public static class ParkOperationsNativeChecks
             && GameSaveMenu.IsOpen == pauseBeforeAutosave, "A real autosave can be read without charging money or opening a pause menu");
 
         float oldSpeed = SimulationSpeed.SelectedSpeed, oldScale = Time.timeScale, oldUIScale = GameSettings.UIScale;
-        var canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+        var canvas = SceneTransition.GameplayCanvas;
         var scaler = canvas.GetComponent<CanvasScaler>();
         Vector2 baseline = scaler.referenceResolution;
         try

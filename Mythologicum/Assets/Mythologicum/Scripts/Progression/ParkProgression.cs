@@ -84,7 +84,7 @@ namespace Mythologicum
             return false;
         }
         public string BuildingResearch(BuildingKind kind)
-        {foreach(var t in Rules.technologies)if(Array.IndexOf(t.buildings,kind)>=0)return t.name;return "";}
+        {foreach(var t in Rules.technologies)if(Array.IndexOf(t.buildings,kind)>=0)return t.DisplayName;return "";}
         public float StaffEfficiency {get {float rate=1;foreach(var t in Rules.technologies)if(Completed(t.id))rate=Math.Max(rate,t.staffEfficiency);return rate;}}
         public float SuccessBonus {get {float rate=0;foreach(var t in Rules.technologies)if(Completed(t.id))rate+=t.expeditionSuccessBonus;return rate;}}
         public float DurationMultiplier {get {float rate=1;foreach(var t in Rules.technologies)if(Completed(t.id))rate*=t.expeditionDurationMultiplier;return rate;}}
@@ -139,14 +139,14 @@ namespace Mythologicum
         public string ResearchBlock(ParkBuildingRecord home,string id)
         {
             var t=Technology(id);
-            if(t==null)return "Unknown project";
-            if(Completed(id))return "Completed";
-            if(!CanUse(home,BuildingKind.ResearchCentre))return "Reconnect this research centre";
-            if(home.HiredCount<1)return "Hire a researcher first";
-            foreach(string prerequisite in t.prerequisites)if(!Completed(prerequisite))return "Requires "+(Technology(prerequisite)?.name??prerequisite);
-            foreach(var p in projects)if(p.Definition.id==id)return "Already being researched";
-            if(ActiveProject(home)!=null)return "This centre already has a project";
-            if(!economy.CanAfford(t.cost))return "Insufficient funds";
+            if(t==null)return Loc.Text("park.park_progression.unknown_project");
+            if(Completed(id))return Loc.Text("park.park_progression.completed");
+            if(!CanUse(home,BuildingKind.ResearchCentre))return Loc.Text("park.park_progression.reconnect_this_research_centre");
+            if(home.HiredCount<1)return Loc.Text("park.park_progression.hire_a_researcher_first");
+            foreach(string prerequisite in t.prerequisites)if(!Completed(prerequisite))return Loc.Format("park.park_progression.requires", (Technology(prerequisite)?.DisplayName??prerequisite));
+            foreach(var p in projects)if(p.Definition.id==id)return Loc.Text("park.park_progression.already_being_researched");
+            if(ActiveProject(home)!=null)return Loc.Text("park.park_progression.this_centre_already_has_a_project");
+            if(!economy.CanAfford(t.cost))return Loc.Text("park.park_progression.insufficient_funds");
             return "";
         }
         public bool StartResearch(ParkBuildingRecord home,string id)
@@ -163,8 +163,8 @@ namespace Mythologicum
             p.Work=Math.Min(p.Definition.workSeconds,p.Work+work);
             if(p.Work<p.Definition.workSeconds)return;
             completed.Add(p.Definition.id);projects.Remove(p);Revision++;
-            Inbox.Post("technology:"+p.Definition.id,ParkNoticeKind.ResearchFinished,"Research finished: "+p.Definition.name,
-                p.Definition.description,home.Footprint.AccessCell);
+            Inbox.PostLocalized("technology:"+p.Definition.id,ParkNoticeKind.ResearchFinished,"park.notification.research_finished",
+                p.Definition.description,home.Footprint.AccessCell,titleArguments:new[]{p.Definition.name});
         }
         public void Tick(float dt)
         {
@@ -174,16 +174,17 @@ namespace Mythologicum
             {
                 var m=missions[i];m.remaining=Math.Max(0,m.remaining-dt);if(m.remaining>0)continue;
                 if(m.succeeds) {stock[m.species]=(int)Math.Min(int.MaxValue,(long)Stock(m.species)+m.quantity);}
-                Inbox.Post("mission:"+m.id,m.succeeds?ParkNoticeKind.ExpeditionSuccess:ParkNoticeKind.ExpeditionFailure,
-                    "Expedition "+(m.succeeds?"successful":"failed")+": "+Region(m.region).name,
-                    m.succeeds?m.quantity+" "+speciesName(m.species)+" added to Creatures. All teams have returned.":"No creatures found. All teams have returned.");
+                Inbox.PostLocalized("mission:"+m.id,m.succeeds?ParkNoticeKind.ExpeditionSuccess:ParkNoticeKind.ExpeditionFailure,
+                    m.succeeds?"park.notification.expedition_success":"park.notification.expedition_failure",
+                    m.succeeds?"park.notification.expedition_success_body":"park.notification.expedition_failure_body",
+                    titleArguments:new[]{Region(m.region).name},bodyArguments:m.succeeds?new[]{m.quantity.ToString(),speciesName(m.species)}:null);
                 missions.RemoveAt(i);Revision++;
             }
             for(int i=projects.Count-1;i>=0;i--)
                 if(!buildings.Contains(projects[i].Home))
                 {
-                    Inbox.Post("research-lost:"+projects[i].Definition.id,ParkNoticeKind.ResearchInterrupted,"Research interrupted",
-                        projects[i].Definition.name+": its research centre was demolished. Start it again in another centre.");
+                    Inbox.PostLocalized("research-lost:"+projects[i].Definition.id,ParkNoticeKind.ResearchInterrupted,"park.notification.research_interrupted",
+                        "park.notification.research_interrupted_body",bodyArguments:new[]{projects[i].Definition.name});
                     projects.RemoveAt(i);Revision++;
                 }
         }
@@ -202,27 +203,27 @@ namespace Mythologicum
         {
             if(saved==null||saved.teams<0||saved.nextMission<0||!Finite(saved.time)||saved.time<0
                 ||saved.regions==null||saved.technologies==null||saved.inventory==null||saved.missions==null||saved.projects==null||saved.notices==null)
-                throw new InvalidDataException("Invalid park progression.");
-            var regions=new HashSet<string>();foreach(string id in saved.regions)if(Region(id)==null||!regions.Add(id))throw new InvalidDataException("Unknown or duplicate expedition location.");
-            var technologies=new HashSet<string>();foreach(string id in saved.technologies)if(Technology(id)==null||!technologies.Add(id))throw new InvalidDataException("Unknown or duplicate technology.");
-            var species=new HashSet<string>();foreach(var s in saved.inventory)if(s==null||!ratings.ContainsKey(s.species)||s.count<0||!species.Add(s.species))throw new InvalidDataException("Invalid creature stock.");
+                throw new InvalidDataException(Loc.Text("park.park_progression.invalid_park_progression"));
+            var regions=new HashSet<string>();foreach(string id in saved.regions)if(Region(id)==null||!regions.Add(id))throw new InvalidDataException(Loc.Text("park.park_progression.unknown_or_duplicate_expedition_location"));
+            var technologies=new HashSet<string>();foreach(string id in saved.technologies)if(Technology(id)==null||!technologies.Add(id))throw new InvalidDataException(Loc.Text("park.park_progression.unknown_or_duplicate_technology"));
+            var species=new HashSet<string>();foreach(var s in saved.inventory)if(s==null||!ratings.ContainsKey(s.species)||s.count<0||!species.Add(s.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_creature_stock"));
             var ids=new HashSet<int>();int busy=0;
             foreach(var m in saved.missions)
             {
                 if(m==null||m.id<1||m.id>saved.nextMission||!ids.Add(m.id)||!regions.Contains(m.region)||Difficulty(m.difficulty)==null||m.teams<1||m.teams>saved.teams
                     ||m.quantity<1||!Finite(m.remaining)||m.remaining<0||!Finite(m.duration)||m.duration<=0||m.remaining>m.duration
-                    ||!Finite(m.chance)||m.chance<0||m.chance>1||!ratings.ContainsKey(m.species))throw new InvalidDataException("Invalid active expedition.");
+                    ||!Finite(m.chance)||m.chance<0||m.chance>1||!ratings.ContainsKey(m.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_active_expedition"));
                 busy+=m.teams;
             }
-            if(busy>saved.teams)throw new InvalidDataException("Expedition teams are double booked.");
+            if(busy>saved.teams)throw new InvalidDataException(Loc.Text("park.park_progression.expedition_teams_are_double_booked"));
             var homes=new HashSet<int>();var researching=new HashSet<string>();
             foreach(var p in saved.projects)
                 if(p==null||p.building<0||p.building>=records.Count||records[p.building].Footprint.Definition.kind!=BuildingKind.ResearchCentre
                     ||Technology(p.technology)==null||technologies.Contains(p.technology)||!researching.Add(p.technology)||!homes.Add(p.building)
-                    ||!Finite(p.work)||p.work<0)throw new InvalidDataException("Invalid active research project.");
-            ids.Clear();if(saved.notices.Count>NotificationInbox.Capacity)throw new InvalidDataException("Inbox is too large.");
+                    ||!Finite(p.work)||p.work<0)throw new InvalidDataException(Loc.Text("park.park_progression.invalid_active_research_project"));
+            ids.Clear();if(saved.notices.Count>NotificationInbox.Capacity)throw new InvalidDataException(Loc.Text("park.park_progression.inbox_is_too_large"));
             foreach(var n in saved.notices)if(n==null||n.id<1||!ids.Add(n.id)||n.count<1||!Finite(n.time)||n.time<0||n.time>saved.time||n.title==null||n.body==null||n.key==null
-                ||!Enum.IsDefined(typeof(ParkNoticeKind),n.kind))throw new InvalidDataException("Invalid inbox entry.");
+                ||!Enum.IsDefined(typeof(ParkNoticeKind),n.kind))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_inbox_entry"));
         }
         public void Restore(ProgressionSave saved,IReadOnlyList<ParkBuildingRecord> records)
         {

@@ -136,7 +136,7 @@ namespace Mythologicum
                 {
                     agent.AttackedFence = null; agent.AttemptAfter = time + agent.Definition.climbRetrySeconds;
                     agent.Route.Clear(); agent.Goal = null; agent.Activity = CreatureActivity.Resting;
-                    agent.EscapeStatus = damage <= 0f ? "Fence resists the attack" : "Pausing fence attacks";
+                    agent.EscapeStatus = damage <= 0f ? "creature.escape.fence_resists_the_attack" : "creature.escape.pausing_fence_attacks";
                     agent.StateTimer = PauseDuration(agent); agent.DecisionTimer = 0f;
                     if (agent.EscapeIntent) EndEscape(agent, agent.EscapeStatus);
                 }

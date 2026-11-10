@@ -13,7 +13,8 @@ namespace Mythologicum
     public sealed class CreatureDefinition : ScriptableObject
     {
         [Header("Species")]
-        public string displayName = "New creature";
+        public string displayName = "creature.name.new";
+        public string DisplayName => Loc.Resolve(displayName);
         public CreatureDiet diet;
         [Tooltip("Categories other agents use to recognize this species.")]
         public CreatureTags tags;
@@ -26,7 +27,10 @@ namespace Mythologicum
         [Range(1, 5)] public int rating = 1;
 
         [Header("Health, combat and origin")]
-        public string origin = "Unknown";
+        public string origin = "creature.origin.unknown";
+        public string Origin => Loc.Resolve(origin);
+        public bool IsDomestic => (tags & CreatureTags.Goat) != 0
+            || origin == "creature.origin.domestic" || origin == "Domestic";
         [Min(1f)] public float maximumHealth = 100f;
         [Min(0f)] public float damage = 40f;
         [Tooltip("Visible creatures with a higher threat cause fear, subject to perception and safe barriers.")]

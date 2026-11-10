@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
   m_Name: Yurei
   m_EditorClassIdentifier: 
-  displayName: Yurei
+  displayName: creature.name.yurei
   diet: 0
   tags: 2
   preyTags: 5
@@ -70,7 +70,7 @@ MonoBehaviour:
   bodyScale: {x: 0.85, y: 0.85, z: 1.2}
   phaseHungerThreshold: 80
   damage: 35
-  origin: Yokai
+  origin: creature.origin.yokai
   feedsOnFear: 0
   threat: 60
   requiredGravestones: 2

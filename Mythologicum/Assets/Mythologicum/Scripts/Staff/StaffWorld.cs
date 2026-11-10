@@ -72,11 +72,11 @@ namespace Mythologicum
 
         public string HireUnavailableReason(ParkBuildingRecord home)
         {
-            if (home == null || !Buildings.Contains(home)) return "Select an existing employee building.";
-            if (!home.Footprint.Definition.IsEmployeeBuilding) return "This building does not employ staff.";
-            if (!home.IsOpen) return "Connect this workplace's entrance to the park entrance with paths.";
-            if (home.HiredCount >= home.Capacity) return "This workplace has reached its personnel capacity.";
-            if (!economy.CanAfford(home.Footprint.Definition.hireCost)) return "Not enough funds to pay the hiring cost.";
+            if (home == null || !Buildings.Contains(home)) return Loc.Text("staff.hire.select_building");
+            if (!home.Footprint.Definition.IsEmployeeBuilding) return Loc.Text("staff.hire.no_staff");
+            if (!home.IsOpen) return Loc.Text("staff.hire.path_required");
+            if (home.HiredCount >= home.Capacity) return Loc.Text("staff.hire.capacity");
+            if (!economy.CanAfford(home.Footprint.Definition.hireCost)) return Loc.Text("staff.hire.funds");
             return "";
         }
 
@@ -114,20 +114,20 @@ namespace Mythologicum
             if (!ValidCreature(target)) return false;
             CancelJobsFor(target);
             target.RetirementRequested = true; target.SedationRequested = false; target.MoveRequestedDestination = null;
-            target.StaffStatus = "Retirement requested: waiting for mercenaries";
+            target.StaffStatus = "staff.status.retirement_requested_waiting_for_mercenaries";
             return true;
         }
         public bool RequestSedate(CreatureAgent target)
         {
             if (!ValidCreature(target) || target.IsSedated || target.RetirementRequested) return false;
-            target.SedationRequested = true; target.StaffStatus = "Sedation requested: waiting for a zookeeper";
+            target.SedationRequested = true; target.StaffStatus = "staff.status.sedation_requested_waiting_for_a_zookeeper";
             return true;
         }
         public bool RequestMove(CreatureAgent target, Vector2Int destination)
         {
             if (!CanMoveTo(target,destination)) return false;
             CancelJobsFor(target);
-            target.MoveRequestedDestination = destination; target.StaffStatus = "Move requested: waiting for a zookeeper";
+            target.MoveRequestedDestination = destination; target.StaffStatus = "staff.status.move_requested_waiting_for_a_zookeeper";
             return true;
         }
         public bool CanMoveTo(CreatureAgent target, Vector2Int destination) => ValidCreature(target) && target.IsSedated
@@ -144,9 +144,9 @@ namespace Mythologicum
                 if (actor == null || !actor.Alive || !Buildings.Contains(worker.Home)) { RemoveWorker(i); continue; }
                 worker.DecisionTimer -= dt; worker.ShotTimer -= dt;
                 if (actor.CapturedBy != null && actor.CapturedBy.Alive)
-                { ClearJob(worker); SetStatus(worker, StaffTask.Blocked, "Caught by a creature"); continue; }
+                { ClearJob(worker); SetStatus(worker, StaffTask.Blocked, "staff.status.caught_by_a_creature"); continue; }
                 if (!worker.Home.IsOpen)
-                { ClearJob(worker); SetStatus(worker, StaffTask.Blocked, "Workplace disconnected from the entrance"); continue; }
+                { ClearJob(worker); SetStatus(worker, StaffTask.Blocked, "staff.status.workplace_disconnected_from_the_entrance"); continue; }
                 CreatureAgent danger = WorkerDanger(worker);
                 actor.Vitals.Tick(dt, 0f, tuning.fearGainPerSecond, tuning.fearRecoveryPerSecond, danger != null);
                 actor.Energy.Tick(dt, 0f, 1f, false, 0f);
@@ -181,7 +181,7 @@ namespace Mythologicum
         {
             if (profiles.TryGetValue(role, out var result)) return result;
             result = ScriptableObject.CreateInstance<CreatureDefinition>();
-            result.displayName = role.ToString(); result.origin = "Human"; result.diet = CreatureDiet.None;
+            result.displayName = "enum.StaffRole." + role; result.origin = "creature.origin.human"; result.diet = CreatureDiet.None;
             result.tags = CreatureTags.Staff | CreatureTags.Visitor;
             result.maximumHealth = tuning.maximumHealth; result.damage = role == StaffRole.Mercenary ? tuning.mercenaryDamage : 0f;
             result.threat = role == StaffRole.Mercenary ? tuning.mercenaryStrength : tuning.civilianThreat;
@@ -222,11 +222,11 @@ namespace Mythologicum
             worker.Target = null; worker.Fence = null; worker.Feeder = null; worker.Destination = null; worker.MeetingPoint = null;
             worker.ActionTimer = 0f;
             if (worker.Actor != null) { worker.Actor.Route.Clear(); worker.Actor.Goal = null; }
-            SetStatus(worker, StaffTask.Idle, "Ready for work");
+            SetStatus(worker, StaffTask.Idle, "staff.status.ready_for_work");
         }
-        private static void SetStatus(StaffAgent worker, StaffTask task, string status)
+        private static void SetStatus(StaffAgent worker, StaffTask task, string status, params object[] arguments)
         {
-            worker.Task = task; worker.Status = status;
+            worker.Task = task; worker.SetLocalizedStatus(status, arguments);
             if (worker.Actor != null)
             {
                 worker.Actor.Activity = task == StaffTask.Fleeing ? CreatureActivity.Fleeing

@@ -28,7 +28,7 @@ namespace Mythologicum
         private readonly Button[] styleButtons = new Button[3];
         private bool refreshing;
         private static readonly int[] Sizes = { 32, 50, 72 };
-        private static readonly string[] SizeNames = { "Small", "Standard", "Large" };
+        private static readonly string[] SizeNames = { "ui.new_park.size.small", "ui.new_park.size.standard", "ui.new_park.size.large" };
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetSession()
@@ -55,16 +55,17 @@ namespace Mythologicum
         private void Build(Canvas canvas)
         {
             var card = ManagementWidgets.Card(gameObject, canvas);
-            ManagementWidgets.Label(card, "Create a new park", new Vector2(24, 12), new Vector2(850, 42), 28);
-            ManagementWidgets.Button(card, "Close", new Vector2(1040, 10), new Vector2(100, 38), Close);
-            ManagementWidgets.Label(card, "Map size", new Vector2(24, 4), new Vector2(470, 30), 21);
+            ManagementWidgets.Label(card, "ui.new_game_setup.create_a_new_park", new Vector2(24, 12), new Vector2(850, 42), 28);
+            ManagementWidgets.Button(card, "ui.new_game_setup.close", new Vector2(1040, 10), new Vector2(100, 38), Close);
+            ManagementWidgets.Label(card, "ui.new_game_setup.map_size", new Vector2(24, 4), new Vector2(470, 30), 21);
             for (int i = 0; i < Sizes.Length; i++)
             {
                 int size = Sizes[i];
-                sizeButtons[i] = ManagementWidgets.Button(card, SizeNames[i] + "\n" + (size * 2) + " x " + (size * 2) + " m",
+                sizeButtons[i] = ManagementWidgets.Button(card, string.Format(CultureInfo.InvariantCulture, Loc.InternalName("ui.new_park.size_option"), Loc.InternalName(SizeNames[i]), size * 2),
                     new Vector2(24 + i * 157, 38), new Vector2(147, 44), () => { options.width = options.depth = size; Refresh(); }, 18);
+                Loc.Set(sizeButtons[i].GetComponentInChildren<Text>(), "ui.new_park.size_option", Loc.Text(SizeNames[i]), size * 2);
             }
-            ManagementWidgets.Label(card, "Map seed", new Vector2(24, 94), new Vector2(470, 30), 21);
+            ManagementWidgets.Label(card, "ui.new_game_setup.map_seed", new Vector2(24, 94), new Vector2(470, 30), 21);
             seedInput = SeedInput(card, new Vector2(24, 128), new Vector2(292, 38));
             seedInput.SetTextWithoutNotify(options.seed.ToString(CultureInfo.InvariantCulture));
             seedInput.onEndEdit.AddListener(value => { if (ReadSeed()) Refresh(); });
@@ -72,41 +73,41 @@ namespace Mythologicum
             {
                 if (refreshing) return;
                 bool valid = int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-                errorLabel.text = valid ? "" : "Enter a whole-number seed, for example 2471.";
+                errorLabel.text = valid ? "" : Loc.Text("ui.new_park.seed_example");
                 create.interactable = valid;
             });
-            ManagementWidgets.Button(card, "Random seed", new Vector2(326, 128), new Vector2(159, 38), () =>
+            ManagementWidgets.Button(card, "ui.new_game_setup.random_seed", new Vector2(326, 128), new Vector2(159, 38), () =>
             {
                 options.seed = Guid.NewGuid().GetHashCode();
                 seedInput.SetTextWithoutNotify(options.seed.ToString(CultureInfo.InvariantCulture)); Refresh();
             }, 18);
 
-            ManagementWidgets.Label(card, "Terrain style", new Vector2(24, 178), new Vector2(470, 30), 21);
-            styleButtons[0] = ManagementWidgets.Button(card, "Flat", new Vector2(24, 212), new Vector2(147, 38), () => SetStyle(0, 28));
-            styleButtons[1] = ManagementWidgets.Button(card, "Rolling hills", new Vector2(181, 212), new Vector2(147, 38), () => SetStyle(7, 28));
-            styleButtons[2] = ManagementWidgets.Button(card, "Rugged", new Vector2(338, 212), new Vector2(147, 38), () => SetStyle(14, 18));
-            hillsLabel = ManagementWidgets.Label(card, "Hill height", new Vector2(24, 262), new Vector2(470, 26));
+            ManagementWidgets.Label(card, "ui.new_game_setup.terrain_style", new Vector2(24, 178), new Vector2(470, 30), 21);
+            styleButtons[0] = ManagementWidgets.Button(card, "ui.new_game_setup.flat", new Vector2(24, 212), new Vector2(147, 38), () => SetStyle(0, 28));
+            styleButtons[1] = ManagementWidgets.Button(card, "ui.new_game_setup.rolling_hills", new Vector2(181, 212), new Vector2(147, 38), () => SetStyle(7, 28));
+            styleButtons[2] = ManagementWidgets.Button(card, "ui.new_game_setup.rugged", new Vector2(338, 212), new Vector2(147, 38), () => SetStyle(14, 18));
+            hillsLabel = ManagementWidgets.Label(card, "ui.new_game_setup.hill_height", new Vector2(24, 262), new Vector2(470, 26));
             hills = SliderControl(card, "Hill height", new Vector2(24, 290), 0, 20,
                 value => { options.relief = value; Refresh(); });
-            widthLabel = ManagementWidgets.Label(card, "Hill width", new Vector2(24, 322), new Vector2(470, 26));
+            widthLabel = ManagementWidgets.Label(card, "ui.new_game_setup.hill_width", new Vector2(24, 322), new Vector2(470, 26));
             hillWidth = SliderControl(card, "Hill width", new Vector2(24, 350), 12, 64,
                 value => { options.featureSize = value; Refresh(); });
-            forestLabel = ManagementWidgets.Label(card, "Forest density", new Vector2(24, 382), new Vector2(470, 26));
+            forestLabel = ManagementWidgets.Label(card, "ui.new_game_setup.forest_density", new Vector2(24, 382), new Vector2(470, 26));
             forest = SliderControl(card, "Forest density", new Vector2(24, 410), 0, 1,
                 value => { options.forestDensity = value; Refresh(); });
             errorLabel = ManagementWidgets.Label(card, "", new Vector2(24, 444), new Vector2(710, 30), 17);
             errorLabel.color = new Color(1f, .45f, .25f);
 
-            ManagementWidgets.Label(card, "Map preview", new Vector2(620, 4), new Vector2(510, 32), 22);
+            ManagementWidgets.Label(card, "ui.new_game_setup.map_preview", new Vector2(620, 4), new Vector2(510, 32), 22);
             var box = ManagementWidgets.Box(card, "Map preview frame", new Vector2(620, 42), new Vector2(382, 382), new Color(.08f,.14f,.12f));
             var imageRect = ManagementWidgets.Rect(box.transform, "Generated map preview", new Vector2(7, 7), new Vector2(368, 368));
             preview = imageRect.gameObject.AddComponent<RawImage>(); preview.raycastTarget = false;
             previewSummary = ManagementWidgets.Label(card, "", new Vector2(596, 430), new Vector2(530, 34), 14);
             previewSummary.resizeTextForBestFit = true;
             previewSummary.resizeTextMinSize = 11; previewSummary.resizeTextMaxSize = 14;
-            ManagementWidgets.Button(card, "Cancel", new Vector2(24, 462), new Vector2(170, 38), Close);
-            create = ManagementWidgets.Button(card, "Create park", new Vector2(884, 462), new Vector2(235, 38), CreatePark, 21);
-            ManagementWidgets.Label(card, "Place the park entrance anywhere you choose.", new Vector2(214, 468), new Vector2(650, 28), 18);
+            ManagementWidgets.Button(card, "ui.new_game_setup.cancel", new Vector2(24, 462), new Vector2(170, 38), Close);
+            create = ManagementWidgets.Button(card, "ui.new_game_setup.create_park", new Vector2(884, 462), new Vector2(235, 38), CreatePark, 21);
+            ManagementWidgets.Label(card, "ui.new_game_setup.place_the_park_entrance_anywhere_you_choose", new Vector2(214, 468), new Vector2(650, 28), 18);
         }
 
         private void SetStyle(float relief, float feature)
@@ -117,13 +118,13 @@ namespace Mythologicum
         {
             if (int.TryParse(seedInput.text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
             { options.seed = value; return true; }
-            errorLabel.text = "Enter a whole-number seed between -2147483648 and 2147483647.";
+            Loc.Set(errorLabel, "ui.new_park.seed_range");
             create.interactable = false; return false;
         }
         private void CreatePark()
         {
             if (!ReadSeed() || !options.Validate(out string error))
-            { if (errorLabel.text.Length == 0) errorLabel.text = "Check the map settings."; return; }
+            { if (errorLabel.text.Length == 0) Loc.Set(errorLabel, "ui.new_park.check_settings"); return; }
             var selected = options.Clone(); lastUsed = selected.Clone();
             var callback = start; Close(); callback(selected);
         }
@@ -133,6 +134,8 @@ namespace Mythologicum
             if (active == this) active = null;
             Destroy(gameObject);
         }
+        private void OnEnable() => Loc.Changed += Refresh;
+        private void OnDisable() => Loc.Changed -= Refresh;
         private void Update()
         {
             if (Keyboard.current?.escapeKey.wasPressedThisFrame == true) Close();
@@ -144,16 +147,20 @@ namespace Mythologicum
             hills.SetValueWithoutNotify(options.relief);
             hillWidth.SetValueWithoutNotify(options.featureSize);
             forest.SetValueWithoutNotify(options.forestDensity);
-            hillsLabel.text = "Hill height: " + options.relief.ToString("0.0") + " m";
-            widthLabel.text = "Hill width: " + options.featureSize.ToString("0") + " m";
-            forestLabel.text = "Forest density: " + (options.forestDensity * 100).ToString("0") + "%";
-            for (int i = 0; i < sizeButtons.Length; i++) Tint(sizeButtons[i], options.width == Sizes[i]);
+            Loc.Set(hillsLabel, "ui.new_park.hill_height_value", options.relief);
+            Loc.Set(widthLabel, "ui.new_park.hill_width_value", options.featureSize);
+            Loc.Set(forestLabel, "ui.new_park.forest_density_value", options.forestDensity * 100);
+            for (int i = 0; i < sizeButtons.Length; i++)
+            {
+                Tint(sizeButtons[i], options.width == Sizes[i]);
+                Loc.Set(sizeButtons[i].GetComponentInChildren<Text>(), "ui.new_park.size_option", Loc.Text(SizeNames[i]), Sizes[i] * 2);
+            }
             Tint(styleButtons[0], options.relief < .01f);
             Tint(styleButtons[1], Mathf.Abs(options.relief - 7) < .1f && Mathf.Abs(options.featureSize - 28) < .1f);
             Tint(styleButtons[2], Mathf.Abs(options.relief - 14) < .1f && Mathf.Abs(options.featureSize - 18) < .1f);
             bool valid = int.TryParse(seedInput.text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
             create.interactable = valid;
-            errorLabel.text = valid ? "" : "Enter a whole-number seed, for example 2471.";
+            errorLabel.text = valid ? "" : Loc.Text("ui.new_park.seed_example");
             RegeneratePreview(); refreshing = false;
         }
         private static void Tint(Button button, bool selected)
@@ -193,12 +200,12 @@ namespace Mythologicum
                     for (int x = Mathf.Max(0, cx - radius); x <= Mathf.Min(pixels - 1, cx + radius); x++) colors[z * pixels + x] = color;
             }
             previewTexture.SetPixels(colors); previewTexture.Apply(false, false);
-            previewSummary.text = $"{options.width * 2} x {options.depth * 2} m | Seed {options.seed}\nLight: higher ground | Dark green: forest | Gray: rocks";
+            Loc.Set(previewSummary, "ui.new_park.preview_summary", options.width * 2, options.depth * 2, options.seed);
         }
         private static InputField SeedInput(Transform parent, Vector2 position, Vector2 size)
         {
             var go = ManagementWidgets.Box(parent, "Map seed", position, size, new Color(.14f,.2f,.22f));
-            var text = ManagementWidgets.Label(go.transform, "Entered seed", new Vector2(8, 6), size - new Vector2(16, 12), 20);
+            var text = ManagementWidgets.Label(go.transform, "ui.new_game_setup.entered_seed", new Vector2(8, 6), size - new Vector2(16, 12), 20);
             text.supportRichText = false;
             var field = go.AddComponent<InputField>();field.targetGraphic = go.GetComponent<Image>(); field.textComponent = text;
             field.characterValidation = InputField.CharacterValidation.Integer; field.characterLimit = 11;

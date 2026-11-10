@@ -86,8 +86,8 @@ namespace Mythologicum
         }
         public void ImportHeights(float[] values)
         {
-            if(values==null||values.Length!=heights.Length)throw new InvalidDataException("Terrain height count does not match the map.");
-            foreach(float h in values)if(!Finite(h)||Math.Abs(h)>10000)throw new InvalidDataException("Invalid terrain elevation.");
+            if(values==null||values.Length!=heights.Length)throw new InvalidDataException(Loc.Text("park.grid_height_field.terrain_height_count_does_not_match_the_map"));
+            foreach(float h in values)if(!Finite(h)||Math.Abs(h)>10000)throw new InvalidDataException(Loc.Text("park.grid_height_field.invalid_terrain_elevation"));
             Array.Copy(values,heights,heights.Length);foundations.Clear();locks.Clear();Recalculate();
         }
         private void Recalculate()
@@ -115,13 +115,13 @@ namespace Mythologicum
         {
             reason = "";
             if (grid == null || grid.Terrain != this)
-            { reason = "The terrain editor is not attached to this map."; return false; }
+            { reason = Loc.Text("park.grid_height_field.the_terrain_editor_is_not_attached_to_this_map"); return false; }
             if (!Finite(center.x) || !Finite(center.y) || !Finite(radius) || radius <= 0f
                 || radius > Math.Max(Width, Depth) * 2f || !Finite(amount) || amount < 0f
                 || !Finite(targetHeight) || Math.Abs(targetHeight) > 10000f || !Enum.IsDefined(typeof(TerrainBrushMode), mode))
-            { reason = "Choose a valid terrain tool, brush size and strength."; return false; }
+            { reason = Loc.Text("park.grid_height_field.choose_a_valid_terrain_tool_brush_size_and_strength"); return false; }
             if (center.x < 0f || center.y < 0f || center.x > Width || center.y > Depth)
-            { reason = "Choose a point inside the map."; return false; }
+            { reason = Loc.Text("park.grid_height_field.choose_a_point_inside_the_map"); return false; }
             if (amount == 0f) return false;
 
             var proposed = new Dictionary<int, float>();
@@ -137,7 +137,7 @@ namespace Mythologicum
                 if (weight <= 0f) continue;
                 int index = Index(x, z);
                 if (locks.ContainsKey(index))
-                { reason = "Buildings and their entrance foundations cannot be reshaped."; return false; }
+                { reason = Loc.Text("park.grid_height_field.buildings_and_their_entrance_foundations_cannot_be_reshape"); return false; }
 
                 float current = heights[index], step = amount * weight, next;
                 if (mode == TerrainBrushMode.Raise) next = current + step;
@@ -157,7 +157,7 @@ namespace Mythologicum
                     next = TerrainBrushRules.MoveTowards(current, target, step);
                 }
                 if (!Finite(next) || Math.Abs(next) > 10000f)
-                { reason = "The terrain would exceed the supported elevation range."; return false; }
+                { reason = Loc.Text("park.grid_height_field.the_terrain_would_exceed_the_supported_elevation_range"); return false; }
                 if (Math.Abs(next - current) > .00001f) proposed[index] = next;
             }
             if (proposed.Count == 0) return false;
@@ -166,13 +166,13 @@ namespace Mythologicum
             {
                 var cell = new Vector2Int(index % Width, index / Width);
                 if (grid.ContentAt(cell) == BuildCellContent.Building)
-                { reason = "Terrain beneath an existing building cannot be reshaped."; return false; }
+                { reason = Loc.Text("park.grid_height_field.terrain_beneath_an_existing_building_cannot_be_reshaped"); return false; }
                 float before = slopes[index], after = Slope(cell.x, cell.y, proposed);
                 if (grid.ContentAt(cell) == BuildCellContent.Path && after > MaximumPathSlope + .001f
                     && (before <= MaximumPathSlope + .001f || after > before + .001f))
-                { reason = "This edit would make an existing path too steep. Use a wider brush or a gentler change."; return false; }
+                { reason = Loc.Text("park.grid_height_field.this_edit_would_make_an_existing_path_too_steep_use_a_wide"); return false; }
                 if (before <= MaximumWalkSlope + .001f && after > MaximumWalkSlope + .001f)
-                { reason = "This edit would make walkable ground too steep. Use a wider brush or smooth the slope."; return false; }
+                { reason = Loc.Text("park.grid_height_field.this_edit_would_make_walkable_ground_too_steep_use_a_wider"); return false; }
             }
 
             foreach (var change in proposed) heights[change.Key] = change.Value;
@@ -260,7 +260,7 @@ namespace Mythologicum
                 ||!Finite(saved.maximumPathSlope)||saved.maximumPathSlope<1||saved.maximumPathSlope>80
                 ||!Finite(saved.maximumFoundationEarthwork)||saved.maximumFoundationEarthwork<=0||saved.maximumFoundationEarthwork>1000
                 ||!Finite(saved.uphillCostMultiplier)||saved.uphillCostMultiplier<0
-                ||saved.uphillCostVersion<0||saved.uphillCostVersion>1)throw new InvalidDataException("Invalid terrain settings.");
+                ||saved.uphillCostVersion<0||saved.uphillCostVersion>1)throw new InvalidDataException(Loc.Text("park.grid_height_field.invalid_terrain_settings"));
             // Saves written before editable traversal costs must retain their historical quarter-point uphill penalty.
             UphillCostMultiplier=saved.uphillCostVersion<1?.25f:saved.uphillCostMultiplier;
             MaximumWalkSlope=saved.maximumWalkSlope;MaximumPathSlope=saved.maximumPathSlope;MaximumEarthwork=saved.maximumFoundationEarthwork;Seed=saved.seed;ImportHeights(saved.heights);

@@ -57,6 +57,8 @@ public static class SteampunkUIIntegrationValidation
         try
         {
             if (EditorApplication.timeSinceStartup > deadline) throw new Exception("Timed out in UI validation stage " + stage);
+            if (SceneTransition.HasFailed) throw new Exception("Scene preparation failed during UI validation stage " + stage);
+            if (SceneTransition.IsLoading) return;
             if (stage == 0) PrepareIsolatedSave();
             else if (stage == 1 || stage == 2 || stage == 3)
             {
@@ -78,7 +80,7 @@ public static class SteampunkUIIntegrationValidation
     static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(owner);
     static object Invoke(object owner, string name, params object[] args) => owner.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(owner, args);
     static Button FindButton(Transform owner, string name) => owner.GetComponentsInChildren<Button>(true).Single(button => button.name == name);
-    static Canvas CurrentCanvas => UnityEngine.Object.FindFirstObjectByType<Canvas>();
+    static Canvas CurrentCanvas => SceneTransition.GameplayCanvas;
     static Vector2Int Cell(int x, int y) => new Vector2Int(x, y);
     static Camera CurrentCamera => UnityEngine.Object.FindFirstObjectByType<Camera>();
 
@@ -120,6 +122,8 @@ public static class SteampunkUIIntegrationValidation
         var menu = GameObject.Find("Main menu"); if (menu == null) yield break;
         Check(SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null, "UI validation uses a real graphics device");
         checks += SaveSlotNativeChecks.Run(Path.Combine(Directory.GetCurrentDirectory(), "LocalCache", "SaveSlotValidation"));
+        checks += LocalizationNativeChecks.Run(CurrentCanvas);
+        yield return null;
         ValidateThemeAssets(); ValidateFrameBackingShapes(); ValidateMenuActions(menu);
         ValidateCursor(true);
         ValidateButtonIcon(FindButton(menu.transform, "New Game"), UIIconKind.Play, true);
@@ -156,6 +160,16 @@ public static class SteampunkUIIntegrationValidation
         Check(!string.IsNullOrWhiteSpace(quality.captionText.text) && quality.captionText.text == quality.options[quality.value].text,
             "The quality dropdown displays its currently selected option");
         Capture("Settings", settings, 1280, 720);
+        var languagePicker = settings.GetComponentsInChildren<Dropdown>(true).Single(dropdown => dropdown.name == "Language");
+        languagePicker.Show(); yield return null;
+        var languageList = GameObject.Find("Dropdown List");
+        Check(languageList != null && languageList.GetComponentsInChildren<Toggle>().Length == 12, "The language dropdown opens all twelve language options");
+        var languageBlocker = GameObject.Find("Blocker");
+        UIThemeApplicator.ApplyAll(CurrentCanvas);
+        Check(languageBlocker != null && languageBlocker.GetComponent<Image>().color.a == 0
+            && languageBlocker.GetComponent<Image>().sprite == null, "A dropdown's outside-click blocker remains transparent after theming");
+        Capture("Settings-Languages", languageList, Screen.width, Screen.height);
+        languagePicker.Hide(); yield return null;
         mode.Show(); yield return null;
         var dropdownList = GameObject.Find("Dropdown List");
         Check(dropdownList != null, "The display dropdown creates its real option popup");
@@ -536,7 +550,7 @@ public static class SteampunkUIIntegrationValidation
             "The Park encyclopedia tab contains a browsable guide list");
         FindButton(book.transform, "Creatures").onClick.Invoke();
         var chupacabra = Resources.Load<CreatureDefinition>("Creatures/Chupacabra");
-        FindButton(book.transform, chupacabra.displayName).onClick.Invoke();
+        FindButton(book.transform, Loc.InternalName(chupacabra.displayName)).onClick.Invoke();
         yield return null;
         var article = book.GetComponentsInChildren<Text>().Single(text => text.name == "Encyclopedia article");
         var articleSummary = book.GetComponentsInChildren<Text>().Single(text => text.name == "Encyclopedia article summary");
@@ -1620,6 +1634,8 @@ public static class SteampunkUIIntegrationValidation
         Check(icon != null && icon.Kind == kind, "The " + button.name + " control has a meaningful " + kind + " icon");
         var set = UITheme.Current.Icon(kind);
         var image = icon.IconImage;
+        Check(image != null && new[] { set.normal, set.highlighted, set.pressed, set.disabled }.Contains(image.overrideSprite),
+            "The " + button.name + " control renders its assigned icon without a leftover button-frame override");
         Check(image != null && image.sprite != null && !image.raycastTarget && image.preserveAspect,
             "The " + button.name + " icon preserves its shape and does not block pointer input");
         var label = button.GetComponentsInChildren<Text>(true).FirstOrDefault(text => text.transform.parent == button.transform);

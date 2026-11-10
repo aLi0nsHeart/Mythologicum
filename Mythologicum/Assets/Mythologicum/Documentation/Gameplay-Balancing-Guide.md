@@ -1,5 +1,9 @@
 # Gameplay balancing guide
 
+Names, origins and descriptions now use localization IDs. Edit their wording in
+`Resources/Localization/localization.csv`, keeping the IDs stable. Numeric
+balancing remains in the assets below. See the [localization guide](Localization-Guide.md).
+
 Open **Mythologicum > Gameplay > Balancing Tools** in Unity's top menu. Select a
 category on the left, edit its real settings asset on the right, then click
 **Save asset**. **Select in Project** opens the same asset in the normal Inspector.

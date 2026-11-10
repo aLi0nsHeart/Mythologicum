@@ -12,6 +12,7 @@ namespace Mythologicum
     {
         public BuildingKind kind;
         public string displayName;
+        public string DisplayName => Loc.Resolve(displayName);
         [Tooltip("Footprint width in grid tiles before rotation.")]
         [Min(1)] public int width = 2;
         [Tooltip("Footprint depth in grid tiles before rotation.")]
@@ -92,28 +93,28 @@ namespace Mythologicum
 
         public static BuildingDefinition[] Defaults() => new[]
         {
-            new BuildingDefinition { kind = BuildingKind.ParkEntrance, displayName = "Park entrance", width = 5, depth = 5,
+            new BuildingDefinition { kind = BuildingKind.ParkEntrance, displayName = "park.building_definition.park_entrance", width = 5, depth = 5,
                 height = 3.5f, openColor = new Color(0.8f, 0.67f, 0.38f), constructionCost = 0f,
                 operatingCostPerSecond = .05f }, // 3 per minute.
-            new BuildingDefinition { kind = BuildingKind.ExpeditionCentre, displayName = "Expedition centre", width = 8, depth = 6,
+            new BuildingDefinition { kind = BuildingKind.ExpeditionCentre, displayName = "park.building_definition.expedition_centre", width = 8, depth = 6,
                 height = 4f, openColor = new Color(0.38f, 0.58f, 0.74f), constructionCost = 500f,
                 operatingCostPerSecond = .09f }, // 5.4 per minute.
-            new BuildingDefinition { kind = BuildingKind.Kiosk, displayName = "Kiosk", width = 4, depth = 3,
+            new BuildingDefinition { kind = BuildingKind.Kiosk, displayName = "park.building_definition.kiosk", width = 4, depth = 3,
                 height = 2.5f, openColor = new Color(0.4f, 0.72f, 0.43f), constructionCost = 250f,
                 operatingCostPerSecond = .05f }, // 3 per minute.
-            new BuildingDefinition { kind = BuildingKind.GoatDispenser, displayName = "Goat dispenser", width = 1, depth = 1,
+            new BuildingDefinition { kind = BuildingKind.GoatDispenser, displayName = "park.building_definition.goat_dispenser", width = 1, depth = 1,
                 height = 2.5f, openColor = new Color(0.65f, 0.5f, 0.3f), constructionCost = 150f,
                 operatingCostPerSecond = .04f }, // 2.4 per minute, plus physical supply deliveries.
-            new BuildingDefinition { kind = BuildingKind.RestArea, displayName = "Rest area", width = 4, depth = 3,
+            new BuildingDefinition { kind = BuildingKind.RestArea, displayName = "park.building_definition.rest_area", width = 4, depth = 3,
                 height = 1.3f, openColor = new Color(0.56f, 0.38f, 0.22f), constructionCost = 120f, foodPrice = 0f,
                 operatingCostPerSecond = .03f }, // 1.8 per minute; initially free visitor rest.
-            new BuildingDefinition { kind = BuildingKind.ResearchCentre, displayName = "Research centre", width = 4, depth = 4,
+            new BuildingDefinition { kind = BuildingKind.ResearchCentre, displayName = "park.building_definition.research_centre", width = 4, depth = 4,
                 height = 10f, openColor = new Color(.4f,.58f,.75f), constructionCost = 600f,
                 operatingCostPerSecond = .10f, staffSalaryPerSecond = .15f }, // 6 base + 9 per researcher / minute.
-            new BuildingDefinition { kind = BuildingKind.MercenaryHQ, displayName = "Mercenary headquarters", width = 4, depth = 4,
+            new BuildingDefinition { kind = BuildingKind.MercenaryHQ, displayName = "park.building_definition.mercenary_headquarters", width = 4, depth = 4,
                 height = 8f, openColor = new Color(.54f,.58f,.4f), constructionCost = 450f,
                 operatingCostPerSecond = .08f, staffSalaryPerSecond = .20f }, // 4.8 base + 12 per mercenary / minute.
-            new BuildingDefinition { kind = BuildingKind.ZookeeperHut, displayName = "Zookeeper station", width = 4, depth = 2,
+            new BuildingDefinition { kind = BuildingKind.ZookeeperHut, displayName = "park.building_definition.zookeeper_station", width = 4, depth = 2,
                 height = 4f, openColor = new Color(.46f,.64f,.42f), constructionCost = 350f,
                 operatingCostPerSecond = .06f, staffSalaryPerSecond = .10f } // 3.6 base + 6 per keeper / minute.
         };

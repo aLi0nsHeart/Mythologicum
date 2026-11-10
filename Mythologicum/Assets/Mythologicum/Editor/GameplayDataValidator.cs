@@ -21,8 +21,9 @@ namespace Mythologicum.Editor
         public static List<GameplayDataIssue> ValidateAll()
         {
             var results = new List<GameplayDataIssue>();
+            results.AddRange(LocalizationValidation.Validate());
             string[] paths = { "Management/DefaultParkBalance", "Management/DefaultOperations", "Management/DefaultAlerts",
-                "Saving/DefaultSaveSettings", "Interface/DefaultPlayControls", "Buildings/DefaultBuildings", "Fences/DefaultFences", "Visitors/DefaultVisitors",
+                "Saving/DefaultSaveSettings", "Interface/DefaultPlayControls", "Interface/DefaultLoadingScreen", "Buildings/DefaultBuildings", "Fences/DefaultFences", "Visitors/DefaultVisitors",
                 "Staff/DefaultStaff", "Progression/DefaultProgression", "Terrain/DefaultTerrain", "Creatures/SimulationSettings", "Environment/Vegetation" };
             foreach (string path in paths)
                 if (AssetDatabase.LoadAssetAtPath<ScriptableObject>("Assets/Mythologicum/Resources/" + path + ".asset") == null)

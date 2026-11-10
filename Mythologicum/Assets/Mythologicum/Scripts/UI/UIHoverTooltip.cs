@@ -21,8 +21,9 @@ namespace Mythologicum
         private bool hovered;
 
         public bool IsVisible => popup != null && popup.gameObject.activeSelf;
-        public string Caption => !string.IsNullOrWhiteSpace(overrideCaption) ? overrideCaption
-            : sourceLabel != null && !string.IsNullOrWhiteSpace(sourceLabel.text) ? sourceLabel.text : gameObject.name;
+        public string Caption => !string.IsNullOrWhiteSpace(overrideCaption) ? Loc.Resolve(overrideCaption)
+            : sourceLabel != null && !string.IsNullOrWhiteSpace(sourceLabel.text) ? sourceLabel.text
+            : TryGetComponent<UIIcon>(out var symbol) && symbol.Kind != UIIconKind.None ? Loc.Enum(symbol.Kind) : Loc.Text("ui.common.control");
 
         public static UIHoverTooltip Attach(Button target, string text = null)
         {
@@ -101,7 +102,7 @@ namespace Mythologicum
             }
             UIThemeElement.Mark(box, UIThemeRole.Ignore);
             var group = box.AddComponent<CanvasGroup>(); group.interactable = false; group.blocksRaycasts = false;
-            caption = ManagementWidgets.Label(popup, "Tooltip text", new Vector2(13, 9), new Vector2(174, 28), 17);
+            caption = ManagementWidgets.Label(popup, "ui.uihover_tooltip.tooltip_text", new Vector2(13, 9), new Vector2(174, 28), 17);
             caption.horizontalOverflow = HorizontalWrapMode.Wrap; caption.verticalOverflow = VerticalWrapMode.Overflow;
             return true;
         }

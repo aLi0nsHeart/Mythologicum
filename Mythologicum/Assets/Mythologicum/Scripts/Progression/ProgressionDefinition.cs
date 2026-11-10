@@ -5,6 +5,7 @@ namespace Mythologicum
     [Serializable] public sealed class ExpeditionRegion
     {
         public string id, name;
+        public string DisplayName => Loc.Resolve(name);
         [Min(0), Tooltip("One-time price to unlock this location.")] public float accessCost = 350f;
         public Vector2 mapPosition;
         public string[] species = Array.Empty<string>();
@@ -12,6 +13,7 @@ namespace Mythologicum
     [Serializable] public sealed class ExpeditionDifficulty
     {
         public string id, name;
+        public string DisplayName => Loc.Resolve(name);
         [Min(0)] public float costPerTeam = 120f;
         [Min(.1f), Tooltip("Base mission duration in simulation seconds, before technology upgrades.")] public float seconds = 60f;
         [Range(0, 1)] public float successChance = .8f;
@@ -21,6 +23,8 @@ namespace Mythologicum
     [Serializable] public sealed class TechnologyDefinition
     {
         public string id, name, description;
+        public string DisplayName => Loc.Resolve(name);
+        public string Description => Loc.Resolve(description);
         [Min(0)] public float cost = 250f;
         [Min(.1f), Tooltip("Researcher work units needed. Multiple employees contribute together.")] public float workSeconds = 45f;
         public string[] prerequisites = Array.Empty<string>();
@@ -56,32 +60,32 @@ namespace Mythologicum
         public ExpeditionRegion[] regions = DefaultRegions();
         [Header("Mission difficulties")]
         public ExpeditionDifficulty[] difficulties = {
-            new ExpeditionDifficulty { id="survey", name="Survey", minimumRating=1, maximumRating=2, successChance=.8f, costPerTeam=120, seconds=60 },
-            new ExpeditionDifficulty { id="capture", name="Capture", minimumRating=2, maximumRating=3, successChance=.6f, costPerTeam=200, seconds=120 },
-            new ExpeditionDifficulty { id="dangerous", name="Dangerous", minimumRating=3, maximumRating=5, successChance=.35f, costPerTeam=350, seconds=180 }
+            new ExpeditionDifficulty { id="survey", name="park.progression_definition.survey", minimumRating=1, maximumRating=2, successChance=.8f, costPerTeam=120, seconds=60 },
+            new ExpeditionDifficulty { id="capture", name="park.progression_definition.capture", minimumRating=2, maximumRating=3, successChance=.6f, costPerTeam=200, seconds=120 },
+            new ExpeditionDifficulty { id="dangerous", name="park.progression_definition.dangerous", minimumRating=3, maximumRating=5, successChance=.35f, costPerTeam=350, seconds=180 }
         };
         [Header("Technology projects")]
         public TechnologyDefinition[] technologies = {
-            new TechnologyDefinition { id="food-service", name="Food services", description="Unlock kiosks to sell food to hungry visitors.", cost=200,workSeconds=30,buildings=new[]{BuildingKind.Kiosk} },
-            new TechnologyDefinition { id="visitor-rest", name="Visitor comfort", description="Unlock rest areas for tired visitors.", cost=150,workSeconds=25,buildings=new[]{BuildingKind.RestArea} },
-            new TechnologyDefinition { id="spiked-fences", name="Spiked fences", description="Prevent creatures climbing out over wooden barriers.", cost=250,workSeconds=45,fences=new[]{FenceKind.Spiked} },
-            new TechnologyDefinition { id="reinforced-fences", name="Reinforced fences", description="Heavy barriers resist creature attacks.", cost=600,workSeconds=90,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Heavy} },
-            new TechnologyDefinition { id="sanctified-fences", name="Sanctified fences", description="Block a spirit's ability to phase through barriers.", cost=700,workSeconds=100,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Sanctified} },
-            new TechnologyDefinition { id="staff-training", name="Staff training", description="Research, healing and fence repairs are 25% faster.",cost=450,workSeconds=60,staffEfficiency=1.25f },
-            new TechnologyDefinition { id="field-equipment", name="Expedition equipment", description="Add 10 percentage points to expedition success chances.",cost=350,workSeconds=45,expeditionSuccessBonus=.1f },
-            new TechnologyDefinition { id="field-logistics", name="Expedition logistics", description="Expeditions take 25% less time.",cost=500,workSeconds=60,prerequisites=new[]{"field-equipment"},expeditionDurationMultiplier=.75f }
+            new TechnologyDefinition { id="food-service", name="park.progression_definition.food_services", description="park.progression_definition.unlock_kiosks_to_sell_food_to_hungry_visitors", cost=200,workSeconds=30,buildings=new[]{BuildingKind.Kiosk} },
+            new TechnologyDefinition { id="visitor-rest", name="park.progression_definition.visitor_comfort", description="park.progression_definition.unlock_rest_areas_for_tired_visitors", cost=150,workSeconds=25,buildings=new[]{BuildingKind.RestArea} },
+            new TechnologyDefinition { id="spiked-fences", name="park.progression_definition.spiked_fences", description="park.progression_definition.prevent_creatures_climbing_out_over_wooden_barriers", cost=250,workSeconds=45,fences=new[]{FenceKind.Spiked} },
+            new TechnologyDefinition { id="reinforced-fences", name="park.progression_definition.reinforced_fences", description="park.progression_definition.heavy_barriers_resist_creature_attacks", cost=600,workSeconds=90,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Heavy} },
+            new TechnologyDefinition { id="sanctified-fences", name="park.progression_definition.sanctified_fences", description="park.progression_definition.block_a_spirit_s_ability_to_phase_through_barriers", cost=700,workSeconds=100,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Sanctified} },
+            new TechnologyDefinition { id="staff-training", name="park.progression_definition.staff_training", description="park.progression_definition.research_healing_and_fence_repairs_are_25_faster",cost=450,workSeconds=60,staffEfficiency=1.25f },
+            new TechnologyDefinition { id="field-equipment", name="park.progression_definition.expedition_equipment", description="park.progression_definition.add_10_percentage_points_to_expedition_success_chances",cost=350,workSeconds=45,expeditionSuccessBonus=.1f },
+            new TechnologyDefinition { id="field-logistics", name="park.progression_definition.expedition_logistics", description="park.progression_definition.expeditions_take_25_less_time",cost=500,workSeconds=60,prerequisites=new[]{"field-equipment"},expeditionDurationMultiplier=.75f }
         };
         private static ExpeditionRegion[] DefaultRegions() => new[] {
-            new ExpeditionRegion {id="north-america",name="North America",mapPosition=new Vector2(.19f,.68f),species=new[]{"Chupacabra"}},
-            new ExpeditionRegion {id="south-america",name="South America",mapPosition=new Vector2(.31f,.27f),species=new[]{"Chupacabra"}},
-            new ExpeditionRegion {id="west-africa",name="West Africa",mapPosition=new Vector2(.49f,.43f)},
-            new ExpeditionRegion {id="east-africa",name="East Africa",mapPosition=new Vector2(.59f,.36f)},
-            new ExpeditionRegion {id="south-africa",name="Southern Africa",mapPosition=new Vector2(.55f,.14f)},
-            new ExpeditionRegion {id="china",name="China",mapPosition=new Vector2(.77f,.65f)},
-            new ExpeditionRegion {id="middle-east",name="Middle East",mapPosition=new Vector2(.62f,.52f)},
-            new ExpeditionRegion {id="japan",name="Japan",mapPosition=new Vector2(.92f,.57f),species=new[]{"Hitotsume","Yurei","Oni"}},
-            new ExpeditionRegion {id="central-europe",name="Central Europe",mapPosition=new Vector2(.49f,.73f)},
-            new ExpeditionRegion {id="northern-europe",name="Northern Europe",mapPosition=new Vector2(.56f,.9f)}
+            new ExpeditionRegion {id="north-america",name="park.progression_definition.north_america",mapPosition=new Vector2(.19f,.68f),species=new[]{"Chupacabra"}},
+            new ExpeditionRegion {id="south-america",name="park.progression_definition.south_america",mapPosition=new Vector2(.31f,.27f),species=new[]{"Chupacabra"}},
+            new ExpeditionRegion {id="west-africa",name="park.progression_definition.west_africa",mapPosition=new Vector2(.49f,.43f)},
+            new ExpeditionRegion {id="east-africa",name="park.progression_definition.east_africa",mapPosition=new Vector2(.59f,.36f)},
+            new ExpeditionRegion {id="south-africa",name="park.progression_definition.southern_africa",mapPosition=new Vector2(.55f,.14f)},
+            new ExpeditionRegion {id="china",name="park.progression_definition.china",mapPosition=new Vector2(.77f,.65f)},
+            new ExpeditionRegion {id="middle-east",name="park.progression_definition.middle_east",mapPosition=new Vector2(.62f,.52f)},
+            new ExpeditionRegion {id="japan",name="park.progression_definition.japan",mapPosition=new Vector2(.92f,.57f),species=new[]{"Hitotsume","Yurei","Oni"}},
+            new ExpeditionRegion {id="central-europe",name="park.progression_definition.central_europe",mapPosition=new Vector2(.49f,.73f)},
+            new ExpeditionRegion {id="northern-europe",name="park.progression_definition.northern_europe",mapPosition=new Vector2(.56f,.9f)}
         };
     }
     [CreateAssetMenu(menuName="Mythologicum/Progression settings",fileName="DefaultProgression")]

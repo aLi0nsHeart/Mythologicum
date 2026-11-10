@@ -20,44 +20,44 @@ MonoBehaviour:
     maximumTeams: 12
     regions:
     - id: north-america
-      name: North America
+      name: park.progression_definition.north_america
       accessCost: 350
       mapPosition: {x: 0.19, y: 0.68}
       species:
       - Chupacabra
     - id: south-america
-      name: South America
+      name: park.progression_definition.south_america
       accessCost: 350
       mapPosition: {x: 0.31, y: 0.27}
       species:
       - Chupacabra
     - id: west-africa
-      name: West Africa
+      name: park.progression_definition.west_africa
       accessCost: 350
       mapPosition: {x: 0.49, y: 0.43}
       species: []
     - id: east-africa
-      name: East Africa
+      name: park.progression_definition.east_africa
       accessCost: 350
       mapPosition: {x: 0.59, y: 0.36}
       species: []
     - id: south-africa
-      name: Southern Africa
+      name: park.progression_definition.southern_africa
       accessCost: 350
       mapPosition: {x: 0.55, y: 0.14}
       species: []
     - id: china
-      name: China
+      name: park.progression_definition.china
       accessCost: 350
       mapPosition: {x: 0.77, y: 0.65}
       species: []
     - id: middle-east
-      name: Middle East
+      name: park.progression_definition.middle_east
       accessCost: 350
       mapPosition: {x: 0.62, y: 0.52}
       species: []
     - id: japan
-      name: Japan
+      name: park.progression_definition.japan
       accessCost: 350
       mapPosition: {x: 0.92, y: 0.57}
       species:
@@ -65,18 +65,18 @@ MonoBehaviour:
       - Yurei
       - Oni
     - id: central-europe
-      name: Central Europe
+      name: park.progression_definition.central_europe
       accessCost: 350
       mapPosition: {x: 0.49, y: 0.73}
       species: []
     - id: northern-europe
-      name: Northern Europe
+      name: park.progression_definition.northern_europe
       accessCost: 350
       mapPosition: {x: 0.56, y: 0.9}
       species: []
     difficulties:
     - id: survey
-      name: Survey
+      name: park.progression_definition.survey
       costPerTeam: 120
       seconds: 60
       successChance: 0.8
@@ -84,7 +84,7 @@ MonoBehaviour:
       maximumRating: 2
       creaturesFound: 2
     - id: capture
-      name: Capture
+      name: park.progression_definition.capture
       costPerTeam: 200
       seconds: 120
       successChance: 0.6
@@ -92,7 +92,7 @@ MonoBehaviour:
       maximumRating: 3
       creaturesFound: 2
     - id: dangerous
-      name: Dangerous
+      name: park.progression_definition.dangerous
       costPerTeam: 350
       seconds: 180
       successChance: 0.35
@@ -101,8 +101,8 @@ MonoBehaviour:
       creaturesFound: 2
     technologies:
     - id: food-service
-      name: Food services
-      description: Unlock kiosks to sell food to hungry visitors.
+      name: park.progression_definition.food_services
+      description: park.progression_definition.unlock_kiosks_to_sell_food_to_hungry_visitors
       cost: 200
       workSeconds: 30
       prerequisites: []
@@ -112,8 +112,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: visitor-rest
-      name: Visitor comfort
-      description: Unlock rest areas for tired visitors.
+      name: park.progression_definition.visitor_comfort
+      description: park.progression_definition.unlock_rest_areas_for_tired_visitors
       cost: 150
       workSeconds: 25
       prerequisites: []
@@ -123,8 +123,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: spiked-fences
-      name: Spiked fences
-      description: Prevent creatures climbing out over wooden barriers.
+      name: park.progression_definition.spiked_fences
+      description: park.progression_definition.prevent_creatures_climbing_out_over_wooden_barriers
       cost: 250
       workSeconds: 45
       prerequisites: []
@@ -134,8 +134,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: reinforced-fences
-      name: Reinforced fences
-      description: Heavy barriers resist creature attacks.
+      name: park.progression_definition.reinforced_fences
+      description: park.progression_definition.heavy_barriers_resist_creature_attacks
       cost: 600
       workSeconds: 90
       prerequisites:
@@ -146,8 +146,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: sanctified-fences
-      name: Sanctified fences
-      description: Block a spirit's ability to phase through barriers.
+      name: park.progression_definition.sanctified_fences
+      description: park.progression_definition.block_a_spirit_s_ability_to_phase_through_barriers
       cost: 700
       workSeconds: 100
       prerequisites:
@@ -158,8 +158,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: staff-training
-      name: Staff training
-      description: Research, healing and fence repairs are 25% faster.
+      name: park.progression_definition.staff_training
+      description: park.progression_definition.research_healing_and_fence_repairs_are_25_faster
       cost: 450
       workSeconds: 60
       prerequisites: []
@@ -169,8 +169,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1
     - id: field-equipment
-      name: Expedition equipment
-      description: Add 10 percentage points to expedition success chances.
+      name: park.progression_definition.expedition_equipment
+      description: park.progression_definition.add_10_percentage_points_to_expedition_success_chances
       cost: 350
       workSeconds: 45
       prerequisites: []
@@ -180,8 +180,8 @@ MonoBehaviour:
       expeditionSuccessBonus: 0.1
       expeditionDurationMultiplier: 1
     - id: field-logistics
-      name: Expedition logistics
-      description: Expeditions take 25% less time.
+      name: park.progression_definition.expedition_logistics
+      description: park.progression_definition.expeditions_take_25_less_time
       cost: 500
       workSeconds: 60
       prerequisites:

@@ -34,9 +34,24 @@ public static class ConstructionUndoNativeChecks
                 cell = candidate; found = true;
             }
         Check(found, "fixture has a clear distant patch of ground");
-        Invoke("BeginConstructionAction", "native path");
+        Invoke("BeginConstructionAction", "park.build_mode_controller.build_path_route");
         Check(paths.TryPlace(cell), "path placement succeeds");
         Invoke("CommitConstructionAction", 0f);
+        var localeEntries = (System.Collections.Generic.Dictionary<string, string[]>)typeof(LocalizationTable)
+            .GetField("entries", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Loc.Table);
+        string oldGerman = localeEntries["park.build_mode_controller.build_path_route"][(int)GameLanguage.GERMAN];
+        var originalLanguage = Loc.Language;
+        try
+        {
+            localeEntries["park.build_mode_controller.build_path_route"][(int)GameLanguage.GERMAN] = "Pfad bauen";
+            Loc.SetLanguage(GameLanguage.GERMAN);
+            Check(controller.UndoMessage.Contains("Pfad bauen"), "a previously recorded Undo action changes language without rebuilding its history");
+        }
+        finally
+        {
+            localeEntries["park.build_mode_controller.build_path_route"][(int)GameLanguage.GERMAN] = oldGerman;
+            Loc.SetLanguage(originalLanguage);
+        }
         Check(controller.UndoCount == 1 && controller.UndoLastConstruction(), "recorded path can be undone");
         Check(grid.ContentAt(cell) == BuildCellContent.Empty, "undo removes only the new path");
         Check(creatures.Population == beforePopulation && (actor == null || Math.Abs(actor.Vitals.Hunger - hunger) < .001f),

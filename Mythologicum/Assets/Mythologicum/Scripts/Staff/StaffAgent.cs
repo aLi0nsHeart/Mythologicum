@@ -11,7 +11,9 @@ namespace Mythologicum
         public ParkBuildingRecord Home { get; internal set; }
         public StaffRole Role { get; internal set; }
         public StaffTask Task { get; internal set; }
-        public string Status { get; internal set; } = "Ready for work";
+        private readonly StatusMessage status = new StatusMessage("staff.status.ready_for_work");
+        public string Status { get => status.Value; internal set => status.Set(value); }
+        internal void SetLocalizedStatus(string id, params object[] arguments) => status.Set(id, arguments);
         public CreatureAgent Target { get; internal set; }
         internal FenceEdge? Fence;
         internal ParkBuildingRecord Feeder;

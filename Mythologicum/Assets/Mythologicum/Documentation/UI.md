@@ -19,6 +19,11 @@ runtime, and the new menu retains the existing scene navigation component.
 
 ## Artist controls
 
+Player-facing wording is separate from appearance. Edit
+`Resources/Localization/localization.csv`; **Settings > Language** selects the
+player's language. The [localization guide](Localization-Guide.md) explains the
+translation columns, placeholders, font overrides and validation tools.
+
 Start with **Mythologicum > UI > Designer Tools**. The appearance Inspector now has
 Typography, Colours, Artwork, Icons and Overrides tabs. Layout controls live in
 `UI/Resources/ExhibitionLayout.asset`. The full beginner-friendly reference is
@@ -160,6 +165,11 @@ preferences; Reset defaults restores standard values. Opening or closing setting
 does not alter the pause state. Settings block camera and construction input.
 
 ## Verification
+
+Scene changes use the shared loading cover. It stays visible through terrain,
+forest, services and saved-park preparation, then fades out when the destination
+is ready. See [loading screen settings](Loading-Screen-Guide.md) for artwork,
+timings and typography controls.
 
 `Tests/UI/Unity/SteampunkUIIntegrationValidation.cs` runs against the real menu and
 game scenes in an isolated project. It validates theme references, pointer

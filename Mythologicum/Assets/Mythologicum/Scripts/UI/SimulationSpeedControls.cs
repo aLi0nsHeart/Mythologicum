@@ -12,17 +12,17 @@ namespace Mythologicum
         public static void Select(float speed)
         {
             SelectedSpeed = Sanitize(speed);
-            if (!GameSaveMenu.IsOpen && !SettingsPresentation.IsOpen) Time.timeScale = SelectedSpeed;
+            if (!GameSaveMenu.IsOpen && !SettingsPresentation.IsOpen && !SceneTransition.IsLoading) Time.timeScale = SelectedSpeed;
         }
         public static void TogglePause()
         {
-            if (GameSaveMenu.IsOpen || SettingsPresentation.IsOpen) return;
+            if (GameSaveMenu.IsOpen || SettingsPresentation.IsOpen || SceneTransition.IsLoading) return;
             Time.timeScale = Time.timeScale > 0 ? 0 : SelectedSpeed;
         }
         public static void StartPark()
         {
             SelectedSpeed = Sanitize(PlayControlsDefinition.Current.normalSpeed);
-            Time.timeScale = SelectedSpeed;
+            if (!SceneTransition.IsLoading) Time.timeScale = SelectedSpeed;
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetSession() => SelectedSpeed = 1f;
@@ -37,6 +37,7 @@ namespace Mythologicum
         private float shownScale = float.NaN;
         private Vector3 shownSpeeds;
         private bool shownBlocked;
+        private int localizationRevision = -1;
         public static SimulationSpeedControls Attach(Canvas canvas)
         {
             var rect = new GameObject("Simulation speed controls", typeof(RectTransform));
@@ -81,21 +82,20 @@ namespace Mythologicum
         private void Refresh()
         {
             bool blocked = GameSaveMenu.IsOpen || SettingsPresentation.IsOpen || GameInput.BlocksGameplayInput;
-            bool bindingsChanged = bindingRevision != GameInput.Revision;
+            bool bindingsChanged = bindingRevision != GameInput.Revision || localizationRevision != Loc.Revision;
             var speeds = new Vector3(Speed(1), Speed(2), Speed(3));
             if (!bindingsChanged && shownScale == Time.timeScale && shownBlocked == blocked && shownSpeeds == speeds) return;
             shownScale = Time.timeScale; shownBlocked = blocked; shownSpeeds = speeds;
-            bindingRevision = GameInput.Revision;
+            bindingRevision = GameInput.Revision; localizationRevision = Loc.Revision;
             for (int i = 0; i < buttons.Length; i++)
             {
                 if (buttons[i] == null) continue;
                 buttons[i].interactable = !blocked;
-                captions[i].text = i == 0 ? (Time.timeScale <= 0 ? ">" : "II")
-                    : (Time.timeScale > 0 && Mathf.Approximately(Time.timeScale, Speed(i)) ? "> " : "") + Speed(i).ToString("0.#") + "x";
+                if (i == 0) Loc.Set(captions[i], "ui.speed.hold_symbol", Time.timeScale <= 0 ? ">" : "II");
+                else Loc.Set(captions[i], "ui.speed.speed_caption", Time.timeScale > 0 && Mathf.Approximately(Time.timeScale, Speed(i)) ? "> " : "", Speed(i));
                 if (bindingsChanged) UIHoverTooltip.Attach(buttons[i], i == 0
-                    ? "Pause or resume simulation (" + GameInput.KeyCaption(GameplayAction.ToggleSimulationPause) + ")"
-                    : "Simulation speed " + Speed(i).ToString("0.#") + "x (" + GameInput.KeyCaption(i == 1
-                        ? GameplayAction.NormalSpeed : i == 2 ? GameplayAction.DoubleSpeed : GameplayAction.TripleSpeed) + ")");
+                    ? Loc.Format("ui.speed.hold_tooltip", GameInput.KeyCaption(GameplayAction.ToggleSimulationPause))
+                    : Loc.Format("ui.speed.speed_tooltip", Speed(i), GameInput.KeyCaption(i == 1 ? GameplayAction.NormalSpeed : i == 2 ? GameplayAction.DoubleSpeed : GameplayAction.TripleSpeed)));
             }
         }
     }

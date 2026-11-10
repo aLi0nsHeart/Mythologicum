@@ -22,7 +22,7 @@ namespace Mythologicum
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
             rect.anchoredPosition = new Vector2(15, -12);
             UILayoutElement.Bind(rect, UILayoutBinding.FundsPanel);
-            funds = ManagementWidgets.Label(root.transform, "Park funds", Vector2.zero, new Vector2(300, 44), 30);
+            funds = ManagementWidgets.Label(root.transform, "ui.park_status.park_funds", Vector2.zero, new Vector2(300, 44), 30);
             funds.resizeTextForBestFit = true; funds.resizeTextMinSize = 20; funds.resizeTextMaxSize = 30;
             UILayoutElement.Bind(funds.rectTransform, UILayoutBinding.FundsText);
             var outline = funds.gameObject.AddComponent<Outline>();
@@ -40,7 +40,7 @@ namespace Mythologicum
         public void Refresh()
         {
             if (root == null) return;
-            funds.text = economy.Balance.ToString("$#,##0;-$#,##0;$0", CultureInfo.InvariantCulture);
+            Loc.Set(funds, "ui.hud.funds_value", economy.Balance);
             float value = visitors.Reputation.Stars;
             stars.SetRating(value);
             var theme = UITheme.Current;

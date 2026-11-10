@@ -169,7 +169,7 @@ namespace Mythologicum
             if (snapshot == null) return;
             if (!Finite(snapshot.trackedSeconds) || snapshot.trackedSeconds < 0f || snapshot.trackedSeconds > WindowSeconds
                 || snapshot.buckets == null || snapshot.buckets.Count > 61)
-                throw new InvalidDataException("Invalid saved financial window.");
+                throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_window"));
             float previousAge = WindowSeconds;
             foreach (var bucket in snapshot.buckets)
             {
@@ -177,11 +177,11 @@ namespace Mythologicum
                     || bucket.age > snapshot.trackedSeconds + .01f || bucket.age >= previousAge
                     || bucket.income == null || bucket.income.Length != CategoryCount
                     || bucket.expenses == null || bucket.expenses.Length != CategoryCount)
-                    throw new InvalidDataException("Invalid saved financial bucket.");
+                    throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_bucket"));
                 foreach (double value in bucket.income)
-                    if (!ValidStoredAmount(value)) throw new InvalidDataException("Invalid saved financial income.");
+                    if (!ValidStoredAmount(value)) throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_income"));
                 foreach (double value in bucket.expenses)
-                    if (!ValidStoredAmount(value)) throw new InvalidDataException("Invalid saved financial expense.");
+                    if (!ValidStoredAmount(value)) throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_expense"));
                 previousAge = bucket.age;
             }
         }

@@ -49,13 +49,13 @@ namespace Mythologicum
     {
         public static ParkSaveData Pending;
         internal static string LoadError;
-        public static string ActiveParkName { get; private set; } = "Untitled park";
+        public static string ActiveParkName { get; private set; } = Loc.Text("ui.save.untitled_park");
         private static ParkSaveRepository Repository => new ParkSaveRepository(Application.persistentDataPath);
         public static string SavePath => Path.Combine(Application.persistentDataPath, "park-save.json");
         public static bool Exists => Repository.HasSaves;
         public static IReadOnlyList<SaveSlotInfo> ListSlots() => Repository.ListSlots();
         public static string NewManualSlotId() => "manual-" + Guid.NewGuid().ToString("N");
-        public static void BeginNewPark() => ActiveParkName = "Untitled park";
+        public static void BeginNewPark() => ActiveParkName = Loc.Text("ui.save.untitled_park");
         public static void WriteSlot(ParkSaveData data, string id, string name)
         {
             data.parkName = CleanName(name);
@@ -73,7 +73,7 @@ namespace Mythologicum
         public static string CleanName(string name)
         {
             string value = (name ?? "").Trim();
-            if (value.Length == 0) return "Untitled park";
+            if (value.Length == 0) return Loc.Text("ui.save.untitled_park");
             value = value.Replace('\r', ' ').Replace('\n', ' ');
             return value.Length > 64 ? value.Substring(0, 64) : value;
         }
@@ -105,9 +105,9 @@ namespace Mythologicum
                 || data.trees == null || data.graves == null || data.staff == null || data.visitors == null || data.research == null
                 || float.IsNaN(data.balance) || float.IsInfinity(data.balance) || float.IsNaN(data.income) || float.IsInfinity(data.income)
                 || float.IsNaN(data.expenses) || float.IsInfinity(data.expenses))
-                throw new InvalidDataException("This save is invalid or uses an unsupported version.");
-            if(data.version>=2 && data.progression==null)throw new InvalidDataException("This save is missing its park progression.");
-            if(data.version>=3 && data.terrain==null)throw new InvalidDataException("This save is missing its terrain heights.");
+                throw new InvalidDataException(Loc.Text("ui.save.invalid_save"));
+            if(data.version>=2 && data.progression==null)throw new InvalidDataException(Loc.Text("ui.save.missing_progression"));
+            if(data.version>=3 && data.terrain==null)throw new InvalidDataException(Loc.Text("ui.save.missing_terrain"));
             return data;
         }
     }
@@ -147,7 +147,7 @@ namespace Mythologicum
         public static string Resolve(string directory, string id)
         {
             if (id == Legacy) return Path.Combine(Path.GetFullPath(directory), "park-save.json");
-            if (!IsManual(id) && !IsAutomatic(id)) throw new ArgumentException("Unknown save slot.");
+            if (!IsManual(id) && !IsAutomatic(id)) throw new ArgumentException(Loc.Text("ui.save.unknown_slot"));
             return Path.Combine(Path.GetFullPath(directory), "Saves", id + ".json");
         }
     }
@@ -197,7 +197,7 @@ namespace Mythologicum
         public SaveSlotInfo Inspect(string id)
         {
             string path = SaveSlotPaths.Resolve(directory, id);
-            var result = new SaveSlotInfo { Id = id, Name = id == SaveSlotPaths.Legacy ? "Previous park save" : "Unreadable save",
+            var result = new SaveSlotInfo { Id = id, Name = id == SaveSlotPaths.Legacy ? Loc.Text("ui.save.previous_park_save") : Loc.Text("ui.save.unreadable_save"),
                 IsAutosave = SaveSlotPaths.IsAutomatic(id), HasBackup = File.Exists(path + ".bak"),
                 SavedUtc = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : File.GetLastWriteTimeUtc(path + ".bak") };
             try
@@ -210,7 +210,7 @@ namespace Mythologicum
                     result.SavedUtc = saved.ToUniversalTime();
             }
             catch (Exception error) when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
-            { result.Error = "This save cannot be read. " + error.Message; }
+            { result.Error = Loc.Format("ui.save.cannot_read", error.Message); }
             if (result.HasBackup)
             {
                 try { ParkSaveStore.ReadFile(path + ".bak"); result.BackupIsValid = true; }
@@ -222,7 +222,7 @@ namespace Mythologicum
             => ParkSaveStore.ReadFile(SaveSlotPaths.Resolve(directory, id) + (backup ? ".bak" : ""));
         public void WriteManual(ParkSaveData data, string id)
         {
-            if (id != SaveSlotPaths.Legacy && !SaveSlotPaths.IsManual(id)) throw new ArgumentException("Choose a manual save slot.");
+            if (id != SaveSlotPaths.Legacy && !SaveSlotPaths.IsManual(id)) throw new ArgumentException(Loc.Text("ui.save.choose_manual_slot"));
             ParkSaveStore.WriteFile(data, SaveSlotPaths.Resolve(directory, id));
         }
         public SaveSlotInfo WriteAutosave(ParkSaveData data, int count)

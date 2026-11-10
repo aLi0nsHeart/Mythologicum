@@ -138,12 +138,12 @@ namespace Mythologicum
             if (!Finite(saved.guestScore) || saved.guestScore < 0f || saved.guestScore > 100f
                 || !Finite(saved.safetyPenalty) || saved.safetyPenalty < 0f || saved.safetyPenalty > 100f
                 || saved.reviewedVisitors < 0 || saved.fatalities < 0 || saved.exhibits == null || saved.exhibits.Count > 1024)
-                throw new InvalidDataException("Invalid park reputation.");
+                throw new InvalidDataException(Loc.Text("park.park_reputation.invalid_park_reputation"));
             var species = new HashSet<string>(StringComparer.Ordinal);
             foreach (ParkExhibit item in saved.exhibits)
                 if (item == null || string.IsNullOrEmpty(item.species) || item.species.Length > 128 || !species.Add(item.species)
                     || item.rating < 1 || item.rating > 5 || item.count < 1 || item.count > 1000000)
-                    throw new InvalidDataException("Invalid displayed creature reputation.");
+                    throw new InvalidDataException(Loc.Text("park.park_reputation.invalid_displayed_creature_reputation"));
         }
 
         public void Restore(ParkReputationSnapshot saved)

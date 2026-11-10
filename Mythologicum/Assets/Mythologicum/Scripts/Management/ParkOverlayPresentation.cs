@@ -34,9 +34,9 @@ namespace Mythologicum
             legend = ManagementWidgets.Rect(canvas.transform, "Map overlay legend", new Vector2(0, 0), new Vector2(570, 72)).gameObject;
             var rect = (RectTransform)legend.transform;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1, 0); rect.anchoredPosition = new Vector2(-24, 112);
-            caption = ManagementWidgets.Label(legend.transform, "Map overlay key", Vector2.zero, new Vector2(460, 72), 17);
-            ManagementWidgets.Button(legend.transform, "Hide map overlay", new Vector2(470, 10), new Vector2(96, 36), () => SetMode(ParkOverlayMode.Off), 16)
-                .GetComponentInChildren<Text>().text = "Hide";
+            caption = ManagementWidgets.Label(legend.transform, "park.park_overlay_presentation.map_overlay_key", Vector2.zero, new Vector2(460, 72), 17);
+            ManagementWidgets.Button(legend.transform, "park.park_overlay_presentation.hide_map_overlay", new Vector2(470, 10), new Vector2(96, 36), () => SetMode(ParkOverlayMode.Off), 16)
+                .GetComponentInChildren<Text>().text = Loc.Text("park.park_overlay_presentation.hide");
             legend.SetActive(false);
         }
 
@@ -62,14 +62,14 @@ namespace Mythologicum
                     var cell = new Vector2Int(x, y);
                     if (grid.ContentAt(cell) == BuildCellContent.Path) (buildings.IsPathConnected(cell) ? good : bad).Add(cell);
                 }
-                caption.text = "PATH CONNECTIONS\nTeal: connected to the entrance | Red: disconnected";
+                caption.text = Loc.Text("park.park_overlay_presentation.path_connections_teal_connected_to_the_entrance_red_discon");
             }
             else if (Mode == ParkOverlayMode.EnclosureSpace)
             {
                 foreach (var area in enclosures.Records)
                     foreach (var cell in area.Cells) (area.IsSecured ? good : bad).Add(cell);
                 bad.ExceptWith(good);
-                caption.text = $"ENCLOSURE SPACE\nBlue: secured area | Red: breached | {enclosures.Records.Count} areas";
+                caption.text = Loc.Format("park.park_overlay_presentation.enclosure_space_blue_secured_area_red_breached_areas", enclosures.Records.Count);
             }
             else
             {
@@ -83,7 +83,7 @@ namespace Mythologicum
                     var cell = new Vector2Int(x, y);
                     if (navigation.IsWalkable(cell)) (reached.Contains(cell) ? good : bad).Add(cell);
                 }
-                caption.text = "STAFF ACCESS\nTeal: reachable from staffed, open workplaces | Red: unreachable";
+                caption.text = Loc.Text("park.park_overlay_presentation.staff_access_teal_reachable_from_staffed_open_workplaces_r");
             }
             VisibleCellCount = good.Count + bad.Count;
             Draw(good, Mode == ParkOverlayMode.EnclosureSpace ? settings.securedColor : settings.connectedColor);

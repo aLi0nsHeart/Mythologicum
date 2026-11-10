@@ -111,6 +111,7 @@ namespace Mythologicum
                 else if (accent) color = theme.accentColor;
                 if (selectable != null && !selectable.interactable) color = theme.mutedColor;
             }
+            font = LocalizationFonts.For(font, text.text);
             if (font != null && text.font != font) text.font = font;
             text.color = color;
             text.fontSize = Mathf.Clamp(Mathf.RoundToInt(size * Mathf.Max(.1f, theme.globalTextScale)), 1, 300);
@@ -299,6 +300,9 @@ namespace Mythologicum
             }
             if (!(graphic is Image image)) return UIThemeRole.Ignore;
             string name = image.name.ToLowerInvariant();
+            // Unity creates a transparent full-canvas click catcher while a dropdown
+            // is open. It must keep receiving outside clicks without button artwork.
+            if (name == "blocker" && image.GetComponent<Button>() != null) return UIThemeRole.Ignore;
             if (image.GetComponent<Button>() != null) return UIThemeRole.Button;
             if (image.GetComponent<InputField>() != null || image.GetComponent<Dropdown>() != null) return UIThemeRole.Input;
             if (image.GetComponent<Slider>() != null || image.GetComponent<Scrollbar>() != null) return UIThemeRole.Track;

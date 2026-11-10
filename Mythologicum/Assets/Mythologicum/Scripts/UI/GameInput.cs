@@ -18,25 +18,26 @@ namespace Mythologicum
         private static readonly Key[] defaults = { Key.W, Key.S, Key.A, Key.D, Key.Q, Key.E,
             Key.B, Key.P, Key.F, Key.C, Key.H, Key.T, Key.X, Key.G, Key.R,
             Key.Escape, Key.Space, Key.Digit1, Key.Digit2, Key.Digit3 };
-        private static readonly string[] names = { "Move forward", "Move back", "Move left", "Move right", "Rotate left", "Rotate right",
-            "Buildings", "Paths", "Fences", "Creatures", "Enclosures", "Terrain", "Demolish", "Staff gate", "Rotate building",
-            "Pause menu", "Pause simulation", "Normal speed", "Double speed", "Triple speed" };
+        private static readonly string[] names = { "ui.input.action.MoveForward", "ui.input.action.MoveBack", "ui.input.action.MoveLeft", "ui.input.action.MoveRight", "ui.input.action.RotateLeft", "ui.input.action.RotateRight",
+            "ui.input.action.Buildings", "ui.input.action.Paths", "ui.input.action.Fences", "ui.input.action.Creatures", "ui.input.action.Enclosures", "ui.input.action.Terrain", "ui.input.action.Demolish", "ui.input.action.Gate", "ui.input.action.RotateBuilding",
+            "ui.input.action.Pause", "ui.input.action.ToggleSimulationPause", "ui.input.action.NormalSpeed", "ui.input.action.DoubleSpeed", "ui.input.action.TripleSpeed" };
         private static Key[] bindings;
         private static GameplayAction capturing;
         private static Action<bool, string> completion;
         private static int suppressedFrame = -1;
         public static bool IsCapturing => completion != null;
-        public static bool BlocksGameplayInput => IsCapturing || suppressedFrame == Time.frameCount;
+        public static bool BlocksGameplayInput => SceneTransition.IsLoading || IsCapturing || suppressedFrame == Time.frameCount;
         public static bool CommandModifierHeld => Keyboard.current != null && (Keyboard.current.ctrlKey.isPressed
             || Keyboard.current.altKey.isPressed || Keyboard.current.leftMetaKey.isPressed || Keyboard.current.rightMetaKey.isPressed);
         public static int Revision { get; private set; }
 
-        public static string Name(GameplayAction action) => names[(int)action];
+        public static string NameId(GameplayAction action) => names[(int)action];
+        public static string Name(GameplayAction action) => Loc.Text(NameId(action));
         public static Key DefaultKey(GameplayAction action) => defaults[(int)action];
         public static Key GetKey(GameplayAction action) { EnsureLoaded(); return bindings[(int)action]; }
         public static string KeyCaption(GameplayAction action) => Caption(GetKey(action));
         public static string Caption(Key key) => key >= Key.Digit1 && key <= Key.Digit0 ? key.ToString().Replace("Digit", "")
-            : key == Key.Space ? "Space" : key == Key.Escape ? "Esc" : key.ToString();
+            : key == Key.Space ? Loc.Text("ui.input.key.space") : key == Key.Escape ? Loc.Text("ui.input.key.escape") : Loc.Enum(key);
 
         public static bool Pressed(GameplayAction action)
             => !BlocksGameplayInput && !CommandModifierHeld && Keyboard.current != null && Keyboard.current[GetKey(action)].wasPressedThisFrame;
@@ -55,10 +56,10 @@ namespace Mythologicum
         public static bool TrySetKey(GameplayAction action, Key key, out string error)
         {
             EnsureLoaded();
-            if (!AllowedKey(key, action)) { error = "Choose a letter, number or function key. Escape stays available for closing menus."; return false; }
+            if (!AllowedKey(key, action)) { error = Loc.Text("ui.input.invalid_key"); return false; }
             for (int i = 0; i < bindings.Length; i++)
                 if (i != (int)action && bindings[i] == key)
-                { error = Caption(key) + " is already assigned to " + Name((GameplayAction)i) + "."; return false; }
+                { error = Loc.Format("ui.input.key_conflict", Caption(key), Name((GameplayAction)i)); return false; }
             bindings[(int)action] = key;
             PlayerPrefs.SetInt(Prefix + action, (int)key); PlayerPrefs.Save(); Revision++;
             error = ""; return true;
@@ -82,7 +83,7 @@ namespace Mythologicum
         {
             if (completion == null) return;
             var callback = completion; completion = null; suppressedFrame = Time.frameCount;
-            callback(false, "Shortcut change cancelled.");
+            callback(false, Loc.Text("ui.input.capture_cancelled"));
         }
         public static void UpdateCapture()
         {
@@ -94,9 +95,9 @@ namespace Mythologicum
                 if (!key.wasPressedThisFrame) continue;
                 suppressedFrame = Time.frameCount;
                 if (!TrySetKey(capturing, key.keyCode, out string error))
-                { completion(false, error + " Press another key, or Esc to cancel."); return; }
+                { completion(false, Loc.Format("ui.input.retry_capture", error)); return; }
                 var callback = completion; completion = null;
-                callback(true, Name(capturing) + " now uses " + KeyCaption(capturing) + "."); return;
+                callback(true, Loc.Format("ui.input.capture_success", Name(capturing), KeyCaption(capturing))); return;
             }
         }
 

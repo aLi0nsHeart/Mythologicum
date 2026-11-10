@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buildings:
   - kind: 0
-    displayName: Park entrance
+    displayName: park.building_definition.park_entrance
     width: 5
     depth: 5
     height: 5.033782
@@ -42,7 +42,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 1
-    displayName: Expedition centre
+    displayName: park.building_definition.expedition_centre
     width: 8
     depth: 6
     height: 4.591313
@@ -70,7 +70,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 2
-    displayName: Kiosk
+    displayName: park.building_definition.kiosk
     width: 4
     depth: 3
     height: 3.309885
@@ -98,7 +98,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 3
-    displayName: Goat dispenser
+    displayName: park.building_definition.goat_dispenser
     width: 1
     depth: 1
     height: 0.5
@@ -126,7 +126,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 4
-    displayName: Rest area
+    displayName: park.building_definition.rest_area
     width: 4
     depth: 3
     height: 3.5493762
@@ -154,7 +154,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 5
-    displayName: Research centre
+    displayName: park.building_definition.research_centre
     width: 4
     depth: 4
     height: 10
@@ -182,7 +182,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 6
-    displayName: Mercenary headquarters
+    displayName: park.building_definition.mercenary_headquarters
     width: 4
     depth: 4
     height: 8
@@ -210,7 +210,7 @@ MonoBehaviour:
     feederCapacity: 6
     restockCost: 12
   - kind: 7
-    displayName: Zookeeper station
+    displayName: park.building_definition.zookeeper_station
     width: 4
     depth: 2
     height: 4

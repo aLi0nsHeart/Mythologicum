@@ -34,34 +34,34 @@ namespace Mythologicum
             this.buildings = buildings; this.visitors = visitors; this.creatures = creatures; this.economy = economy;
             root = ManagementWidgets.Modal(canvas, "Park management window");
             var card = ManagementWidgets.Card(root, canvas);
-            ManagementWidgets.Label(card, "Park management", new Vector2(16, 10), new Vector2(900, 38), 27);
-            ManagementWidgets.Button(card, "Close park management", new Vector2(1034, 8), new Vector2(110, 38), Close, 16)
-                .GetComponentInChildren<Text>().text = "Close";
-            summary = ManagementWidgets.Label(card, "Park management summary", new Vector2(16, 4), new Vector2(996, 32), 20);
-            string[] names = { "Statistics", "Finances", "Prices & budget", "Star rating", "Map overlays" };
+            ManagementWidgets.Label(card, "park.park_management_presentation.park_management", new Vector2(16, 10), new Vector2(900, 38), 27);
+            ManagementWidgets.Button(card, "park.park_management_presentation.close_park_management", new Vector2(1034, 8), new Vector2(110, 38), Close, 16)
+                .GetComponentInChildren<Text>().text = Loc.Text("park.park_management_presentation.close");
+            summary = ManagementWidgets.Label(card, "park.park_management_presentation.park_management_summary", new Vector2(16, 4), new Vector2(996, 32), 20);
+            string[] names = { "park.park_management_presentation.statistics", "park.park_management_presentation.finances", "park.park_management_presentation.prices_budget", "park.park_management_presentation.star_rating", "park.park_management_presentation.map_overlays" };
             for (int i = 0; i < pages.Length; i++)
             {
                 int index = i;
                 tabs[i] = ManagementWidgets.Button(card, names[i], new Vector2(16 + i * 226, 48), new Vector2(214, 42), () => ShowPage(index));
-                pages[i] = ManagementWidgets.Rect(card, names[i] + " page", new Vector2(16, 104), new Vector2(1128, 396)).gameObject;
+                pages[i] = ManagementWidgets.Rect(card, Loc.English(names[i]) + " page", new Vector2(16, 104), new Vector2(1128, 396)).gameObject;
             }
-            statistics = ManagementWidgets.Label(pages[0].transform, "Park statistics", Vector2.zero, new Vector2(530, 380), 20);
-            parkStatistics = ManagementWidgets.Label(pages[0].transform, "Exhibition statistics", new Vector2(560,0), new Vector2(550,380), 20);
-            finances = ManagementWidgets.Label(pages[1].transform, "Recent finances", Vector2.zero, new Vector2(530, 346), 18);
-            breakdown = ManagementWidgets.Label(pages[1].transform, "Cash flow breakdown", new Vector2(555, 0), new Vector2(555, 346), 18);
-            financeNotes = ManagementWidgets.Label(pages[1].transform,"Finance period",new Vector2(0,354),new Vector2(1110,42),16);
-            budget = ManagementWidgets.Label(pages[2].transform, "Pricing and budget", Vector2.zero, new Vector2(810, 90), 18);
-            fundsMode = ManagementWidgets.Button(pages[2].transform, "Park funds mode", new Vector2(826, 0), new Vector2(284, 38),
+            statistics = ManagementWidgets.Label(pages[0].transform, "park.park_management_presentation.park_statistics", Vector2.zero, new Vector2(530, 380), 20);
+            parkStatistics = ManagementWidgets.Label(pages[0].transform, "park.park_management_presentation.exhibition_statistics", new Vector2(560,0), new Vector2(550,380), 20);
+            finances = ManagementWidgets.Label(pages[1].transform, "park.park_management_presentation.recent_finances", Vector2.zero, new Vector2(530, 346), 18);
+            breakdown = ManagementWidgets.Label(pages[1].transform, "park.park_management_presentation.cash_flow_breakdown", new Vector2(555, 0), new Vector2(555, 346), 18);
+            financeNotes = ManagementWidgets.Label(pages[1].transform,"park.park_management_presentation.finance_period",new Vector2(0,354),new Vector2(1110,42),16);
+            budget = ManagementWidgets.Label(pages[2].transform, "park.park_management_presentation.pricing_and_budget", Vector2.zero, new Vector2(810, 90), 18);
+            fundsMode = ManagementWidgets.Button(pages[2].transform, "park.park_management_presentation.park_funds_mode", new Vector2(826, 0), new Vector2(284, 38),
                 () => { economy.UnlimitedFunds = !economy.UnlimitedFunds; Refresh(); }, 17);
             priceContent = ManagementWidgets.Scroll(pages[2].transform, "Revenue building prices", new Vector2(0, 100), new Vector2(1110, 248), 0);
-            priceMessage = ManagementWidgets.Label(pages[2].transform, "Prices apply to new admissions and new service orders.", new Vector2(0, 358), new Vector2(1110, 38), 17);
+            priceMessage = ManagementWidgets.Label(pages[2].transform, "park.park_management_presentation.prices_apply_to_new_admissions_and_new_service_orders", new Vector2(0, 358), new Vector2(1110, 38), 17);
             var graphic = ManagementWidgets.Rect(pages[3].transform, "Park stars", Vector2.zero, new Vector2(300, 50));
             stars = graphic.gameObject.AddComponent<StarRatingGraphic>(); stars.raycastTarget = false;
-            rating = ManagementWidgets.Label(pages[3].transform, "Rating explanation", new Vector2(0, 65), new Vector2(530, 325), 20);
-            ratingGuide = ManagementWidgets.Label(pages[3].transform,"Rating guide",new Vector2(560,0),new Vector2(550,390),19);
-            ManagementWidgets.Label(pages[4].transform, "Choose a temporary map overlay. It follows the terrain and updates after construction. Hide returns to the normal park view.", Vector2.zero, new Vector2(1100, 60), 20);
-            string[] overlayNames = { "Hide overlays", "Path connections", "Enclosure space", "Staff access" };
-            string[] explanations = { "Return to the normal park view.", "Find paths disconnected from the main entrance.", "See secured enclosure areas and breached perimeters.", "See ground reachable through gates from open workplaces with hired staff." };
+            rating = ManagementWidgets.Label(pages[3].transform, "park.park_management_presentation.rating_explanation", new Vector2(0, 65), new Vector2(530, 325), 20);
+            ratingGuide = ManagementWidgets.Label(pages[3].transform,"park.park_management_presentation.rating_guide",new Vector2(560,0),new Vector2(550,390),19);
+            ManagementWidgets.Label(pages[4].transform, "park.park_management_presentation.choose_a_temporary_map_overlay_it_follows_the_terrain_and", Vector2.zero, new Vector2(1100, 60), 20);
+            string[] overlayNames = { "park.park_management_presentation.hide_overlays", "park.park_management_presentation.path_connections", "park.park_management_presentation.enclosure_space", "park.park_management_presentation.staff_access" };
+            string[] explanations = { "park.park_management_presentation.return_to_the_normal_park_view", "park.park_management_presentation.find_paths_disconnected_from_the_main_entrance", "park.park_management_presentation.see_secured_enclosure_areas_and_breached_perimeters", "park.park_management_presentation.see_ground_reachable_through_gates_from_open_workplaces_wi" };
             for (int i = 0; i < overlayNames.Length; i++)
             {
                 var mode = (ParkOverlayMode)i;
@@ -94,54 +94,38 @@ namespace Mythologicum
             int employees = 0, living = 0; float upkeep = 0;
             foreach (var building in buildings.Records) { employees += building.HiredCount; upkeep += building.UpkeepPerSecond * 60f; }
             foreach (var creature in creatures.Agents) if (creature.Alive && !creature.ExternallyControlled) living++;
-            summary.text = $"Funds: {economy.Balance:0.00}  |  Park rating: {reputation.Stars:0.00} / 5 stars  |  Visitors: {visitors.Population}";
-            statistics.text = $"VISITORS\nIn the park: {visitors.Population} / {visitors.Definition.maximumVisitors}\n"
-                + $"Current satisfaction: {visitors.AverageSatisfaction:0}/100\nDeparted: {visitors.DepartedCount}  |  Visitor deaths: {visitors.LostCount}\n"
-                + $"Stranded visitors: {visitors.StrandedCount}\nAdmission refusals: {visitors.RejectedAdmissions}\nService price complaints: {visitors.ExpensiveServiceRefusals}";
-            parkStatistics.text=$"PARK\nBuildings: {buildings.Records.Count}  |  Employees: {employees}\nLiving creatures: {living}\n"
-                + $"Viewable exhibition: {reputation.DisplayedSpecies} species / {reputation.DisplayedCreatures} creatures\n"
-                + $"Potential paid arrivals: {visitors.ExpectedArrivalsPerMinute:0.0} / minute before capacity limits\n"
-                + $"\nBudgeted building upkeep and salaries: {upkeep:0.00} / minute\nSupplies, new construction and projects are charged separately.";
-            finances.text = $"CASH FLOW / MINUTE\nIncome: {economy.IncomePerMinute:0.00}\nExpenses: {economy.ExpensesPerMinute:0.00}\n"
-                + $"Net cash flow: {economy.ProfitPerMinute:0.00}\n\nOPERATIONS / MINUTE\n"
-                + $"Operating expenses: {economy.OperatingExpensesPerMinute:0.00}\nOperating profit: {economy.OperatingProfitPerMinute:0.00}\n"
-                + $"One-off investments: {economy.InvestmentExpensesPerMinute:0.00}\n\nLIFETIME\n"
-                + $"Income: {economy.Income:0.00}\nExpenses: {economy.Expenses:0.00}";
-            financeNotes.text=$"Actual totals from the last 60 simulation seconds. Recorded so far: {economy.TrackedSeconds:0} / 60 seconds.\nOperating profit excludes one-off investments.";
-            var b = new StringBuilder("INCOME / MINUTE\n");
-            Add(b, "Admission", economy.IncomeInWindow(ParkTransactionCategory.Admission));
-            Add(b, "Food sales", economy.IncomeInWindow(ParkTransactionCategory.Food));
-            Add(b, "Rest services", economy.IncomeInWindow(ParkTransactionCategory.Rest));
-            Add(b, "Other income", economy.IncomeInWindow(ParkTransactionCategory.Other));
-            b.Append("EXPENSES / MINUTE\n");
-            Add(b, "Building upkeep", economy.ExpensesInWindow(ParkTransactionCategory.BuildingUpkeep));
-            Add(b, "Salaries", economy.ExpensesInWindow(ParkTransactionCategory.Salary));
-            Add(b, "Feeder supplies", economy.ExpensesInWindow(ParkTransactionCategory.Supplies));
-            Add(b, "Construction", economy.ExpensesInWindow(ParkTransactionCategory.Construction));
-            Add(b, "Hiring", economy.ExpensesInWindow(ParkTransactionCategory.Hiring));
-            Add(b, "Research", economy.ExpensesInWindow(ParkTransactionCategory.Research));
-            Add(b, "Expeditions, teams and permits", economy.ExpensesInWindow(ParkTransactionCategory.Expeditions));
-            Add(b, "Other expenses", economy.OtherExpensesPerMinute);
+            summary.text = Loc.Format("park.park_management_presentation.funds_park_rating_5_stars_visitors", economy.Balance, reputation.Stars, visitors.Population);
+            statistics.text = Loc.Format("park.park_management_presentation.visitors_in_the_park_current_satisfaction_100_departed_vis", visitors.Population, visitors.Definition.maximumVisitors, visitors.AverageSatisfaction, visitors.DepartedCount, visitors.LostCount, visitors.StrandedCount, visitors.RejectedAdmissions, visitors.ExpensiveServiceRefusals);
+            parkStatistics.text=Loc.Format("park.park_management_presentation.park_buildings_employees_living_creatures_viewable_exhibit", buildings.Records.Count, employees, living, reputation.DisplayedSpecies, reputation.DisplayedCreatures, visitors.ExpectedArrivalsPerMinute, upkeep);
+            finances.text = Loc.Format("park.park_management_presentation.cash_flow_minute_income_expenses_net_cash_flow_operations", economy.IncomePerMinute, economy.ExpensesPerMinute, economy.ProfitPerMinute, economy.OperatingExpensesPerMinute, economy.OperatingProfitPerMinute, economy.InvestmentExpensesPerMinute, economy.Income, economy.Expenses);
+            financeNotes.text=Loc.Format("park.park_management_presentation.actual_totals_from_the_last_60_simulation_seconds_recorded", economy.TrackedSeconds);
+            var b = new StringBuilder(Loc.Text("park.park_management_presentation.income_minute"));
+            Add(b, "park.park_management_presentation.admission", economy.IncomeInWindow(ParkTransactionCategory.Admission));
+            Add(b, "park.park_management_presentation.food_sales", economy.IncomeInWindow(ParkTransactionCategory.Food));
+            Add(b, "park.park_management_presentation.rest_services", economy.IncomeInWindow(ParkTransactionCategory.Rest));
+            Add(b, "park.park_management_presentation.other_income", economy.IncomeInWindow(ParkTransactionCategory.Other));
+            b.Append(Loc.Text("park.park_management_presentation.expenses_minute"));
+            Add(b, "park.park_management_presentation.building_upkeep", economy.ExpensesInWindow(ParkTransactionCategory.BuildingUpkeep));
+            Add(b, "park.park_management_presentation.salaries", economy.ExpensesInWindow(ParkTransactionCategory.Salary));
+            Add(b, "park.park_management_presentation.feeder_supplies", economy.ExpensesInWindow(ParkTransactionCategory.Supplies));
+            Add(b, "park.park_management_presentation.construction", economy.ExpensesInWindow(ParkTransactionCategory.Construction));
+            Add(b, "park.park_management_presentation.hiring", economy.ExpensesInWindow(ParkTransactionCategory.Hiring));
+            Add(b, "park.park_management_presentation.research", economy.ExpensesInWindow(ParkTransactionCategory.Research));
+            Add(b, "park.park_management_presentation.expeditions_teams_and_permits", economy.ExpensesInWindow(ParkTransactionCategory.Expeditions));
+            Add(b, "park.park_management_presentation.other_expenses", economy.OtherExpensesPerMinute);
             breakdown.text = b.ToString().TrimEnd('\n');
-            budget.text = $"Committed upkeep and salaries: {upkeep:0.00} / minute\n"
-                + $"Fair entry price: {reputation.RecommendedAdmissionPrice:0.00}  |  Admission acceptance: {visitors.AdmissionAcceptance:P0}\n"
-                + $"Potential paid arrivals: {visitors.ExpectedArrivalsPerMinute:0.0} / minute before capacity limits";
-            fundsMode.GetComponentInChildren<Text>().text = "Infinite funds: " + (economy.UnlimitedFunds ? "on" : "off");
+            budget.text = Loc.Format("park.park_management_presentation.committed_upkeep_and_salaries_minute_fair_entry_price_admi", upkeep, reputation.RecommendedAdmissionPrice, visitors.AdmissionAcceptance, visitors.ExpectedArrivalsPerMinute);
+            fundsMode.GetComponentInChildren<Text>().text = Loc.Format("park.park_management_presentation.infinite_funds", (economy.UnlimitedFunds ? Loc.Text("park.park_management_presentation.on") : Loc.Text("park.park_management_presentation.off")));
             RefreshPrices();
             stars.SetRating(reputation.Stars);
-            rating.text = $"PARK RATING: {reputation.Stars:0.00} / 5 STARS\n"
-                + $"Exhibition appeal: {reputation.ExhibitionScore:0}/100  |  Visitor reputation: {reputation.GuestScore:0}/100\n"
-                + $"Safety penalty: {reputation.SafetyPenalty:0}/100\nVisitor reviews: {reputation.ReviewedVisitors}\nFatalities: {reputation.Fatalities}\n\n"
-                + $"CURRENT FAIR PRICES\nAdmission: {reputation.RecommendedAdmissionPrice:0.00}\nMeal: {reputation.RecommendedFoodPrice:0.00}\nRest: {reputation.RecommendedRestPrice:0.00}";
-            ratingGuide.text="EXHIBITION\nDisplay different species with accessible viewing spots to increase appeal. Higher-rated creatures contribute more; extra specimens give diminishing returns.\n\n"
-                + "VISITORS & SAFETY\nSatisfied departures improve reputation; unhappy departures reduce it. Visitor deaths reduce reputation and demand. Safe operation allows gradual recovery.\n\n"
-                + "PRICES\nHigher stars support higher prices. Guests can refuse overpriced entry or services. Exhibition value comes from what visitors can see, wherever creatures choose to live.";
+            rating.text = Loc.Format("park.park_management_presentation.park_rating_5_stars_exhibition_appeal_100_visitor_reputati", reputation.Stars, reputation.ExhibitionScore, reputation.GuestScore, reputation.SafetyPenalty, reputation.ReviewedVisitors, reputation.Fatalities, reputation.RecommendedAdmissionPrice, reputation.RecommendedFoodPrice, reputation.RecommendedRestPrice);
+            ratingGuide.text=Loc.Text("park.park_management_presentation.exhibition_display_different_species_with_accessible_viewi");
         }
-        private static void Add(StringBuilder b, string name, float value) => b.Append(name).Append(": ").Append(value.ToString("0.00", CultureInfo.InvariantCulture)).Append('\n');
+        private static void Add(StringBuilder b, string name, float value) => b.Append(Loc.Resolve(name)).Append(": ").Append(value.ToString("0.00", CultureInfo.InvariantCulture)).Append('\n');
 
         private void RefreshPrices()
         {
-            string signature = "";
+            string signature = Loc.Revision.ToString();
             foreach (var building in buildings.Records) if (building.Footprint.Definition.CanSetPrice) signature += building.RuntimeId + ":" + building.HiredCount + ";";
             if (signature != buildingSignature)
             {
@@ -152,35 +136,36 @@ namespace Mythologicum
                     if (!building.Footprint.Definition.CanSetPrice) continue;
                     var record = building;
                     var row = ManagementWidgets.Box(priceContent, "Price row " + record.RuntimeId, new Vector2(0, y), new Vector2(1090, 70), new Color(.07f, .12f, .14f));
-                    ManagementWidgets.Label(row.transform, record.Footprint.Definition.displayName + "  [" + record.Footprint.Anchor.x + ", " + record.Footprint.Anchor.y + "]",
+                    ManagementWidgets.Label(row.transform, Loc.Format("park.park_management_presentation.format", record.Footprint.Definition.DisplayName, record.Footprint.Anchor.x, record.Footprint.Anchor.y),
                         new Vector2(10, 7), new Vector2(600, 26), 20);
-                    ManagementWidgets.Label(row.transform, $"Upkeep incl. salaries: {record.UpkeepPerSecond * 60f:0.00} / minute",
+                    ManagementWidgets.Label(row.transform, Loc.Format("park.park_management_presentation.upkeep_incl_salaries_minute", record.UpkeepPerSecond * 60f),
                         new Vector2(10, 37), new Vector2(600, 26), 17);
                     var input = PriceInput(row.transform, "Price input " + record.RuntimeId, new Vector2(660, 15));
-                    input.text = record.Price.ToString("0.##", CultureInfo.InvariantCulture);
+                    input.text = record.Price.ToString("0.##", Loc.Culture);
                     prices.Add(new KeyValuePair<ParkBuildingRecord, InputField>(record, input));
-                    ManagementWidgets.Button(row.transform, "Apply price " + record.RuntimeId, new Vector2(860, 15), new Vector2(210, 40), () =>
+                    ManagementWidgets.Button(row.transform, Loc.Format("park.park_management_presentation.apply_price", record.RuntimeId), new Vector2(860, 15), new Vector2(210, 40), () =>
                     {
-                        bool valid = float.TryParse(input.text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out float value);
-                        priceMessage.text = valid && record.SetPrice(value) ? "Price updated for new customers: " + record.Footprint.Definition.displayName
-                            : "Enter a finite price of zero or higher.";
+                        bool valid = float.TryParse(input.text,NumberStyles.Float,Loc.Culture,out float value)
+                            ||float.TryParse(input.text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+                        priceMessage.text = valid && record.SetPrice(value) ? Loc.Format("park.park_management_presentation.price_updated_for_new_customers", record.Footprint.Definition.DisplayName)
+                            : Loc.Text("park.park_management_presentation.enter_a_finite_price_of_zero_or_higher");
                         Refresh();
-                    }).GetComponentInChildren<Text>().text = "Apply price";
+                    }).GetComponentInChildren<Text>().text = Loc.Text("park.park_management_presentation.apply_price_2");
                     y += 78;
                 }
                 if (prices.Count == 0)
-                { ManagementWidgets.Label(priceContent, "Place the park entrance to manage admission prices.", new Vector2(12, 12), new Vector2(1060, 50)); y = 80; }
+                { ManagementWidgets.Label(priceContent, "park.park_management_presentation.place_the_park_entrance_to_manage_admission_prices", new Vector2(12, 12), new Vector2(1060, 50)); y = 80; }
                 priceContent.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, y);
             }
             foreach (var pair in prices)
-                if (!pair.Value.isFocused) pair.Value.text = pair.Key.Price.ToString("0.##", CultureInfo.InvariantCulture);
+                if (!pair.Value.isFocused) pair.Value.text = pair.Key.Price.ToString("0.##", Loc.Culture);
         }
         private static InputField PriceInput(Transform parent, string name, Vector2 position)
         {
             var box = ManagementWidgets.Box(parent, name, position, new Vector2(180, 40), new Color(.12f, .19f, .21f));
             var input = box.AddComponent<InputField>(); input.targetGraphic = box.GetComponent<Image>();
             input.contentType = InputField.ContentType.Standard; input.characterLimit = 16;
-            var text = ManagementWidgets.Label(box.transform, "Entered price", new Vector2(8, 3), new Vector2(164, 34), 19);
+            var text = ManagementWidgets.Label(box.transform, "park.park_management_presentation.entered_price", new Vector2(8, 3), new Vector2(164, 34), 19);
             text.alignment = TextAnchor.MiddleLeft; text.supportRichText = false; input.textComponent = text;
             return input;
         }

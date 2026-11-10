@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 namespace Mythologicum
 {
     public sealed partial class BuildModeController
@@ -77,11 +76,11 @@ namespace Mythologicum
         public void ValidateSave(ParkSaveData data)
         {
             ParkEconomy.ValidateSnapshot(data.finance);ParkReputation.ValidateSnapshot(data.reputation);
-            if(data.rejectedAdmissions<0||data.expensiveServiceRefusals<0)throw new InvalidDataException("Invalid saved visitor pricing feedback.");
+            if(data.rejectedAdmissions<0||data.expensiveServiceRefusals<0)throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor_pricing_feedback"));
             if(data.width<1||data.depth<1||data.width>128||data.depth>128||!Finite(data.cellSize)||data.cellSize<.25f||data.cellSize>16f)
-                throw new InvalidDataException("Unsupported saved map dimensions.");
+                throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.unsupported_saved_map_dimensions"));
             if(data.generation!=null&&(!data.generation.Validate(out _)||data.generation.width!=data.width||data.generation.depth!=data.depth))
-                throw new InvalidDataException("Invalid saved generation settings.");
+                throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_generation_settings"));
             GridHeightField checkTerrain=null;
             if(data.version>=3){checkTerrain=new GridHeightField(data.width,data.depth,data.cellSize);checkTerrain.Restore(data.terrain);}
             var checkGrid = new SquareBuildGrid(grid.Origin, data.cellSize, data.width, data.depth,checkTerrain);
@@ -94,47 +93,47 @@ namespace Mythologicum
                 var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation);
                 var record=network.TryPlace(footprint);
                 if (record == null)
-                    throw new InvalidDataException("A saved building has an invalid footprint.");
-                if(checkTerrain!=null&&!checkTerrain.RegisterFoundation(record,footprint))throw new InvalidDataException("A saved building foundation is not flat.");
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
+                if(checkTerrain!=null&&!checkTerrain.RegisterFoundation(record,footprint))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_foundation_is_not_flat"));
             }
-            foreach (var cell in data.paths) if (!checkGrid.GroundWalkable(cell,true)||!checkGrid.TryOccupy(cell, BuildCellContent.Path)) throw new InvalidDataException("Invalid saved path.");
+            foreach (var cell in data.paths) if (!checkGrid.GroundWalkable(cell,true)||!checkGrid.TryOccupy(cell, BuildCellContent.Path)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_path"));
             foreach (var fence in data.fences)
                 if (!Enum.IsDefined(typeof(FenceKind), fence.kind) || fence.health <= 0f || !Finite(fence.health)
                     || !checkFences.TryAdd(new FenceEdge(fence.cell, fence.alongX), fence.kind))
-                    throw new InvalidDataException("Invalid saved fence.");
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_fence"));
             var enrichment = new HashSet<Vector2Int>();
             foreach (var cell in data.trees)
-                if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved tree.");
+                if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_tree"));
             foreach (var cell in data.graves)
-                if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException("Invalid saved gravestone.");
+                if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_gravestone"));
             var rockCells=new HashSet<Vector2Int>();
             if(data.rocks!=null)foreach(var cell in data.rocks)
             {
-                if(!checkGrid.IsAvailable(cell)||!rockCells.Add(cell)||!enrichment.Add(cell))throw new InvalidDataException("Invalid saved rock.");
-                foreach(var record in network.Records)if(record.Footprint.AccessCell==cell)throw new InvalidDataException("Rock blocks a saved entrance.");
+                if(!checkGrid.IsAvailable(cell)||!rockCells.Add(cell)||!enrichment.Add(cell))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_rock"));
+                foreach(var record in network.Records)if(record.Footprint.AccessCell==cell)throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.rock_blocks_a_saved_entrance"));
             }
             if(data.treeVisuals!=null)
             {
                 var ids=new HashSet<Vector2Int>();var treeCells=new HashSet<Vector2Int>(data.trees);
                 foreach(var item in data.treeVisuals)if(item==null||!treeCells.Contains(item.cell)||!ids.Add(item.cell)||!Finite(item.height)||item.height<.1f||item.height>100||!Finite(item.yaw))
-                    throw new InvalidDataException("Invalid saved tree appearance.");
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_tree_appearance"));
             }
             foreach (var saved in data.creatures)
-                if (Species(saved.species) == null || !ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException("A saved creature is unavailable or invalid.");
+                if (Species(saved.species) == null || !ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_creature_is_unavailable_or_invalid"));
             var hired = new Dictionary<int,int>();
             foreach (var saved in data.staff)
             {
                 if (!ValidActor(saved, checkGrid) || saved.building < 0 || saved.building >= data.buildings.Count
-                    ||rockCells.Contains(saved.cell)|| !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException("Invalid staff home or employee.");
+                    ||rockCells.Contains(saved.cell)|| !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_staff_home_or_employee"));
                 hired.TryGetValue(saved.building, out int count); hired[saved.building] = count + 1;
                 // A lowered hiring limit must not discard employees already hired in an older balance.
                 // This is a corrupt-file guard, not the live hiring limit.
-                if (count >= 1000000) throw new InvalidDataException("Too many saved employees.");
+                if (count >= 1000000) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.too_many_saved_employees"));
             }
-            foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException("Invalid saved visitor.");
-            foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException("Invalid species research.");
+            foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
+            foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_species_research"));
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
-                || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException("Invalid saved finances or camera.");
+                || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_finances_or_camera"));
             if(data.version>=2)Progression.Validate(data.progression,network.Records);
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
@@ -148,7 +147,7 @@ namespace Mythologicum
             var source = Array.Find(buildingCatalog, d => d.kind == saved.kind);
             if (source == null || saved.width < 1 || saved.depth < 1 || saved.width > (mapWidth<0?grid.Width:mapWidth) || saved.depth > (mapDepth<0?grid.Depth:mapDepth)
                 || !Finite(saved.height) || saved.height <= 0f || !Finite(saved.price) || !Finite(saved.revenue) || !Finite(saved.expenses))
-                throw new InvalidDataException("A saved building type is unavailable or invalid.");
+                throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_type_is_unavailable_or_invalid"));
             // Clone settings so loading a footprint never changes the player's catalogue.
             var result = JsonUtility.FromJson<BuildingDefinition>(JsonUtility.ToJson(source));
             result.visualPrefab = source.visualPrefab;
@@ -171,34 +170,34 @@ namespace Mythologicum
                 var restored = new List<ParkBuildingRecord>();
                 foreach (var saved in data.buildings)
                 {
-                    if (!buildingConstruction.TryPlace(new BuildingFootprint(SavedDefinition(saved), saved.cell, saved.rotation))) throw new InvalidDataException("Could not restore building.");
+                    if (!buildingConstruction.TryPlace(new BuildingFootprint(SavedDefinition(saved), saved.cell, saved.rotation))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_building"));
                     restored.Add(buildingConstruction.Network.Records[restored.Count]);
                 }
-                foreach (var cell in data.paths) if (!paths.TryPlace(cell)) throw new InvalidDataException("Could not restore path.");
+                foreach (var cell in data.paths) if (!paths.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_path"));
                 foreach (var saved in data.fences)
                 {
                     var edge = new FenceEdge(saved.cell, saved.alongX);
-                    if (!fences.RestoreSegment(edge, saved.kind, saved.gate, saved.health)) throw new InvalidDataException("Could not restore fence.");
+                    if (!fences.RestoreSegment(edge, saved.kind, saved.gate, saved.health)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_fence"));
                 }
-                foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException("Could not restore tree.");
-                foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException("Could not restore gravestone.");
-                if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException("Could not restore rock.");
+                foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_tree"));
+                foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_gravestone"));
+                if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_rock"));
                 buildingConstruction.Network.Refresh();
                 // Restore all saved actors even if the designer has since lowered the shared population cap.
                 creatureWorld.PopulationLimit = Math.Max(creatureWorld.PopulationLimit, data.creatures.Count + data.staff.Count + data.visitors.Count);
                 // Restore staff without charging hiring fees, including temporarily disconnected homes.
                 foreach (var saved in data.staff)
                 {
-                    if (saved.building < 0 || saved.building >= restored.Count) throw new InvalidDataException("Invalid staff home.");
+                    if (saved.building < 0 || saved.building >= restored.Count) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_staff_home"));
                     var home = restored[saved.building];
                     var worker = staffWorld.RestoreEmployee(home, saved.cell);
-                    if (worker == null) throw new InvalidDataException("Could not restore employee.");
+                    if (worker == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_employee"));
                     RestoreActor(worker.Actor, saved);
                 }
                 foreach (var saved in data.creatures)
                 {
                     var dispenser = saved.building >= 0 && saved.building < restored.Count ? restored[saved.building] : null;
-                    if (!creatureWorld.TrySpawn(Species(saved.species), saved.cell, dispenser)) throw new InvalidDataException("Could not restore creature.");
+                    if (!creatureWorld.TrySpawn(Species(saved.species), saved.cell, dispenser)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_creature"));
                     var actor = creatureWorld.Agents[creatureWorld.Agents.Count - 1]; RestoreActor(actor, saved);
                     if (saved.retire) staffWorld.RequestRetire(actor);
                     if (saved.sedate) staffWorld.RequestSedate(actor);
@@ -206,7 +205,7 @@ namespace Mythologicum
                 foreach (var saved in data.visitors)
                 {
                     var guest = visitorWorld.RestoreGuest(saved.cell);
-                    if (guest == null) throw new InvalidDataException("Could not restore visitor.");
+                    if (guest == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_visitor"));
                     RestoreActor(guest.Actor, saved); guest.Mood.Restore(saved.satisfaction, saved.age, saved.patience, saved.leaving);
                     guest.LeavingPark = saved.leaving;
                 }
@@ -226,15 +225,16 @@ namespace Mythologicum
                 GetComponent<IsometricCameraController>()?.RestorePose(data.focus, data.yaw, data.zoom);
                 RefreshTerrainAttachments();groundVegetation.Refresh();
                 alerts?.ResetBaseline();
-                ResetConstructionHistory("Game loaded. Construction history starts here.");
-                GameSaveMenu.ShowMessage("Game loaded.");
+                ResetConstructionHistory("park.build_mode_controller__saving.game_loaded_construction_history_starts_here");
+                GameSaveMenu.ShowMessage(Loc.Text("park.build_mode_controller__saving.game_loaded"));
             }
             catch (Exception error)
             {
                 Debug.LogException(error);
                 // Never allow play or saving a partially reconstructed park after a failed load.
-                ParkSaveStore.Pending = null; ParkSaveStore.LoadError = "Load failed: " + error.Message;
-                Time.timeScale = 1f; SceneManager.LoadScene("MainMenuScene");
+                ParkSaveStore.Pending = null; ParkSaveStore.LoadError = Loc.Format("park.build_mode_controller__saving.load_failed", error.Message);
+                preparationFailed=true;ready=false;enabled=false;
+                SceneTransition.FailPreparation(error);
             }
             finally { creatureWorld.RestoringSave = false; buildingConstruction.Network.RestoringSave = false; }
         }

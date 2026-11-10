@@ -60,15 +60,15 @@ namespace Mythologicum
             scroll.movementType = ScrollRect.MovementType.Clamped;
             UIOverflowScroll.Attach(scroll);
 
-            retireButton = MakeButton(font, "Retire", 0, out retireLabel, () => { if (selected != null) retire?.Invoke(selected); Refresh(); });
-            sedateButton = MakeButton(font, "Sedate", 1, out sedateLabel, () => { if (selected != null) sedate?.Invoke(selected); Refresh(); });
-            moveButton = MakeButton(font, "Move", 2, out moveLabel, () => { if (selected != null) move?.Invoke(selected); Refresh(); });
+            retireButton = MakeButton(font, "creature.action.retire", 0, out retireLabel, () => { if (selected != null) retire?.Invoke(selected); Refresh(); });
+            sedateButton = MakeButton(font, "creature.action.sedate", 1, out sedateLabel, () => { if (selected != null) sedate?.Invoke(selected); Refresh(); });
+            moveButton = MakeButton(font, "creature.action.move", 2, out moveLabel, () => { if (selected != null) move?.Invoke(selected); Refresh(); });
             panel.SetActive(false);
         }
 
         private Button MakeButton(Font font, string title, int column, out Text label, Action clicked)
         {
-            var go = new GameObject(title, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            var go = new GameObject(Loc.InternalName(title), typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
             go.transform.SetParent(body, false);
             var rect = (RectTransform)go.transform;
             rect.anchorMin = rect.anchorMax = new Vector2((column + .5f) / 3f, 1f); rect.anchoredPosition = new Vector2(0f, -30f);
@@ -80,7 +80,7 @@ namespace Mythologicum
             var labelObject = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             labelObject.transform.SetParent(go.transform, false);
             label = labelObject.GetComponent<Text>(); label.font = UITheme.BodyFont; label.fontSize = 17;
-            label.color = Color.white; label.alignment = TextAnchor.MiddleCenter; label.raycastTarget = false; label.text = title;
+            label.color = Color.white; label.alignment = TextAnchor.MiddleCenter; label.raycastTarget = false; Loc.Set(label, title);
             label.rectTransform.anchorMin = Vector2.zero; label.rectTransform.anchorMax = Vector2.one;
             label.rectTransform.offsetMin = label.rectTransform.offsetMax = Vector2.zero;
             return button;
@@ -104,47 +104,38 @@ namespace Mythologicum
             frame.Refresh();
             CreatureDefinition definition = selected.Definition;
             CreatureNeedScores needs = selected.Wellbeing.Scores;
-            string herd = definition.maximumCompanions < 0 ? $"{definition.minimumCompanions + 1}+"
-                : $"{definition.minimumCompanions + 1}-{definition.maximumCompanions + 1}";
-            string reasons = "Rare curiosity";
-            if (selected.Vitals.Hunger > definition.Behaviour.escapeHungerStart) reasons += ", hunger";
-            if (selected.Wellbeing.Agitation > 0f) reasons += ", agitation";
-            if (selected.Crowding > 0f) reasons += ", space pressure";
-            title.text=definition.displayName;
-            text.text = $"Activity: {selected.Activity}\n"
-                + $"Origin: {definition.origin} | Rating: {definition.rating}/5\n"
-                + $"Health: {selected.Health.Current:0}/{selected.Health.Maximum:0}\n"
-                + $"Damage: {definition.damage:0} | Threat: {definition.threat:0}\n"
-                + $"Happiness: {selected.Wellbeing.Happiness:0}/100"
-                + (selected.Wellbeing.Agitation > 0f ? "  AGITATED\n" : "\n")
-                + $"Hunger: {selected.Vitals.Hunger:0} | Fear: {selected.Vitals.Fear:0}\n"
-                + $"Energy: {selected.Energy.Energy:0} | Exhaustion: {selected.Energy.Exhaustion:0}\n"
-                + (definition.requiresGravestoneForSleep ? "Sleep site: a reachable gravestone\n"
-                    : definition.requiresTreeForSleep ? "Sleep site: climb a reachable tree\n" : "Sleep site: any safe ground\n")
-                + $"Environment: {needs.Environment:0}/100\n"
-                + $"Nearby trees: {selected.NearbyTrees}/{definition.requiredTrees}\n"
+            string herd = definition.maximumCompanions < 0
+                ? Loc.Format("creature.group.unbounded", definition.minimumCompanions + 1)
+                : Loc.Format("creature.group.range", definition.minimumCompanions + 1, definition.maximumCompanions + 1);
+            string reasons = Loc.Text("creature.reason.curiosity");
+            if (selected.Vitals.Hunger > definition.Behaviour.escapeHungerStart) reasons += Loc.Text("creature.reason.hunger");
+            if (selected.Wellbeing.Agitation > 0f) reasons += Loc.Text("creature.reason.agitation");
+            if (selected.Crowding > 0f) reasons += Loc.Text("creature.reason.space");
+            title.text=definition.DisplayName;
+            text.text = Loc.Format("creature.info.vitals", Loc.Enum(selected.Activity), definition.Origin, definition.rating,
+                selected.Health.Current, selected.Health.Maximum, definition.damage, definition.threat,
+                selected.Wellbeing.Happiness, selected.Wellbeing.Agitation > 0f ? Loc.Text("creature.info.agitated") : "",
+                selected.Vitals.Hunger, selected.Vitals.Fear, selected.Energy.Energy, selected.Energy.Exhaustion)
+                + Loc.Text(definition.requiresGravestoneForSleep ? "creature.info.sleep.grave"
+                    : definition.requiresTreeForSleep ? "creature.info.sleep.tree" : "creature.info.sleep.ground")
+                + Loc.Format("creature.info.environment", needs.Environment, selected.NearbyTrees, definition.requiredTrees)
                 + (definition.requiredGravestones > 0 || definition.requiresGravestoneForSleep
-                    ? $"Nearby gravestones: {selected.NearbyGravestones}/{definition.requiredGravestones}\n" : "")
-                + $"Space: {needs.Space:0}/100\n"
-                + $"Reachable: {selected.AccessibleArea:0} / {definition.minimumSpace:0} m²\n"
-                + $"Herd: {needs.Herd:0}/100\n"
-                + $"Group: {selected.Companions + 1} (preferred {herd}, including self)\n"
-                + $"Space pressure: {selected.Crowding * 100f:0}%\n"
-                + $"Escape urge: {selected.EscapeChancePerMinute * 100f:0.00}% / minute\n"
-                + $"Reasons: {reasons}\n{selected.EscapeStatus}\n"
-                + "Urge is not escape success.\nSleep, urgent actions and retries pause attempts.\n";
-            if (selected.IsSedated) text.text += $"\nSedation remaining: {selected.SedationRemaining:0}s\n";
-            if (!string.IsNullOrEmpty(selected.StaffStatus)) text.text += "\nStaff: " + selected.StaffStatus + "\n";
-            if (researchNotes != null) text.text += "\nResearch notes\n" + researchNotes(definition);
+                    ? Loc.Format("creature.info.gravestones", selected.NearbyGravestones, definition.requiredGravestones) : "")
+                + Loc.Format("creature.info.space_herd_escape", needs.Space, selected.AccessibleArea, definition.minimumSpace,
+                    needs.Herd, selected.Companions + 1, herd, selected.Crowding * 100f,
+                    selected.EscapeChancePerMinute * 100f, reasons, selected.EscapeStatus);
+            if (selected.IsSedated) text.text += Loc.Format("creature.info.sedation", selected.SedationRemaining);
+            if (!string.IsNullOrEmpty(selected.StaffStatus)) text.text += Loc.Format("creature.info.staff", selected.StaffStatus);
+            if (researchNotes != null) text.text += Loc.Format("creature.info.research_notes", researchNotes(definition));
             text.rectTransform.sizeDelta = new Vector2(0f, Mathf.Ceil(text.preferredHeight));
             bool controllable = !selected.ExternallyControlled && selected.CarriedBy == null && !selected.RetirementRequested;
             retireButton.interactable = controllable && retire != null;
             sedateButton.interactable = controllable && !selected.IsSedated && !selected.SedationRequested && sedate != null;
             moveButton.gameObject.SetActive(selected.IsSedated && !selected.ExternallyControlled);
             moveButton.interactable = controllable && !selected.MoveRequestedDestination.HasValue && move != null;
-            retireLabel.text = selected.RetirementRequested ? "Retire queued" : "Retire";
-            sedateLabel.text = selected.IsSedated ? "Sedated" : selected.SedationRequested ? "Sedate queued" : "Sedate";
-            moveLabel.text = selected.CarriedBy != null ? "Being moved" : selected.MoveRequestedDestination.HasValue ? "Move queued" : "Move";
+            Loc.Set(retireLabel, selected.RetirementRequested ? "creature.action.retire_queued" : "creature.action.retire");
+            Loc.Set(sedateLabel, selected.IsSedated ? "creature.action.sedated" : selected.SedationRequested ? "creature.action.sedate_queued" : "creature.action.sedate");
+            Loc.Set(moveLabel, selected.CarriedBy != null ? "creature.action.being_moved" : selected.MoveRequestedDestination.HasValue ? "creature.action.move_queued" : "creature.action.move");
             int columns=moveButton.gameObject.activeSelf?3:2;
             float buttonWidth=(body.rect.width-12f*(columns-1))/columns;
             int column=0;
