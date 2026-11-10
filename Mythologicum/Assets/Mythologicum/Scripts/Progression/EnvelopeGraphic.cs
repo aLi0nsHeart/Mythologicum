@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 namespace Mythologicum
 {
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class EnvelopeGraphic : Graphic
     {
         protected override void OnPopulateMesh(VertexHelper vh)

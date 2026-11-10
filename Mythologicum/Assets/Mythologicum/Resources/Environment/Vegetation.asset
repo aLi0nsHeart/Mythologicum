@@ -48,3 +48,4 @@ MonoBehaviour:
   patchesPerCell: 2
   scatterSeed: 271026
   treeHeight: 3.4
+  forestCoveragePerTree: 0.5

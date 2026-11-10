@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
   m_Name: Oni
   m_EditorClassIdentifier: 
-  displayName: Oni
+  displayName: creature.name.oni
   diet: 0
   tags: 2
   preyTags: 5
@@ -70,7 +70,7 @@ MonoBehaviour:
   bodyScale: {x: 1.3, y: 1.4, z: 1.3}
   phaseHungerThreshold: 80
   damage: 90
-  origin: Yokai
+  origin: creature.origin.yokai
   feedsOnFear: 0
   threat: 100
   requiredGravestones: 0

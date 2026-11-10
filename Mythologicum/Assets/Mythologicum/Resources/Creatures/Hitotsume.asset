@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
   m_Name: Hitotsume
   m_EditorClassIdentifier: 
-  displayName: Hitotsume
+  displayName: creature.name.hitotsume
   diet: 3
   tags: 2
   preyTags: 4
@@ -70,7 +70,7 @@ MonoBehaviour:
   bodyScale: {x: 0.85, y: 0.85, z: 1.2}
   phaseHungerThreshold: 80
   damage: 0
-  origin: Yokai
+  origin: creature.origin.yokai
   feedsOnFear: 1
   threat: 20
   requiredGravestones: 0

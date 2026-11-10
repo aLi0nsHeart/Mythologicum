@@ -5,47 +5,85 @@ namespace Mythologicum
 {
     public sealed class NotificationPresentation : IDisposable
     {
-        private readonly GameObject letter, badge, panel;
-        private readonly RectTransform content;
+        private readonly GameObject letter, panel;
+        private readonly RectTransform content, body;
+        private readonly UIFramedPanel frame;
+        private readonly Button markAll, unreadFilter, close;
         private readonly NotificationInbox inbox;
         private readonly Action<Vector2Int> focus;
+        private readonly Text mailLabel;
+        private readonly Action opened;
+        private int lastUnread=-1;
         private int revision=-1;
+        private int languageRevision=-1;
+        private bool onlyUnread;
+        private float bodyWidth=-1;
         public bool IsOpen => panel.activeSelf;
-        public NotificationPresentation(Canvas canvas,NotificationInbox inbox,Action<Vector2Int> focus)
+        public NotificationPresentation(Canvas canvas,NotificationInbox inbox,Action<Vector2Int> focus,Action opened=null)
         {
-            this.inbox=inbox;this.focus=focus;
-            var button=ManagementWidgets.Button(canvas.transform,"Letters",Vector2.zero,new Vector2(64,52),Toggle);letter=button.gameObject;
-            var r=(RectTransform)letter.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,86);
-            letter.GetComponentInChildren<Text>().text="";
-            var icon=ManagementWidgets.Rect(letter.transform,"Envelope",new Vector2(12,13),new Vector2(40,26)).gameObject.AddComponent<EnvelopeGraphic>();
-            icon.color=new Color(.95f,.88f,.7f);icon.raycastTarget=false;
-            badge=ManagementWidgets.Box(letter.transform,"Unread notifications",new Vector2(45,-7),new Vector2(24,25),new Color(.8f,.19f,.1f));
-            var badgeText=ManagementWidgets.Label(badge.transform,"!",Vector2.zero,new Vector2(24,25),22);badgeText.alignment=TextAnchor.MiddleCenter;
-            float width=460,height=Mathf.Min(430,((RectTransform)canvas.transform).rect.height-190);
-            panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,new Vector2(width,height));
-            r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(1,0);r.anchoredPosition=new Vector2(-18,150);
-            ManagementWidgets.Label(panel.transform,"Letters",new Vector2(12,12),new Vector2(160,35),22);
-            ManagementWidgets.Button(panel.transform,"Mark all read",new Vector2(174,8),new Vector2(180,35),()=>{inbox.MarkAllRead();Refresh();},16);
-            ManagementWidgets.Button(panel.transform,"Close",new Vector2(364,8),new Vector2(84,35),Close,16);
-            content=ManagementWidgets.Scroll(panel.transform,"Letters - scroll to read",new Vector2(10,53),new Vector2(width-20,height-63),0);
+            this.inbox=inbox;this.focus=focus;this.opened=opened;
+            var button=ManagementWidgets.Button(canvas.transform,"park.notification_presentation.letters",Vector2.zero,new Vector2(64,52),Toggle);letter=button.gameObject;
+            var r=(RectTransform)letter.transform;r.anchorMin=r.anchorMax=new Vector2(0,0);r.pivot=new Vector2(.5f,.5f);
+            r.anchoredPosition=new Vector2(266,90);r.sizeDelta=new Vector2(64,64);
+            mailLabel=letter.GetComponentInChildren<Text>();mailLabel.text=Loc.Text("park.notification_presentation.mail");
+            UIIcon.AttachStandalone(button,UIIconKind.Mail);
+            UILayoutElement.Bind(r,UILayoutBinding.MailIcon);
+            panel=ManagementWidgets.Box(canvas.transform,"Notification inbox",Vector2.zero,Vector2.one);
+            r=(RectTransform)panel.transform;r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,0);r.anchoredPosition=new Vector2(24,210);
+            frame=UIFramedPanel.Attach(panel,false,720);body=frame.Content;
+            var heading=ManagementWidgets.Label(frame.Header,"park.notification_presentation.letters",Vector2.zero,frame.Header.rect.size,24);
+            heading.alignment=TextAnchor.MiddleCenter;
+            float width=body.rect.width,height=body.rect.height;
+            markAll=ManagementWidgets.Button(body,"park.notification_presentation.mark_all_read",Vector2.zero,new Vector2(180,36),()=>{inbox.MarkAllRead();Refresh();},16);
+            unreadFilter=ManagementWidgets.Button(body,"park.notification_presentation.filter_unread_letters",new Vector2(188,0),new Vector2(140,36),()=>
+            {onlyUnread=!onlyUnread;revision=-1;Refresh();},16);
+            close=ManagementWidgets.Button(body,"park.notification_presentation.close",new Vector2(width-84,0),new Vector2(84,36),Close,16);
+            content=ManagementWidgets.Scroll(body,"Letters - scroll to read",new Vector2(0,46),new Vector2(width,height-46),0);
             panel.SetActive(false);Refresh();
         }
-        public void Toggle() {if(IsOpen){Close();return;}panel.SetActive(true);panel.transform.SetAsLastSibling();inbox.MarkAllRead();revision=-1;Refresh();}
+        public void Toggle() {if(IsOpen){Close();return;}opened?.Invoke();panel.SetActive(true);panel.transform.SetAsLastSibling();revision=-1;Refresh();UIThemeApplicator.ApplyAll(panel.GetComponentInParent<Canvas>());}
         public void Close()=>panel.SetActive(false);
         public void Refresh()
         {
-            badge.SetActive(inbox.UnreadCount>0);
-            if(!IsOpen||revision==inbox.Revision)return;revision=inbox.Revision;ManagementWidgets.Clear(content);
+            if(lastUnread!=inbox.UnreadCount)
+            {
+                lastUnread=inbox.UnreadCount;
+                if(lastUnread>0)Loc.Set(mailLabel,"park.notification_presentation.mail_unread",lastUnread);
+                else Loc.Set(mailLabel,"park.notification_presentation.mail");
+                UIIcon.AttachStandalone(letter.GetComponent<Button>(),lastUnread>0?UIIconKind.MailUnread:UIIconKind.Mail);
+            }
+            if(!IsOpen)return;
+            frame.Refresh();
+            float width=body.rect.width;
+            bool resized=Mathf.Abs(bodyWidth-width)>.1f;bodyWidth=width;
+            Place(markAll,0,Mathf.Min(180,width*.38f));
+            Place(unreadFilter,Mathf.Min(180,width*.38f)+8,Mathf.Min(140,width*.28f));
+            Place(close,width-Mathf.Min(84,width*.2f),Mathf.Min(84,width*.2f));
+            var scroll=(RectTransform)content.parent.parent;
+            scroll.sizeDelta=new Vector2(width,Mathf.Max(0,body.rect.height-46));
+            markAll.interactable=inbox.UnreadCount>0;
+            unreadFilter.GetComponentInChildren<Text>().text=onlyUnread?Loc.Text("park.notification_presentation.unread_only"):Loc.Text("park.notification_presentation.all_letters");
+            if(!resized&&revision==inbox.Revision&&languageRevision==Loc.Revision)return;
+            revision=inbox.Revision;languageRevision=Loc.Revision;ManagementWidgets.Clear(content);
             float y=0;
             for(int i=inbox.Entries.Count-1;i>=0;i--)
             {
-                var n=inbox.Entries[i];string title=(n.read?"":"NEW: ")+n.title+(n.count>1?" ("+n.count+")":"");
-                var row=ManagementWidgets.Button(content,title,new Vector2(0,y),new Vector2(440,112),()=>{inbox.MarkRead(n.id);if(n.hasLocation){focus(n.location);Close();}Refresh();},17);
-                var text=row.GetComponentInChildren<Text>();text.alignment=TextAnchor.UpperLeft;text.text=title+"\n"+n.body+(n.hasLocation?"\nClick to view location.":"");
-                y+=120;
+                var n=inbox.Entries[i];if(onlyUnread&&n.read)continue;
+                string severity=n.severity==ParkNoticeSeverity.Critical?Loc.Text("park.notification.critical"):n.severity==ParkNoticeSeverity.Warning?Loc.Text("park.notification.warning"):"";
+                string title=Loc.Format("park.notification.title", n.read?"":Loc.Text("park.notification.new"), severity, n.LocalizedTitle, n.count>1?Loc.Format("park.notification.count",n.count):"");
+                var row=ManagementWidgets.Button(content,title,new Vector2(0,y),new Vector2(content.rect.width-14,80),()=>{inbox.MarkRead(n.id);if(n.hasLocation){focus(n.location);Close();}Refresh();},17);
+                var text=row.GetComponentInChildren<Text>();text.alignment=TextAnchor.UpperLeft;text.text=Loc.Format("park.notification_presentation.format", title, n.LocalizedBody, (n.hasLocation?Loc.Text("park.notification_presentation.click_to_view_location"):""));
+                float rowHeight=Mathf.Max(76,text.preferredHeight+16);
+                ((RectTransform)row.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,rowHeight);
+                y+=rowHeight+8;
             }
-            if(y==0){ManagementWidgets.Label(content,"No letters yet.",new Vector2(8,5),new Vector2(420,45));y=55;}
+            if(y==0){ManagementWidgets.Label(content,onlyUnread?"park.notification_presentation.no_unread_letters":"park.notification_presentation.no_letters_yet",new Vector2(8,5),new Vector2(content.rect.width-30,35));y=44;}
             content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,y);
+            UIOverflowScroll.Attach(content.GetComponentInParent<ScrollRect>()).Refresh();
+        }
+        private static void Place(Button button,float x,float width)
+        {
+            var rect=(RectTransform)button.transform;rect.anchoredPosition=new Vector2(x,0);rect.sizeDelta=new Vector2(width,36);
         }
         public void Dispose(){UnityEngine.Object.Destroy(letter);UnityEngine.Object.Destroy(panel);}
     }

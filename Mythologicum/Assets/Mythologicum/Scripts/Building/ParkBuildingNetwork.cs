@@ -16,11 +16,16 @@ namespace Mythologicum
         public float Expenses { get; private set; }
         public float Profit => Revenue - Expenses;
         public const int EmployeeCapacity = 5;
+        public int Capacity => Math.Max(0, Footprint.Definition.staffCapacity);
         public int HiredCount
         {
             get => hiredCount;
-            internal set => hiredCount = Footprint.Definition.IsEmployeeBuilding ? Math.Max(0, Math.Min(EmployeeCapacity, value)) : 0;
+            internal set => hiredCount = Footprint.Definition.IsEmployeeBuilding
+                ? Math.Max(0, value > hiredCount ? Math.Max(hiredCount, Math.Min(Capacity, value)) : value) : 0;
         }
+        // Existing staff stay employed when a balance edit lowers the hiring limit. New hires still use Capacity.
+        internal void RestoreEmployeeCount(int value)
+            => hiredCount = Footprint.Definition.IsEmployeeBuilding ? Math.Max(0, value) : 0;
         public float UpkeepPerSecond => Bounded((double)Amount(Footprint.Definition.operatingCostPerSecond)
             + HiredCount * (double)Amount(Footprint.Definition.staffSalaryPerSecond));
         public int FeedStock { get; private set; }
@@ -30,8 +35,9 @@ namespace Mythologicum
         {
             Footprint = footprint;
             RuntimeId = System.Threading.Interlocked.Increment(ref nextId);
-            Price = footprint.Definition.kind == BuildingKind.ParkEntrance ? 15f
-                : footprint.Definition.kind == BuildingKind.Kiosk ? Amount(footprint.Definition.foodPrice) : 0f;
+            Price = footprint.Definition.kind == BuildingKind.ParkEntrance ? Amount(footprint.Definition.admissionPrice)
+                : footprint.Definition.kind == BuildingKind.Kiosk ? Amount(footprint.Definition.foodPrice)
+                : footprint.Definition.kind == BuildingKind.RestArea ? Amount(footprint.Definition.restPrice) : 0f;
             if (footprint.Definition.kind == BuildingKind.GoatDispenser) RestockFeed();
         }
         public bool SetPrice(float value)

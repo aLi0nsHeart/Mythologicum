@@ -22,7 +22,7 @@ namespace Mythologicum
         private int reputationGridRevision = -1, reputationFenceRevision = -1;
         private int gridRevision = -1, fenceRevision = -1;
         public VisitorDefinition Definition { get; }
-        public ParkReputation Reputation { get; } = new ParkReputation();
+        public ParkReputation Reputation { get; }
         public int RejectedAdmissions { get; private set; }
         public int ExpensiveServiceRefusals { get; private set; }
         internal void RestoreFeedbackCounts(int rejected, int serviceRefusals)
@@ -42,17 +42,18 @@ namespace Mythologicum
         }
 
         public VisitorWorld(SquareBuildGrid grid, FenceLayout fences, ParkBuildingNetwork buildings,
-            CreatureWorld creatures, VisitorDefinition definition, ParkEconomy economy)
+            CreatureWorld creatures, VisitorDefinition definition, ParkEconomy economy, ParkReputation reputation = null)
         {
             this.grid = grid; this.fences = fences; this.buildings = buildings;
             this.creatures = creatures; this.economy = economy;
             Definition = definition;
+            Reputation = reputation ?? new ParkReputation();
             navigation = new VisitorNavigation(grid, fences, creatures.IsClear);
             sight = new CreatureNavigation(grid, fences, creatures.IsClear);
             actorProfile = ScriptableObject.CreateInstance<CreatureDefinition>();
-            actorProfile.name = "Visitor actor"; actorProfile.displayName = "Visitor";
+            actorProfile.name = "Visitor actor"; actorProfile.displayName = "visitor.name";
             actorProfile.diet = CreatureDiet.None; actorProfile.tags = CreatureTags.Visitor;
-            actorProfile.maximumHealth = 60f; actorProfile.damage = 0f; actorProfile.threat = 10f; actorProfile.origin = "Human";
+            actorProfile.maximumHealth = definition.maximumHealth; actorProfile.damage = 0f; actorProfile.threat = definition.threat; actorProfile.origin = "creature.origin.human";
             actorProfile.fearedTags = CreatureTags.Predator; actorProfile.manuallyPlaceable = false;
             actorProfile.initialHunger = definition.initialHunger; actorProfile.initialEnergy = definition.initialEnergy;
             actorProfile.hungerPerSecond = definition.hungerPerSecond; actorProfile.energyDrainPerSecond = definition.energyDrainPerSecond;
@@ -79,6 +80,7 @@ namespace Mythologicum
             CreatureAgent actor = creatures.SpawnExternal(actorProfile, buildings.Entrance.Footprint.AccessCell, model);
             if (actor == null) return null;
             var visitor = actor.gameObject.AddComponent<VisitorAgent>();
+            visitor.Mood = new VisitorMood(rules: Definition.mood);
             visitor.Actor = actor; visitor.Activity = VisitorActivity.Arriving;
             visitors.Add(visitor);
             float ticket = buildings.Entrance.Price;
@@ -95,6 +97,7 @@ namespace Mythologicum
             var actor = creatures.SpawnExternal(actorProfile, cell, model);
             if (actor == null) return null;
             var guest = actor.gameObject.AddComponent<VisitorAgent>();
+            guest.Mood = new VisitorMood(rules: Definition.mood);
             guest.Actor = actor; guest.Activity = VisitorActivity.Arriving; visitors.Add(guest); return guest;
         }
 
@@ -126,7 +129,7 @@ namespace Mythologicum
                 {
                     guest.LeavingPark = true;
                     ReleaseService(guest); actor.Route.Clear(); actor.Goal = null;
-                    SetActivity(guest, VisitorActivity.Captured, "Caught by a predator");
+                    SetActivity(guest, VisitorActivity.Captured, "visitor.status.caught_by_a_predator");
                     guest.Mood.Tick(dt, actor.Vitals.Hunger, actor.Energy.Energy, 100f, false, false,
                         Definition.minimumStaySeconds, Definition.maximumStaySeconds);
                     creatures.RefreshExternal(actor); continue;
@@ -138,7 +141,7 @@ namespace Mythologicum
                 bool resting = guest.Activity == VisitorActivity.Resting && ServiceAvailable(guest);
                 float recovery = resting ? guest.Service.Footprint.Definition.restRecoveryPerSecond : 0f;
                 actor.Energy.Tick(dt, Definition.energyDrainPerSecond,
-                    guest.Activity == VisitorActivity.Fleeing ? 3f : 1f, resting, recovery);
+                    guest.Activity == VisitorActivity.Fleeing ? Definition.fleeingEnergyMultiplier : 1f, resting, recovery);
                 bool watching = guest.Activity == VisitorActivity.Watching && guest.Watching != null
                     && guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange);
                 guest.Mood.Tick(dt, actor.Vitals.Hunger, actor.Energy.Energy, actor.Vitals.Fear,
@@ -148,10 +151,10 @@ namespace Mythologicum
                 if (threat != null)
                 {
                     guest.LastDanger = threat.transform.position;
-                    if (!guest.Panicked) guest.Mood.Punish(25f);
+                    if (!guest.Panicked) guest.Mood.Punish(Definition.predatorEncounterPenalty);
                     guest.Panicked = true; guest.LeavingPark = true;
                 }
-                bool danger = threat != null || (guest.Panicked && actor.Vitals.Fear >= 20f
+                bool danger = threat != null || (guest.Panicked && actor.Vitals.Fear >= Definition.panicFearThreshold
                     && Distance(actor.transform.position, guest.LastDanger) < Definition.fleeSafeDistance);
                 if (danger)
                 {
@@ -177,7 +180,8 @@ namespace Mythologicum
                     Reputation.ReportDeparture(guest.Mood.Satisfaction);
                     creatures.RemoveExternal(actor); continue;
                 }
-                actor.ExternalStatus = guest.Status + $" | Satisfaction {guest.Mood.Satisfaction:0}";
+                actor.ExternalStatus = Loc.Format("visitor.status.with_satisfaction", guest.Status, guest.Mood.Satisfaction);
+                actor.ExternalResting = guest.Activity == VisitorActivity.Resting;
                 creatures.RefreshExternal(actor);
             }
         }
@@ -207,14 +211,14 @@ namespace Mythologicum
                     if (!visible) continue;
                     CreatureDefinition definition = animal.Definition;
                     string species = string.IsNullOrEmpty(definition.name) ? definition.displayName : definition.name;
-                    if (string.IsNullOrEmpty(species)) species = "Unidentified creature";
+                    if (string.IsNullOrEmpty(species)) species = "creature.name.unidentified";
                     if (displayed.TryGetValue(species, out ParkExhibit existing)) existing.count++;
                     else displayed.Add(species, new ParkExhibit(species, definition.rating, 1,
-                        (definition.tags & CreatureTags.Goat) != 0 || definition.origin == "Domestic"));
+                        definition.IsDomestic));
                 }
             }
             Reputation.UpdateExhibition(displayed.Values);
-            reputationTimer = 5f;
+            reputationTimer = Definition.reputationRefreshSeconds;
             reputationGridRevision = grid.Revision; reputationFenceRevision = fences.Revision;
         }
 
@@ -262,7 +266,7 @@ namespace Mythologicum
             CreatureAgent actor = guest.Actor;
             CompleteActivity(guest);
             if (guest.LeavingPark && (guest.Activity == VisitorActivity.Eating || guest.Activity == VisitorActivity.Resting))
-            { ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "Ready to leave"); }
+            { ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "visitor.status.ready_to_leave"); }
             if (guest.Activity == VisitorActivity.Eating || guest.Activity == VisitorActivity.Resting)
             {
                 if (!ServiceAvailable(guest))
@@ -276,15 +280,15 @@ namespace Mythologicum
             {
                 ReleaseService(guest);
                 if (ReturnToPath(guest)) return;
-                SetActivity(guest, VisitorActivity.Stranded, "Cannot reach a connected path"); return;
+                SetActivity(guest, VisitorActivity.Stranded, "visitor.status.cannot_reach_a_connected_path"); return;
             }
             if (guest.LeavingPark)
             {
                 ReleaseService(guest);
                 if (buildings.Entrance != null && buildings.Entrance.IsOpen
                     && SetRoute(guest, buildings.Entrance.Footprint.AccessCell))
-                    SetActivity(guest, VisitorActivity.Leaving, "Returning to the park entrance");
-                else { FinishSegment(actor); SetActivity(guest, VisitorActivity.Stranded, "Exit disconnected: reconnect the path"); }
+                    SetActivity(guest, VisitorActivity.Leaving, "visitor.status.returning_to_the_park_entrance");
+                else { FinishSegment(actor); SetActivity(guest, VisitorActivity.Stranded, "visitor.status.exit_disconnected_reconnect_the_path"); }
                 return;
             }
             if ((guest.Activity == VisitorActivity.SeekingFood || guest.Activity == VisitorActivity.SeekingRest)
@@ -300,8 +304,8 @@ namespace Mythologicum
             if (actor.Route.Count > 0) return;
             List<Vector2Int> paths = navigation.Reachable(actor.Cell);
             if (paths.Count > 1 && SetRoute(guest, paths[UnityEngine.Random.Range(0, paths.Count)]))
-                SetActivity(guest, VisitorActivity.Walking, "Exploring the paths");
-            else SetActivity(guest, VisitorActivity.Arriving, "Looking for creatures to watch");
+                SetActivity(guest, VisitorActivity.Walking, "visitor.status.exploring_the_paths");
+            else SetActivity(guest, VisitorActivity.Arriving, "visitor.status.looking_for_creatures_to_watch");
         }
 
         private bool TryService(VisitorAgent guest, BuildingKind kind)
@@ -327,7 +331,7 @@ namespace Mythologicum
             guest.Service = best; guest.Watching = null;
             guest.PriceComplaint = null;
             SetActivity(guest, kind == BuildingKind.Kiosk ? VisitorActivity.SeekingFood : VisitorActivity.SeekingRest,
-                kind == BuildingKind.Kiosk ? "Walking to a kiosk" : "Walking to a rest area");
+                kind == BuildingKind.Kiosk ? "visitor.status.walking_to_a_kiosk" : "visitor.status.walking_to_a_rest_area");
             return true;
         }
 
@@ -335,10 +339,10 @@ namespace Mythologicum
         {
             float next = food ? guest.NextFoodPriceComplaint : guest.NextRestPriceComplaint;
             if (time < next) return;
-            if (food) guest.NextFoodPriceComplaint = time + 30f; else guest.NextRestPriceComplaint = time + 30f;
+            if (food) guest.NextFoodPriceComplaint = time + Definition.priceComplaintCooldownSeconds; else guest.NextRestPriceComplaint = time + Definition.priceComplaintCooldownSeconds;
             if (ExpensiveServiceRefusals < int.MaxValue) ExpensiveServiceRefusals++;
-            guest.PriceComplaint = food ? "Food prices are too high" : "Rest prices are too high";
-            guest.Mood.Punish(2f);
+            guest.PriceComplaint = food ? "visitor.status.food_prices_are_too_high" : "visitor.status.rest_prices_are_too_high";
+            guest.Mood.Punish(Definition.expensiveServicePenalty);
         }
 
         private bool ServiceAvailable(VisitorAgent guest)
@@ -359,19 +363,19 @@ namespace Mythologicum
             {
                 if (!candidate.Alive || candidate.ExternallyControlled
                     || candidate.Definition.requiresGravestoneForSleep && candidate.Activity == CreatureActivity.Sleeping) continue;
-                if (guest.ViewedAt.TryGetValue(candidate, out float last) && time - last < 30f) continue;
+                if (guest.ViewedAt.TryGetValue(candidate, out float last) && time - last < Definition.exhibitRevisitSeconds) continue;
                 foreach (Vector2Int path in paths)
                 {
                     float distance = Distance(grid.CellCenter(path), candidate.transform.position);
                     if (distance > Definition.viewRange || !sight.HasLineOfSight(path, candidate.Cell)) continue;
-                    float score = 100f - ConstructionRouteGraph.CellDistance(guest.Actor.Cell, path)
-                        - Mathf.Abs(distance - 5f) * 2f;
+                    float score = -ConstructionRouteGraph.CellDistance(guest.Actor.Cell, path) * Definition.viewingTravelPenalty
+                        - Mathf.Abs(distance - Definition.preferredViewingDistance) * Definition.viewingDistancePenalty;
                     if (score > best) { best = score; animal = candidate; point = path; }
                 }
             }
             if (animal == null || !SetRoute(guest, point)) return false;
             guest.Watching = animal;
-            SetActivity(guest, VisitorActivity.Walking, "Walking to a viewing spot");
+            SetActivity(guest, VisitorActivity.Walking, "visitor.status.walking_to_a_viewing_spot");
             return true;
         }
 
@@ -383,12 +387,12 @@ namespace Mythologicum
             {
                 float distance = Distance(grid.CellCenter(candidate), guest.LastDanger);
                 int steps = ConstructionRouteGraph.CellDistance(actor.Cell, candidate);
-                float score = distance >= Definition.fleeSafeDistance ? 1000f - steps : distance;
-                if (grid.ContentAt(candidate) == BuildCellContent.Path) score += .1f;
+                float score = distance >= Definition.fleeSafeDistance ? Definition.safeEscapeScore - steps : distance;
+                if (grid.ContentAt(candidate) == BuildCellContent.Path) score += Definition.escapePathPreference;
                 if (score > bestScore) { bestScore = score; best = candidate; }
             }
             SetRoute(guest, best, true);
-            SetActivity(guest, VisitorActivity.Fleeing, "Fleeing a predator");
+            SetActivity(guest, VisitorActivity.Fleeing, "visitor.status.fleeing_a_predator");
         }
 
         private bool ReturnToPath(VisitorAgent guest)
@@ -403,7 +407,7 @@ namespace Mythologicum
                 if (candidate < distance) { distance = candidate; best = cell; }
             }
             if (!best.HasValue || !SetRoute(guest, best.Value, true)) return false;
-            SetActivity(guest, VisitorActivity.ReturningToPath, "Rejoining a path after fleeing");
+            SetActivity(guest, VisitorActivity.ReturningToPath, "visitor.status.rejoining_a_path_after_fleeing");
             if (actor.Route.Count == 0) guest.GroundRoute = false;
             return true;
         }
@@ -452,30 +456,30 @@ namespace Mythologicum
                 if (!Reputation.ServiceAffordable(guest.Service.Price, food))
                 {
                     RefuseServicePrice(guest, food); ReleaseService(guest); guest.DecisionTimer = 0f;
-                    SetActivity(guest, VisitorActivity.Arriving, "Looking for an affordable service"); return;
+                    SetActivity(guest, VisitorActivity.Arriving, "visitor.status.looking_for_an_affordable_service"); return;
                 }
                 guest.QuotedPrice = guest.Service.Price;
                 guest.StateTimer = Mathf.Max(.1f, guest.Service.Footprint.Definition.serviceSeconds);
                 SetActivity(guest, food ? VisitorActivity.Eating : VisitorActivity.Resting,
-                    food ? "Eating at a kiosk" : "Resting at a bench area");
+                    food ? "visitor.status.eating_at_a_kiosk" : "visitor.status.resting_at_a_bench_area");
             }
             else if (guest.Activity == VisitorActivity.Eating && guest.StateTimer <= 0f && ServiceAvailable(guest))
             {
                 BuildingDefinition service = guest.Service.Footprint.Definition;
-                actor.Vitals.Eat(service.foodRelief); ChargeService(guest); guest.Mood.Reward(8f);
-                ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "Finished eating"); guest.DecisionTimer = 0f;
+                actor.Vitals.Eat(service.foodRelief); ChargeService(guest); guest.Mood.Reward(Definition.mealSatisfactionReward);
+                ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "visitor.status.finished_eating"); guest.DecisionTimer = 0f;
             }
             else if (guest.Activity == VisitorActivity.Resting && actor.Energy.Energy >= Definition.comfortableEnergy && ServiceAvailable(guest))
             {
-                ChargeService(guest); guest.Mood.Reward(6f); ReleaseService(guest);
-                SetActivity(guest, VisitorActivity.Arriving, "Feeling rested"); guest.DecisionTimer = 0f;
+                ChargeService(guest); guest.Mood.Reward(Definition.restSatisfactionReward); ReleaseService(guest);
+                SetActivity(guest, VisitorActivity.Arriving, "visitor.status.feeling_rested"); guest.DecisionTimer = 0f;
             }
             else if (guest.Activity == VisitorActivity.Walking && guest.Watching != null)
             {
                 if (guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange))
                 {
                     guest.StateTimer = Mathf.Max(.1f, Definition.watchingSeconds);
-                    SetActivity(guest, VisitorActivity.Watching, "Watching " + guest.Watching.Definition.displayName);
+                    SetActivity(guest, VisitorActivity.Watching, "visitor.status.watching", guest.Watching.Definition.displayName);
                 }
                 else { guest.Watching = null; guest.DecisionTimer = 0f; }
             }
@@ -484,9 +488,9 @@ namespace Mythologicum
                 if (guest.Watching != null)
                 {
                     guest.ViewedAt[guest.Watching] = time;
-                    if (guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange)) guest.Mood.Reward(4f);
+                    if (guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange)) guest.Mood.Reward(Definition.exhibitSatisfactionReward);
                 }
-                guest.Watching = null; SetActivity(guest, VisitorActivity.Arriving, "Looking for another exhibit");
+                guest.Watching = null; SetActivity(guest, VisitorActivity.Arriving, "visitor.status.looking_for_another_exhibit");
                 guest.DecisionTimer = 0f;
             }
             else if (guest.Activity == VisitorActivity.ReturningToPath)
@@ -507,9 +511,9 @@ namespace Mythologicum
             guest.QuotedPrice = 0f;
         }
 
-        private static void SetActivity(VisitorAgent guest, VisitorActivity activity, string status)
+        private static void SetActivity(VisitorAgent guest, VisitorActivity activity, string status, params object[] arguments)
         {
-            guest.Activity = activity; guest.Status = status;
+            guest.Activity = activity; guest.SetLocalizedStatus(status, arguments);
             guest.Actor.Activity = activity == VisitorActivity.Fleeing ? CreatureActivity.Fleeing
                 : activity == VisitorActivity.Eating ? CreatureActivity.Feeding
                 : activity == VisitorActivity.Resting || activity == VisitorActivity.Watching || activity == VisitorActivity.Stranded

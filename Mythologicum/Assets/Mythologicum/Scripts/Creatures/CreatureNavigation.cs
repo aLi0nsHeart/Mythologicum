@@ -45,7 +45,7 @@ namespace Mythologicum
                 : new FenceEdge(new Vector2Int(from.x, Math.Max(from.y, to.y)), true);
             return !fences.HasFence(edge) || (canClimbWoodenFences && fences.CanClimb(edge))
                 || (canPhaseFences && fences.CanPhase(edge))
-                || (canAttackFences && fences.KindAt(edge) != FenceKind.Heavy);
+                || (canAttackFences && fences.CanBreak(edge));
         }
 
         public IEnumerable<Vector2Int> Neighbors(Vector2Int cell)

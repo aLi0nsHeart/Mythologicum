@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7457c82bc5f472684803b7fae1973d6, type: 3}
+  m_Name: DefaultLoadingScreen
+  m_EditorClassIdentifier:
+  fadeInSeconds: 0.15
+  fadeOutSeconds: 0.2
+  minimumVisibleSeconds: 0.4
+  preparationTimeoutSeconds: 180
+  backgroundColor: {r: 0.025, g: 0.018, b: 0.012, a: 1}
+  useThemeBackground: 1
+  backgroundTexture: {fileID: 0}
+  backgroundTextureOpacity: 0.16
+  referenceResolution: {x: 1920, y: 1080}
+  matchWidthOrHeight: 0.5
+  screenMargin: 32
+  contentSize: {x: 1100, y: 620}
+  contentOffset: {x: 0, y: 0}
+  brandPosition: {x: 0, y: 210}
+  brandSize: {x: 1040, y: 80}
+  subtitlePosition: {x: 0, y: 145}
+  subtitleSize: {x: 1040, y: 42}
+  titlePosition: {x: 0, y: 70}
+  titleSize: {x: 1040, y: 56}
+  stagePosition: {x: 0, y: 12}
+  stageSize: {x: 1040, y: 60}
+  barFrame: {fileID: -8688575788626425756, guid: 58d0e5bc2dd28434abcaaf94a4dfeec0, type: 3}
+  barFill: {fileID: -483322954633082500, guid: 58d0e5bc2dd28434abcaaf94a4dfeec0, type: 3}
+  barPosition: {x: 0, y: -110}
+  barWidth: 780
+  barAspectRatio: 5.8645835
+  fillBounds:
+    serializedVersion: 2
+    x: 0.052
+    y: 0.345
+    width: 0.896
+    height: 0.31
+  frameTint: {r: 1, g: 1, b: 1, a: 1}
+  fillTint: {r: 1, g: 0.78, b: 0.36, a: 1}
+  progressPosition: {x: 0, y: -202}
+  progressSize: {x: 320, y: 36}
+  showPercentage: 0
+  showSpinner: 1
+  spinnerSprite: {fileID: 0}
+  spinnerPosition: {x: 0, y: -258}
+  spinnerSize: {x: 48, y: 48}
+  spinnerDegreesPerSecond: 35
+  spinnerTint: {r: 1, g: 0.82, b: 0.52, a: 0.8}
+  returnButtonPosition: {x: 0, y: -150}
+  returnButtonSize: {x: 340, y: 52}

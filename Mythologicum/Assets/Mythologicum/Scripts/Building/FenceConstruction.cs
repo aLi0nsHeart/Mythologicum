@@ -16,20 +16,19 @@ namespace Mythologicum
         private readonly Material gateMaterial;
         private readonly FenceVisualCatalog visuals;
         private readonly Dictionary<FenceEdge, GameObject> objects = new Dictionary<FenceEdge, GameObject>();
-        private readonly Dictionary<FenceEdge, TextMesh> healthLabels = new Dictionary<FenceEdge, TextMesh>();
         private static Mesh spikeMesh;
         private readonly Dictionary<FenceKind,Material> terrainMaterials=new Dictionary<FenceKind,Material>();
         public static float HeightFor(FenceKind kind) => kind == FenceKind.Heavy ? HeavyHeight
             : kind == FenceKind.Spiked || kind == FenceKind.Sanctified ? SpikedHeight : Height;
 
-        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null)
+        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null, FenceRules rules = null)
         {
             this.grid = grid;
             this.parent = parent;
             this.material = material;
             this.visuals = visuals;
             this.gateMaterial = gateMaterial != null ? gateMaterial : material;
-            Layout = new FenceLayout(grid);
+            Layout = new FenceLayout(grid, rules);
         }
 
         public bool CanPlace(FenceEdge edge, FenceKind kind = FenceKind.Wooden)
@@ -64,7 +63,7 @@ namespace Mythologicum
         {
             if (!Layout.TryAdd(edge, kind)) return false;
             if (gate && !Layout.TrySetGate(edge)) { Layout.TryRemove(edge); return false; }
-            Layout.TryDamage(edge, Mathf.Max(0f, Layout.MaximumHealthAt(edge) - health));
+            if (!Layout.RestoreHealth(edge, health)) { Layout.TryRemove(edge); return false; }
             CreateObject(edge, gate); return true;
         }
 
@@ -84,7 +83,6 @@ namespace Mythologicum
             old.SetActive(false);
             Object.Destroy(old);
             objects.Remove(edge);
-            healthLabels.Remove(edge);
         }
 
         /// <summary>Synchronizes simulation damage with visuals; partial damage does not rebuild imported models.</summary>
@@ -94,24 +92,7 @@ namespace Mythologicum
             foreach (var pair in objects)
             {
                 FenceEdge edge = pair.Key;
-                if (!Layout.HasFence(edge)) { removed.Add(edge); continue; }
-                float current = Layout.HealthAt(edge), maximum = Layout.MaximumHealthAt(edge);
-                if (current >= maximum) continue;
-                if (!healthLabels.TryGetValue(edge, out TextMesh label))
-                {
-                    var go = new GameObject("Fence health", typeof(TextMesh));
-                    go.transform.SetParent(pair.Value.transform, false);
-                    label = go.GetComponent<TextMesh>();
-                    label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                    label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
-                    label.fontSize = 48; label.characterSize = .08f;
-                    label.anchor = TextAnchor.LowerCenter; label.alignment = TextAlignment.Center;
-                    label.color = new Color(1f, .55f, .2f);
-                    healthLabels.Add(edge, label);
-                }
-                label.text = $"Fence {current:0}/{maximum:0}";
-                label.transform.position = Layout.Center(edge) + Vector3.up * (HeightFor(Layout.KindAt(edge)) + .25f);
-                if (camera != null) label.transform.rotation = camera.transform.rotation;
+                if (!Layout.HasFence(edge)) removed.Add(edge);
             }
             foreach (FenceEdge edge in removed) RemoveObject(edge);
         }
@@ -146,7 +127,6 @@ namespace Mythologicum
             {
                 Layout.TryRemove(edge);
                 objects.Remove(edge);
-                healthLabels.Remove(edge);
             });
         }
 

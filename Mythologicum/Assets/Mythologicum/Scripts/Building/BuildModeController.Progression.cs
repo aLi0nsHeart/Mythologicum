@@ -8,7 +8,12 @@ namespace Mythologicum
         private ProgressionPresentation management;
         private ParkManagementPresentation parkManagement;
         private NotificationPresentation notifications;
-        public bool ManagementOpen => (management?.IsOpen ?? false)||(parkManagement?.IsOpen ?? false);
+        private EncyclopediaPresentation encyclopedia;
+        private ParkStatusPresentation parkStatus;
+        private ParkAlertMonitor alerts;
+        private ParkOverlayPresentation overlays;
+        public bool ManagementOpen => (management?.IsOpen ?? false)||(parkManagement?.IsOpen ?? false)
+            ||(encyclopedia?.IsOpen ?? false)||SettingsPresentation.IsOpen;
         private void InitializeProgression()
         {
             var definition=Resources.Load<ProgressionDefinition>("Progression/DefaultProgression");
@@ -17,36 +22,66 @@ namespace Mythologicum
                 ()=>Random.value,id=>Species(id)?.displayName??id);
             staffWorld.Progression=Progression;
             fences.Layout.Opened+=edge=>{
-                if(!creatureWorld.RestoringSave)Progression.Inbox.Post("opened-fence",ParkNoticeKind.FenceOpened,"Fence opened",
-                    "A fence segment was removed or destroyed. Check containment and rebuild the gap if necessary.",edge.CellA);
+                if(!creatureWorld.RestoringSave)Progression.Inbox.PostLocalized("opened-fence",ParkNoticeKind.FenceOpened,"park.notification.fence_opened",
+                    "park.notification.fence_opened_body",edge.CellA);
             };
             staffWorld.Research.Finished+=species=>{
-                if(!creatureWorld.RestoringSave)Progression.Inbox.Post("creature-study:"+species.name,ParkNoticeKind.ResearchFinished,
-                    "Creature research finished: "+species.displayName,"All care notes for this species have been discovered.");
+                if(!creatureWorld.RestoringSave)Progression.Inbox.PostLocalized("creature-study:"+species.name,ParkNoticeKind.ResearchFinished,
+                    "park.notification.creature_study_finished","park.notification.creature_study_finished_body",titleArguments:new[]{species.displayName});
             };
         }
         private void CreateManagementUI()
         {
-            Canvas.ForceUpdateCanvases();var canvas=FindFirstObjectByType<Canvas>();
-            management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.displayName??id);
+            Canvas.ForceUpdateCanvases();var canvas=SceneTransition.GameplayCanvas;
+            parkStatus=new ParkStatusPresentation(canvas,economy,visitorWorld);
+            management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.DisplayName??id);
             parkManagement=new ParkManagementPresentation(canvas,buildingConstruction.Network,visitorWorld,creatureWorld,economy);
-            notifications=new NotificationPresentation(canvas,Progression.Inbox,cell=>{
-                management.Close();parkManagement.Close();SelectTool(Tool.None);GetComponent<IsometricCameraController>()?.FocusOn(grid.CellCenter(cell));
+            overlays=new ParkOverlayPresentation(canvas,grid,fences.Layout,buildingConstruction.Network,enclosureMap,creatureWorld.IsClear);
+            parkManagement.ConfigureOverlays(mode =>
+            {
+                if(mode!=ParkOverlayMode.Off)
+                {
+                    buildingInspection.Select(null);creatureInspection.Select(null);visitorPresentation.Select(null);enclosurePresentation.Select(null);
+                    GetComponent<IsometricCameraController>()?.StopFollowing();
+                }
+                overlays.SetMode(mode);
             });
+            alerts=new ParkAlertMonitor(grid,fences.Layout,buildingConstruction.Network,creatureWorld,visitorWorld,staffWorld,enclosureMap,Progression.Inbox);
+            alerts.ResetBaseline();
+            SimulationSpeedControls.Attach(canvas);
+            InitializeConstructionHistory(canvas);
+            encyclopedia=new EncyclopediaPresentation(canvas,creatureCatalog,staffWorld.Research);
+            notifications=new NotificationPresentation(canvas,Progression.Inbox,cell=>{
+                management.Close();parkManagement.Close();encyclopedia.Close();SelectTool(Tool.None);GetComponent<IsometricCameraController>()?.FocusOn(grid.CellCenter(cell));
+            },()=>{SelectTool(Tool.None);management.Close();parkManagement.Close();encyclopedia.Close();});
             palette.ConfigureProgression(Progression);
             buildingInspection.ConfigureManagement(OpenExpeditions,OpenTechnologies);
         }
         private void OpenExpeditions(ParkBuildingRecord home)
-        {SelectTool(Tool.None);parkManagement.Close();notifications.Close();management.OpenExpeditions(home);}
+        {SelectTool(Tool.None);parkManagement.Close();encyclopedia.Close();notifications.Close();management.OpenExpeditions(home);}
         private void OpenTechnologies(ParkBuildingRecord home)
-        {SelectTool(Tool.None);parkManagement.Close();notifications.Close();management.OpenResearch(home);}
+        {SelectTool(Tool.None);parkManagement.Close();encyclopedia.Close();notifications.Close();management.OpenResearch(home);}
         private void OpenParkManagement()
-        {SelectTool(Tool.None);management.Close();notifications.Close();parkManagement.Open();}
+        {SelectTool(Tool.None);management.Close();encyclopedia.Close();notifications.Close();parkManagement.Open();}
+        private void OpenConstructionMenu()
+        {SelectTool(Tool.None);management?.Close();parkManagement?.Close();encyclopedia?.Close();notifications?.Close();}
+        private void OpenEncyclopedia()
+        {SelectTool(Tool.None);management.Close();parkManagement.Close();notifications.Close();encyclopedia.Open();}
+        private void OpenPauseMenu()
+        {SelectTool(Tool.None);management.Close();parkManagement.Close();encyclopedia.Close();notifications.Close();GameSaveMenu.TogglePause();}
         public bool CloseManagementWindow()
         {
+            if(encyclopedia?.IsOpen==true){encyclopedia.Close();return true;}
             if(parkManagement?.IsOpen==true){parkManagement.Close();return true;}
             if(management?.IsOpen==true){management.Close();return true;}
             if(notifications?.IsOpen==true){notifications.Close();return true;}
+            if(palette?.IsOpen==true||tool!=Tool.None){SelectTool(Tool.None);return true;}
+            if(GetComponent<IsometricCameraController>()?.IsFollowing==true)
+            {
+                GetComponent<IsometricCameraController>().StopFollowing();
+                buildingInspection.Select(null);creatureInspection.Select(null);visitorPresentation.Select(null);
+                return true;
+            }
             return false;
         }
     }

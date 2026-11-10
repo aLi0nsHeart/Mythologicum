@@ -10,7 +10,6 @@ namespace Mythologicum
         private readonly SquareBuildGrid grid;
         private readonly FenceLayout fences;
         private readonly ParkBuildingNetwork buildings;
-        private readonly Camera camera;
         private readonly GameObject root;
         private readonly Material material;
         private readonly CreatureNavigation navigation;
@@ -23,23 +22,27 @@ namespace Mythologicum
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> climbingRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
         private readonly Dictionary<ParkBuildingRecord, float> dispenserTimers = new Dictionary<ParkBuildingRecord, float>();
         private readonly CreatureDefinition defaultGoat;
+        private readonly CreatureSimulationDefinition simulation;
         private int gridRevision = -1, fenceRevision = -1;
         private float time;
-        public int PopulationLimit { get; set; } = 100;
+        public int PopulationLimit { get; set; }
         internal bool RestoringSave { get; set; }
         public int Population { get { int count = 0; foreach (var agent in agents) if (agent.Alive) count++; return count; } }
         public IReadOnlyList<CreatureAgent> Agents => agents;
 
         public CreatureWorld(SquareBuildGrid grid, FenceLayout fences, ParkBuildingNetwork buildings,
-            Camera camera, Material material, CreatureDefinition[] profiles, EnvironmentGrid environment = null)
+            Camera camera, Material material, CreatureDefinition[] profiles, EnvironmentGrid environment = null,
+            CreatureSimulationDefinition simulationSettings = null)
         {
             this.grid = grid; this.fences = fences; this.buildings = buildings;
-            this.camera = camera; this.material = material;
+            this.material = material;
             this.environment = environment ?? new EnvironmentGrid(grid);
+            simulation = simulationSettings != null ? simulationSettings : CreatureSimulationDefinition.Current;
+            PopulationLimit = simulation.populationLimit;
             root = new GameObject("Creatures");
             navigation = new CreatureNavigation(grid, fences, IsPhysicallyClear);
             climbingNavigation = new CreatureNavigation(grid, fences, IsPhysicallyClear, true);
-            grass = new GrazingField(grid);
+            grass = new GrazingField(grid, simulation.grassRegrowthSeconds);
             foreach (CreatureDefinition profile in profiles)
                 if ((profile.tags & CreatureTags.Goat) != 0) { defaultGoat = profile; break; }
         }
@@ -85,7 +88,7 @@ namespace Mythologicum
             if (Population >= PopulationLimit || !navigation.IsWalkable(cell)) return false;
             Vector3 point = grid.CellCenter(cell);
             foreach (CreatureAgent other in agents)
-                if (other.Alive && HorizontalDistance(other.transform.position, point) < grid.CellSize * 0.7f) return false;
+                if (other.Alive && HorizontalDistance(other.transform.position, point) < grid.CellSize * simulation.placementSpacingTiles) return false;
             return true;
         }
 
@@ -111,7 +114,7 @@ namespace Mythologicum
             if (!TrySpawn(definition, cell, null, visualPrefab)) return null;
             CreatureAgent actor = agents[agents.Count - 1];
             actor.ExternallyControlled = true;
-            actor.ExternalStatus = "Arriving";
+            actor.ExternalStatus = "visitor.status.arriving";
             return actor;
         }
 
@@ -147,7 +150,6 @@ namespace Mythologicum
             agents.Remove(actor);
             actor.GetComponent<Collider>().enabled = false;
             actor.gameObject.SetActive(false);
-            if (actor.Label != null) UnityEngine.Object.Destroy(actor.Label.gameObject);
             UnityEngine.Object.Destroy(actor.gameObject);
         }
 
@@ -162,8 +164,8 @@ namespace Mythologicum
         public bool TrySpawn(CreatureDefinition definition, Vector2Int cell, ParkBuildingRecord dispenser = null, GameObject visualPrefab = null)
         {
             if (definition == null || (RestoringSave ? !grid.Contains(cell) : !CanSpawn(cell))) return false;
-            var go = new GameObject(definition.displayName);
-            go.name = definition.displayName;
+            var go = new GameObject(Loc.InternalName(definition.displayName));
+            go.name = Loc.InternalName(definition.displayName);
             go.transform.SetParent(root.transform);
             var collider = go.AddComponent<CapsuleCollider>();
             collider.isTrigger = true; collider.radius = Mathf.Max(definition.bodyScale.x, definition.bodyScale.z) * 0.5f;
@@ -177,19 +179,13 @@ namespace Mythologicum
             if (agent.BodyAnimator != null) agent.BodyAnimator.applyRootMotion = false;
             agent.Definition = definition; agent.Vitals = new CreatureVitals(definition.initialHunger);
             agent.Energy = new CreatureEnergy(definition.initialEnergy);
+            agent.Wellbeing = new CreatureWellbeing(definition.Behaviour.initialHappiness);
             agent.Health = new CreatureHealth(definition.maximumHealth);
             agent.Cell = cell; agent.SourceDispenser = dispenser;
             agent.Activity = CreatureActivity.Resting;
             agent.StateTimer = PauseDuration(agent);
             agent.DecisionTimer = UnityEngine.Random.Range(0f, definition.decisionInterval);
             go.transform.position = GroundPosition(agent, cell);
-            var labelObject = new GameObject("Creature stats", typeof(TextMesh));
-            labelObject.transform.SetParent(root.transform);
-            agent.Label = labelObject.GetComponent<TextMesh>();
-            agent.Label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            agent.Label.GetComponent<MeshRenderer>().sharedMaterial = agent.Label.font.material;
-            agent.Label.fontSize = 48; agent.Label.characterSize = 0.085f;
-            agent.Label.anchor = TextAnchor.LowerCenter; agent.Label.alignment = TextAlignment.Center;
             agents.Add(agent);
             return true;
         }
@@ -275,7 +271,6 @@ namespace Mythologicum
                 if (!agents[i].Alive && agents[i].CorpseTimer <= 0f)
                 {
                     CreatureAgent dead = agents[i]; agents.RemoveAt(i);
-                    UnityEngine.Object.Destroy(dead.Label.gameObject);
                     UnityEngine.Object.Destroy(dead.gameObject);
                 }
         }
@@ -305,7 +300,7 @@ namespace Mythologicum
             { FinishSegment(agent); agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent); }
             if (!stillUnsafe || agent.Vitals.Fear < definition.fleeThreshold) agent.HasDanger = false;
             if (agent.Activity == CreatureActivity.Socializing && agent.StateTimer > 0f && agent.SocialPartner != null
-                && agent.SocialPartner.Alive && HorizontalDistance(agent.transform.position, agent.SocialPartner.transform.position) <= 3f
+                && agent.SocialPartner.Alive && HorizontalDistance(agent.transform.position, agent.SocialPartner.transform.position) <= definition.Behaviour.socialInteractionRange
                 && agent.Vitals.Hunger < definition.huntThreshold) return;
             if (agent.Vitals.Hunger >= definition.huntThreshold)
             {
@@ -317,7 +312,7 @@ namespace Mythologicum
                     { agent.Activity = CreatureActivity.Grazing; agent.Goal = null; return; }
                     if (agent.Activity == CreatureActivity.Searching && agent.Route.Count > 0 && agent.Goal.HasValue
                         && grass.HasFood(agent.Goal.Value, time)) return;
-                    foreach (Vector2Int candidate in navigation.Reachable(agent.Cell, 5))
+                    foreach (Vector2Int candidate in navigation.Reachable(agent.Cell, definition.Behaviour.grazingSearchSteps))
                         if (grass.HasFood(candidate, time) && SetGoal(agent, candidate))
                         { agent.Activity = CreatureActivity.Searching; return; }
                 }
@@ -331,13 +326,13 @@ namespace Mythologicum
             if (definition.minimumCompanions > 0)
                 foreach (CreatureAgent other in agents)
                     if (other != agent && other.Alive && other.Definition == definition
-                        && HorizontalDistance(other.transform.position, agent.transform.position) <= 3f
+                        && HorizontalDistance(other.transform.position, agent.transform.position) <= definition.Behaviour.socialInteractionRange
                         && ReachableRegion(agent.Cell).Contains(other.Cell))
                     {
                         agent.SocialPartner = other; agent.Activity = CreatureActivity.Socializing;
                         agent.StateTimer = definition.socializingSeconds; return;
                     }
-            List<Vector2Int> choices = navigation.Reachable(agent.Cell, 4);
+            List<Vector2Int> choices = navigation.Reachable(agent.Cell, definition.Behaviour.wanderSearchSteps);
             if (choices.Count > 1 && SetGoal(agent, choices[UnityEngine.Random.Range(1, choices.Count)], true))
                 agent.Activity = CreatureActivity.Wandering;
             else agent.StateTimer = PauseDuration(agent);
@@ -345,14 +340,14 @@ namespace Mythologicum
 
         private float PauseDuration(CreatureAgent agent) => UnityEngine.Random.Range(agent.Definition.pauseMinSeconds,
             Mathf.Max(agent.Definition.pauseMinSeconds, agent.Definition.pauseMaxSeconds))
-            * Mathf.Lerp(1f, 0.4f, agent.Wellbeing.Agitation);
+            * Mathf.Lerp(1f, agent.Definition.Behaviour.agitatedPauseMultiplier, agent.Wellbeing.Agitation);
 
         private void TickEscape(CreatureAgent agent, float dt)
         {
             agent.EscapeCheckTimer -= dt;
             if (agent.EscapeCheckTimer <= 0f)
             {
-                agent.EscapeCheckTimer = .5f;
+                agent.EscapeCheckTimer = agent.Definition.Behaviour.crowdingCheckSeconds;
                 var ground = ReachableRegion(agent.Cell);
                 float required = 0f;
                 foreach (CreatureAgent other in agents)
@@ -362,7 +357,8 @@ namespace Mythologicum
             }
             CreatureDefinition data = agent.Definition;
             agent.EscapeChancePerMinute = CreatureEscape.Chance(agent.Vitals.Hunger, agent.Wellbeing.Agitation,
-                agent.Crowding, data.randomEscapeChance, data.hungryEscapeChance, data.agitatedEscapeChance, data.crowdedEscapeChance);
+                agent.Crowding, data.randomEscapeChance, data.hungryEscapeChance, data.agitatedEscapeChance, data.crowdedEscapeChance,
+                data.Behaviour.escapeHungerStart, data.Behaviour.maximumEscapeChance);
             if (agent.EscapeIntent || time < agent.EscapeAfter || agent.Elevation > .01f
                 || agent.Activity == CreatureActivity.Sleeping || agent.Activity == CreatureActivity.SeekingSleep
                 || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
@@ -373,9 +369,9 @@ namespace Mythologicum
                 || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.Feeding
                 || agent.Activity == CreatureActivity.Fleeing) return;
             if (UnityEngine.Random.value >= CreatureEscape.Probability(agent.EscapeChancePerMinute, dt)) return;
-            agent.EscapeIntent = true; agent.EscapeUntil = time + 30f;
+            agent.EscapeIntent = true; agent.EscapeUntil = time + data.Behaviour.escapeAttemptSeconds;
             agent.EscapeGoal = null; agent.EscapeBarrier = null;
-            agent.EscapeStatus = "Seeking a way out"; agent.DecisionTimer = 0f;
+            agent.EscapeStatus = "creature.escape.seeking_a_way_out"; agent.DecisionTimer = 0f;
         }
 
         private void EndEscape(CreatureAgent agent, string reason)
@@ -389,20 +385,20 @@ namespace Mythologicum
         {
             ReleaseClaim(agent);
             if (time >= agent.EscapeUntil)
-            { EndEscape(agent, "Attempt ended; resting before retry"); return false; }
+            { EndEscape(agent, "creature.escape.attempt_ended_resting_before_retry"); return false; }
             if (agent.EscapeGoal.HasValue)
             {
                 if (agent.Cell == agent.EscapeGoal.Value && agent.Route.Count == 0)
                 {
                     FenceEdge? barrier = agent.EscapeBarrier;
-                    EndEscape(agent, barrier.HasValue ? "Blocked by a fence" : "Reached new ground");
+                    EndEscape(agent, barrier.HasValue ? "creature.escape.blocked_by_a_fence" : "creature.escape.reached_new_ground");
                     if (barrier.HasValue && agent.Definition.canClimbWoodenFences && fences.HasFence(barrier.Value))
                     { agent.AttemptFence = barrier; BeginFailedClimb(agent); return true; }
                     return false;
                 }
                 if (SetGoal(agent, agent.EscapeGoal.Value))
                 { agent.Activity = CreatureActivity.Escaping; return true; }
-                EndEscape(agent, "Escape route blocked"); return false;
+                EndEscape(agent, "creature.escape.escape_route_blocked"); return false;
             }
             var ground = ReachableRegion(agent.Cell);
             Vector2Int? goal = null; FenceEdge? obstruction = null;
@@ -423,14 +419,14 @@ namespace Mythologicum
             {
                 // With a gap or no fence, seek room away from the current group using ordinary ground travel.
                 int distance = 0;
-                foreach (Vector2Int cell in navigation.Reachable(agent.Cell, 6))
+                foreach (Vector2Int cell in navigation.Reachable(agent.Cell, agent.Definition.Behaviour.escapeSearchSteps))
                 {
                     int candidate = ConstructionRouteGraph.CellDistance(agent.Cell, cell);
                     if (candidate > distance) { distance = candidate; goal = cell; }
                 }
             }
             if (!goal.HasValue || !SetGoal(agent, goal.Value))
-            { EndEscape(agent, "No usable escape route"); return false; }
+            { EndEscape(agent, "creature.escape.no_usable_escape_route"); return false; }
             agent.EscapeGoal = goal; agent.EscapeBarrier = obstruction;
             agent.Activity = CreatureActivity.Escaping; return true;
         }
@@ -444,7 +440,8 @@ namespace Mythologicum
 
         private bool CanClimbForNeeds(CreatureAgent agent) => agent.Definition.canClimbWoodenFences
             && (agent.EscapeIntent || agent.Exploration.WillClimb(agent.Definition.settlingSeconds, agent.Vitals.Hunger,
-                agent.Energy.Energy, agent.Activity == CreatureActivity.Fleeing));
+                agent.Energy.Energy, agent.Activity == CreatureActivity.Fleeing,
+                agent.Definition.Behaviour.urgentHunger, agent.Definition.Behaviour.urgentEnergy));
         private CreatureNavigation Navigation(CreatureAgent agent) => AbilityNavigation(agent);
 
         private static FenceEdge CrossingEdge(Vector2Int from, Vector2Int to) => from.x != to.x
@@ -648,7 +645,8 @@ namespace Mythologicum
             foreach (Vector2Int candidate in Navigation(agent).Reachable(agent.Cell, budget))
             {
                 float distance = HorizontalDistance(grid.CellCenter(candidate), agent.LastDanger);
-                float score = distance >= safe ? 1000f - ConstructionRouteGraph.CellDistance(agent.Cell, candidate) : distance;
+                float score = distance >= safe ? agent.Definition.Behaviour.safeEscapeScore
+                    - ConstructionRouteGraph.CellDistance(agent.Cell, candidate) : distance;
                 if (score > bestScore) { bestScore = score; best = candidate; }
             }
             SetGoal(agent, best);
@@ -703,7 +701,7 @@ namespace Mythologicum
             agent.NeedsTimer -= dt;
             if (agent.NeedsTimer <= 0f)
             {
-                agent.NeedsTimer = 0.5f;
+                agent.NeedsTimer = definition.Behaviour.needsCheckSeconds;
                 HashSet<Vector2Int> accessible = ReachableRegion(agent.Cell);
                 agent.AccessibleArea = accessible.Count * grid.CellSize * grid.CellSize;
                 int trees = 0;
@@ -723,9 +721,9 @@ namespace Mythologicum
                 agent.Companions = companions;
             }
             agent.Wellbeing.Update(CreatureWellbeing.Evaluate(agent.Vitals.Hunger, agent.Vitals.Fear,
-                agent.AccessibleArea, definition.requiredGravestones > 0 ? agent.NearbyGravestones : agent.NearbyTrees,
-                agent.Companions, definition.minimumSpace, definition.requiredGravestones > 0 ? definition.requiredGravestones : definition.requiredTrees,
-                definition.minimumCompanions, definition.maximumCompanions), dt,
+                agent.AccessibleArea, agent.NearbyTrees, agent.Companions, definition.minimumSpace, definition.requiredTrees,
+                definition.minimumCompanions, definition.maximumCompanions, definition.Behaviour,
+                agent.NearbyGravestones, definition.requiredGravestones), dt,
                 definition.happinessChangePerSecond, definition.happinessThreshold);
         }
 
@@ -832,14 +830,14 @@ namespace Mythologicum
                 if (prey.Health.Alive)
                 {
                     prey.DecisionTimer = 0f; prey.LastDanger = agent.transform.position; prey.HasDanger = true;
-                    prey.Vitals.Tick(.25f, 0f, prey.Definition.fearGainPerSecond, 0f, true);
+                    prey.Vitals.Tick(agent.Definition.Behaviour.attackFearSeconds, 0f, prey.Definition.fearGainPerSecond, 0f, true);
                     ReleaseClaim(agent); agent.Activity = CreatureActivity.Resting;
                     agent.StateTimer = PauseDuration(agent); agent.DecisionTimer = agent.Definition.decisionInterval;
                     return;
                 }
                 ReleaseClaim(prey); prey.Alive = false; prey.Activity = CreatureActivity.Dying;
                 prey.Route.Clear(); prey.Goal = null;
-                prey.CorpseTimer = agent.Definition.feedingSeconds + 1f;
+                prey.CorpseTimer = agent.Definition.feedingSeconds + simulation.corpseAfterFeedingSeconds;
                 prey.GetComponent<Collider>().enabled = false;
                 agent.Activity = CreatureActivity.Feeding; agent.StateTimer = agent.Definition.feedingSeconds;
                 return;
@@ -879,27 +877,7 @@ namespace Mythologicum
             && target.Activity != CreatureActivity.PhasingFence && agent.Activity != CreatureActivity.PhasingFence
             && (agent.Cell == target.Cell || navigation.CanCross(agent.Cell, target.Cell));
 
-        private void RefreshVisual(CreatureAgent agent)
-        {
-            agent.Label.transform.position = agent.transform.position + Vector3.up * (agent.Definition.bodyScale.y + 0.4f);
-            agent.Label.transform.rotation = camera.transform.rotation;
-            bool agitated = !agent.ExternallyControlled && agent.Wellbeing.Agitation > 0f;
-            if (agent.ExternallyControlled)
-            {
-                string state = !agent.Alive ? "Dying" : agent.CapturedBy != null ? "Captured"
-                    : string.IsNullOrEmpty(agent.ExternalStatus) ? agent.Activity.ToString() : agent.ExternalStatus;
-                agent.Label.text = $"{agent.Definition.displayName} - {state}"
-                    + $"\nHunger {agent.Vitals.Hunger:0} | Fear {agent.Vitals.Fear:0} | Energy {agent.Energy.Energy:0}";
-            }
-            else
-                agent.Label.text = $"{agent.Definition.displayName} - {agent.Activity}" + (agitated ? " (Agitated)" : "")
-                    + $"\nHappiness {agent.Wellbeing.Happiness:0} | Hunger {agent.Vitals.Hunger:0} | Fear {agent.Vitals.Fear:0}"
-                    + $"\nEnergy {agent.Energy.Energy:0}";
-            if (!agent.ExternallyControlled) agent.Label.text += $" | Health {agent.Health.Current:0}/{agent.Health.Maximum:0}";
-            agent.Label.color = agitated ? new Color(1f, 0.4f, 0.2f)
-                : agent.Activity == CreatureActivity.Fleeing ? new Color(1f, 0.65f, 0.2f) : Color.white;
-            Animate(agent);
-        }
+        private void RefreshVisual(CreatureAgent agent) => Animate(agent);
 
         private void Animate(CreatureAgent agent)
         {
@@ -924,7 +902,7 @@ namespace Mythologicum
             else if (agent.Activity == CreatureActivity.Feeding || agent.Activity == CreatureActivity.Grazing)
                 rotation = Quaternion.Euler(18f + wave * 12f, 0f, 0f);
             else if (agent.ExternallyControlled && agent.Activity == CreatureActivity.Resting
-                && agent.ExternalStatus != null && agent.ExternalStatus.StartsWith("Resting", StringComparison.Ordinal))
+                && agent.ExternalResting)
             {
                 offset = Vector3.down * 0.3f;
                 rotation = Quaternion.Euler(-12f + Mathf.Sin(time * 2f) * 2f, 0f, 0f);
@@ -1031,7 +1009,7 @@ namespace Mythologicum
                     foreach (CreatureAgent agent in agents) if (agent.Alive && agent.SourceDispenser == building) living++;
                     CreatureDefinition goat = definition.dispensedCreature != null ? definition.dispensedCreature : defaultGoat;
                     if (living < definition.maximumDispensed && goat != null)
-                        foreach (Vector2Int cell in navigation.Reachable(building.Footprint.AccessCell, 2))
+                        foreach (Vector2Int cell in navigation.Reachable(building.Footprint.AccessCell, definition.dispenseSearchSteps))
                             if (TrySpawn(goat, cell, building)) { building.ConsumeFeed(); break; }
                     remaining = definition.dispenseInterval;
                 }

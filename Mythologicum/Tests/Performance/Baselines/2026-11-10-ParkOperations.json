@@ -1,0 +1,134 @@
+{
+    "utcTime": "2026-11-10T16:15:17.6183132Z",
+    "unityVersion": "6000.0.74f1",
+    "operatingSystem": "Windows 11  (10.0.26300)",
+    "processor": "Intel(R) Core(TM) i5-10600K CPU @ 4.10GHz",
+    "graphicsDevice": "NVIDIA GeForce RTX 3060 Ti",
+    "workload": "CPU simulation fixture with flat ground, connected paths and placeholder actors. Neutral species and held weapon cooldowns prevent deaths, departures and shot effects; original game assets and scenes are untouched. Rendering, UI, imported art, combat effects and mass construction invalidation are excluded. Timings measure this editor/hardware/run and are not a game FPS claim.",
+    "seed": 2471,
+    "warmupTicks": 10,
+    "measuredTicks": 60,
+    "simulationStep": 0.10000000149011612,
+    "profiles": [
+        {
+            "name": "Small",
+            "creatures": 20,
+            "visitors": 25,
+            "staff": 6,
+            "totalActors": 51,
+            "connectedPathTiles": 443,
+            "mapSize": 32,
+            "endingCreatures": 20,
+            "endingVisitors": 25,
+            "endingStaff": 6,
+            "creatureTick": {
+                "samples": 60,
+                "meanMs": 1.3610333333333338,
+                "p50Ms": 0.2576,
+                "p95Ms": 6.8524,
+                "maximumMs": 7.093100000000001
+            },
+            "visitorTick": {
+                "samples": 60,
+                "meanMs": 0.8508383333333335,
+                "p50Ms": 0.22260000000000003,
+                "p95Ms": 0.3689,
+                "maximumMs": 37.005500000000008
+            },
+            "staffTick": {
+                "samples": 60,
+                "meanMs": 2.7548783333333346,
+                "p50Ms": 2.6751,
+                "p95Ms": 3.2879,
+                "maximumMs": 4.2075000000000009
+            },
+            "totalTick": {
+                "samples": 60,
+                "meanMs": 4.971796666666667,
+                "p50Ms": 3.1989,
+                "p95Ms": 9.9696,
+                "maximumMs": 39.9057
+            }
+        },
+        {
+            "name": "Medium",
+            "creatures": 50,
+            "visitors": 80,
+            "staff": 12,
+            "totalActors": 142,
+            "connectedPathTiles": 443,
+            "mapSize": 32,
+            "endingCreatures": 50,
+            "endingVisitors": 80,
+            "endingStaff": 12,
+            "creatureTick": {
+                "samples": 60,
+                "meanMs": 3.7751816666666677,
+                "p50Ms": 0.9801000000000001,
+                "p95Ms": 18.138,
+                "maximumMs": 19.142200000000004
+            },
+            "visitorTick": {
+                "samples": 60,
+                "meanMs": 7.335341666666667,
+                "p50Ms": 0.8661000000000001,
+                "p95Ms": 1.0915000000000002,
+                "maximumMs": 387.70210000000005
+            },
+            "staffTick": {
+                "samples": 60,
+                "meanMs": 4.7750433333333339,
+                "p50Ms": 4.2346,
+                "p95Ms": 6.835500000000001,
+                "maximumMs": 17.9938
+            },
+            "totalTick": {
+                "samples": 60,
+                "meanMs": 15.886585000000002,
+                "p50Ms": 6.1559,
+                "p95Ms": 23.9453,
+                "maximumMs": 393.1963
+            }
+        },
+        {
+            "name": "Large",
+            "creatures": 100,
+            "visitors": 150,
+            "staff": 24,
+            "totalActors": 274,
+            "connectedPathTiles": 443,
+            "mapSize": 32,
+            "endingCreatures": 100,
+            "endingVisitors": 150,
+            "endingStaff": 24,
+            "creatureTick": {
+                "samples": 60,
+                "meanMs": 8.858935,
+                "p50Ms": 2.8224,
+                "p95Ms": 41.1931,
+                "maximumMs": 46.2543
+            },
+            "visitorTick": {
+                "samples": 60,
+                "meanMs": 23.995435,
+                "p50Ms": 2.2441,
+                "p95Ms": 3.1027,
+                "maximumMs": 1303.6075
+            },
+            "staffTick": {
+                "samples": 60,
+                "meanMs": 11.879081666666668,
+                "p50Ms": 11.1354,
+                "p95Ms": 20.366300000000004,
+                "maximumMs": 22.015
+            },
+            "totalTick": {
+                "samples": 60,
+                "meanMs": 44.734743333333337,
+                "p50Ms": 16.3686,
+                "p95Ms": 56.0467,
+                "maximumMs": 1314.6287
+            }
+        }
+    ]
+}

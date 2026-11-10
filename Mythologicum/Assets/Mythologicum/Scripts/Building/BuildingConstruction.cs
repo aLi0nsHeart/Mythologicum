@@ -9,7 +9,6 @@ namespace Mythologicum
         {
             public MeshRenderer Body;
             public MeshRenderer Marker;
-            public TextMesh Label;
             public bool? LastOpen;
         }
         public ParkBuildingNetwork Network { get; }
@@ -57,7 +56,7 @@ namespace Mythologicum
                 if(!grid.Terrain.RegisterFoundation(record,footprint)){Network.Remove(record);return false;}
             }
             BuildingDefinition definition = footprint.Definition;
-            var root = new GameObject(definition.displayName);
+            var root = new GameObject(Loc.InternalName(definition.displayName));
             root.AddComponent<BuildingSelection>().Initialize(record);
             root.transform.SetParent(parent);
             root.transform.position = footprint.Center(grid);
@@ -72,18 +71,8 @@ namespace Mythologicum
             GameObject marker = Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
                 new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
                 new Vector3(grid.CellSize * 0.6f, 0.08f, grid.CellSize * 0.6f), entranceMaterial);
-            var labelObject = new GameObject("Building status", typeof(TextMesh));
-            labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = Vector3.up * (definition.height + 0.6f);
-            TextMesh label = labelObject.GetComponent<TextMesh>();
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
-            label.fontSize = 64;
-            label.characterSize = 0.12f;
-            label.anchor = TextAnchor.LowerCenter;
-            label.alignment = TextAlignment.Center;
             views.Add(record, new View { Body = definition.visualPrefab == null ? body.GetComponent<MeshRenderer>() : null,
-                Marker = marker.GetComponent<MeshRenderer>(), Label = label });
+                Marker = marker.GetComponent<MeshRenderer>() });
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 Network.Remove(record);
@@ -97,6 +86,14 @@ namespace Mythologicum
             var position=footprint.Center(grid);
             if(grid.Terrain!=null&&!Network.RestoringSave&&grid.Terrain.TryPlanFoundation(footprint,grid,out var plan))position.y=grid.Origin.y+plan.Level;
             return position;
+        }
+
+        internal bool TryRemove(ParkBuildingRecord record)
+        {
+            if (record == null || !Network.Contains(record)) return false;
+            foreach (var selection in parent.GetComponentsInChildren<BuildingSelection>())
+                if (selection.Record == record) return selection.GetComponent<DemolitionTarget>().Demolish();
+            return false;
         }
 
         // Shared by placement and its ghost; creates no occupancy, labels or gameplay components.
@@ -182,13 +179,6 @@ namespace Mythologicum
             {
                 ParkBuildingRecord record = pair.Key;
                 View view = pair.Value;
-                view.Label.transform.rotation = camera.transform.rotation;
-                string state = record.IsOpen ? "Open" : "Closed: no path connection";
-                if (record.Footprint.Definition.kind == BuildingKind.GoatDispenser)
-                    state += record.FeedStock > 0 ? $" | Stock {record.FeedStock}/{record.Footprint.Definition.feederCapacity}"
-                        : " | Empty: waiting for zookeeper";
-                if (record.Footprint.Definition.IsEmployeeBuilding) state += $" | Personnel {record.HiredCount}/{ParkBuildingRecord.EmployeeCapacity}";
-                view.Label.text = record.Footprint.Definition.displayName + "\n" + state;
                 if (view.LastOpen == record.IsOpen) continue;
                 view.LastOpen = record.IsOpen;
                 Color color = record.IsOpen ? record.Footprint.Definition.openColor : new Color(0.85f, 0.12f, 0.1f);
@@ -201,7 +191,6 @@ namespace Mythologicum
                 properties.SetColor("_Color", record.IsOpen ? entranceMaterial.color : new Color(0.85f, 0.12f, 0.1f));
                 view.Marker.SetPropertyBlock(properties);
                 view.Marker.enabled = record.Footprint.Definition.RequiresPathConnection && !record.IsOpen;
-                view.Label.color = record.IsOpen ? Color.white : new Color(1f, 0.45f, 0.35f);
             }
         }
     }

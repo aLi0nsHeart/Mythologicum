@@ -38,6 +38,8 @@ namespace Mythologicum
         public float Expenses { get; private set; }
         public bool UnlimitedFunds { get; set; }
         public float TrackedSeconds { get; private set; }
+        internal double ClockSeconds { get; private set; }
+        internal FinanceWindowBucket CurrentExpenseBucket => recent.Count > 0 ? recent[recent.Count - 1] : null;
         public float IncomePerMinute => SumWindow(true);
         public float ExpensesPerMinute => SumWindow(false);
         public float ProfitPerMinute => Bounded((double)IncomePerMinute - ExpensesPerMinute);
@@ -55,10 +57,18 @@ namespace Mythologicum
             Income = ValidAmount(income) ? income : 0f;
             Expenses = ValidAmount(expenses) ? expenses : 0f;
             UnlimitedFunds = unlimited;
-            recent.Clear(); TrackedSeconds = 0f;
+            recent.Clear(); TrackedSeconds = 0f; ClockSeconds = 0d;
         }
 
-        public ParkEconomy(float startingBalance = 5000f)
+        public ParkEconomy() : this(new ParkEconomyRules()) { }
+
+        public ParkEconomy(ParkEconomyRules rules)
+            : this((rules ?? new ParkEconomyRules()).startingFunds)
+        {
+            UnlimitedFunds = rules != null && rules.startWithUnlimitedFunds;
+        }
+
+        public ParkEconomy(float startingBalance)
         {
             Balance = ValidAmount(startingBalance) ? startingBalance : 0f;
         }
@@ -93,6 +103,7 @@ namespace Mythologicum
         public void Advance(float dt)
         {
             if (!ValidAmount(dt) || dt == 0f) return;
+            ClockSeconds += dt;
             TrackedSeconds = (float)Math.Min(WindowSeconds, (double)TrackedSeconds + dt);
             for (int i = recent.Count - 1; i >= 0; i--)
             {
@@ -103,6 +114,34 @@ namespace Mythologicum
         }
 
         public float IncomeInWindow(ParkTransactionCategory category) => CategoryWindow(category, true);
+
+        /// <summary>Reverses a specific undoable purchase, without treating returned capital as income.</summary>
+        internal bool RefundPurchase(float amount, ParkTransactionCategory category, bool wasCharged, double purchasedAt, FinanceWindowBucket receipt = null)
+        {
+            if (!ValidAmount(amount) || amount > Expenses) return false;
+            Expenses = Bounded(Math.Max(0d, (double)Expenses - amount));
+            if (wasCharged) Balance = Bounded((double)Balance + amount);
+            if (receipt != null)
+            {
+                if (recent.Contains(receipt))
+                {
+                    int originalIndex = CategoryIndex(category);
+                    receipt.expenses[originalIndex] = Math.Max(0d, receipt.expenses[originalIndex] - amount);
+                }
+                return true;
+            }
+            double age = Math.Max(0d, ClockSeconds - purchasedAt);
+            // Only the original one-second bucket may be changed. Expired purchases must not
+            // remove another, newer expense from the current rolling report.
+            if (age < WindowSeconds)
+            {
+                int index = CategoryIndex(category);
+                for (int i = recent.Count - 1; i >= 0; i--)
+                    if (recent[i].age + .0001d >= age && recent[i].age < age + 1d)
+                    { recent[i].expenses[index] = Math.Max(0d, recent[i].expenses[index] - amount); break; }
+            }
+            return true;
+        }
         public float ExpensesInWindow(ParkTransactionCategory category) => CategoryWindow(category, false);
 
         public FinanceSnapshot CaptureFinance()
@@ -130,7 +169,7 @@ namespace Mythologicum
             if (snapshot == null) return;
             if (!Finite(snapshot.trackedSeconds) || snapshot.trackedSeconds < 0f || snapshot.trackedSeconds > WindowSeconds
                 || snapshot.buckets == null || snapshot.buckets.Count > 61)
-                throw new InvalidDataException("Invalid saved financial window.");
+                throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_window"));
             float previousAge = WindowSeconds;
             foreach (var bucket in snapshot.buckets)
             {
@@ -138,11 +177,11 @@ namespace Mythologicum
                     || bucket.age > snapshot.trackedSeconds + .01f || bucket.age >= previousAge
                     || bucket.income == null || bucket.income.Length != CategoryCount
                     || bucket.expenses == null || bucket.expenses.Length != CategoryCount)
-                    throw new InvalidDataException("Invalid saved financial bucket.");
+                    throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_bucket"));
                 foreach (double value in bucket.income)
-                    if (!ValidStoredAmount(value)) throw new InvalidDataException("Invalid saved financial income.");
+                    if (!ValidStoredAmount(value)) throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_income"));
                 foreach (double value in bucket.expenses)
-                    if (!ValidStoredAmount(value)) throw new InvalidDataException("Invalid saved financial expense.");
+                    if (!ValidStoredAmount(value)) throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_expense"));
                 previousAge = bucket.age;
             }
         }

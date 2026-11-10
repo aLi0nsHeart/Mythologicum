@@ -22,7 +22,7 @@ Decorative plants have no enabled colliders and do not reserve grid cells. Groun
 
 Each placed tree chooses one of the ten catalog prefabs independently, with random yaw and a target height of 3.4 metres plus/minus 10%. Model pivots are corrected to place the mesh on the ground. Imported solid colliders are disabled; existing tree selection, demolition and environment enrichment remain under the construction system. Trees retain their LODs with distances adjusted to the park camera. Ground-cover prefabs disable their supplied empty distant LODs so flowers and grasses remain visible at the game camera height.
 
-The game's upper-right vegetation credit names **LUX ART STUDIOS**, as requested by the included license.
+The Settings menu's Credits section names **LUX ART STUDIOS**, as requested by the included license. The credit is kept out of the park HUD.
 
 ## Validation
 

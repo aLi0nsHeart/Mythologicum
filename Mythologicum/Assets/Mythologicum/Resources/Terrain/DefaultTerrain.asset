@@ -21,3 +21,13 @@ MonoBehaviour:
     maximumPathSlope: 28
     maximumFoundationEarthwork: 4
     heightmap: {fileID: 0}
+    uphillCostMultiplier: 0.25
+  brush:
+    initialRadius: 3
+    minimumRadius: 1
+    maximumRadius: 8
+    radiusStep: 1
+    initialStrength: 1
+    minimumStrength: 0.25
+    maximumStrength: 4
+    strengthStep: 0.25

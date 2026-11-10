@@ -6,11 +6,13 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $originalMonoPath = $env:MONO_PATH
+$originalLocalizationCsv = $env:MYTHOLOGICUM_LOCALIZATION_CSV
 $locationPushed = $false
 
 try {
     Push-Location -LiteralPath $projectRoot
     $locationPushed = $true
+    $env:MYTHOLOGICUM_LOCALIZATION_CSV = Join-Path $projectRoot 'Assets\Mythologicum\Resources\Localization\localization.csv'
     $netCoreRunner = Join-Path $UnityEditorData 'Tools\netcorerun\netcorerun.exe'
     $compiler = Join-Path $UnityEditorData 'DotNetSdkRoslyn\csc.dll'
     $mono = Join-Path $UnityEditorData 'MonoBleedingEdge\bin\mono.exe'
@@ -45,10 +47,15 @@ try {
     $checks += @('..\Terrain\TerrainChecks')
     $checks += @('..\Terrain\TerrainArtChecks')
     $checks += @('..\Management\FinanceChecks', '..\Management\ReputationChecks', '..\Management\BalanceChecks')
+    $checks += @('CreatureBalanceChecks', '..\Staff\PeopleProgressionTuningChecks', '..\Buildings\ConstructionBalanceChecks', '..\Management\ParkTuningChecks')
+    $checks += @('..\Saving\SaveSlotModelChecks', '..\UI\PlayControlChecks', '..\Progression\ParkAlertChecks')
+    $checks += @('..\Buildings\ConstructionUndoChecks')
+    $checks += @('..\Localization\LocalizationChecks')
+    $checks += @('CreatureLocalizationChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force
-    $env:MONO_PATH = $unityAssemblies
+    $env:MONO_PATH = $unityAssemblies + [System.IO.Path]::PathSeparator + (Join-Path $projectRoot 'Library\ScriptAssemblies')
     if ($originalMonoPath) { $env:MONO_PATH += [System.IO.Path]::PathSeparator + $originalMonoPath }
 
     foreach ($check in $checks) {
@@ -74,5 +81,6 @@ catch {
 }
 finally {
     $env:MONO_PATH = $originalMonoPath
+    $env:MYTHOLOGICUM_LOCALIZATION_CSV = $originalLocalizationCsv
     if ($locationPushed) { Pop-Location }
 }
