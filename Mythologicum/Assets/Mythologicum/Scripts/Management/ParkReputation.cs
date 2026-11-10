@@ -28,19 +28,28 @@ namespace Mythologicum
     public sealed class ParkReputation
     {
         private readonly Dictionary<string, ParkExhibit> exhibits = new Dictionary<string, ParkExhibit>(StringComparer.Ordinal);
+        public ParkReputationRules Rules { get; }
+        public ParkReputation(ParkReputationRules rules = null)
+        {
+            Rules = rules ?? new ParkReputationRules();
+            Rules.Validate();
+            GuestScore = Rules.initialGuestScore;
+        }
         public float ExhibitionScore { get; private set; }
-        public float GuestScore { get; private set; } = 60f;
+        public float GuestScore { get; private set; }
         public float SafetyPenalty { get; private set; }
         public int ReviewedVisitors { get; private set; }
         public int Fatalities { get; private set; }
         public int DisplayedSpecies { get; private set; }
         public int DisplayedCreatures { get; private set; }
         public int DisplayedMythicalSpecies { get; private set; }
-        public float Stars => Clamp((ExhibitionScore * (.6f + .4f * GuestScore / 100f) - SafetyPenalty) / 20f, 0f, 5f);
-        public float RecommendedAdmissionPrice => 15f + 5f * Stars;
-        public float RecommendedFoodPrice => 8f + Stars;
-        public float RecommendedRestPrice => 3f + .5f * Stars;
-        public float DemandMultiplier => (.7f + .5f * GuestScore / 100f) * (1f + .12f * Stars) * (1f - .006f * SafetyPenalty);
+        public float Stars => Clamp((ExhibitionScore * (Rules.exhibitionQualityFloor + Rules.guestQualityWeight * GuestScore / 100f)
+            - SafetyPenalty) / Math.Max(.01f, Rules.qualityPointsPerStar), 0f, 5f);
+        public float RecommendedAdmissionPrice => Rules.baseAdmissionPrice + Rules.admissionPricePerStar * Stars;
+        public float RecommendedFoodPrice => Rules.baseFoodPrice + Rules.foodPricePerStar * Stars;
+        public float RecommendedRestPrice => Rules.baseRestPrice + Rules.restPricePerStar * Stars;
+        public float DemandMultiplier => (Rules.baseDemand + Rules.guestDemandBonus * GuestScore / 100f)
+            * (1f + Rules.starDemandBonus * Stars) * Math.Max(0f, 1f - Rules.safetyDemandLossPerPoint * SafetyPenalty);
 
         /// <summary>Exhibits are viewable creatures, regardless of whether a fence surrounds them.</summary>
         public void UpdateExhibition(IEnumerable<ParkExhibit> displayed)
@@ -64,14 +73,17 @@ namespace Mythologicum
             foreach (ParkExhibit item in exhibits.Values)
             {
                 DisplayedCreatures = (int)Math.Min(int.MaxValue, (long)DisplayedCreatures + item.count);
-                if (item.domestic) domesticValue += 2d + Math.Min(2, item.count - 1);
+                if (item.domestic) domesticValue += Rules.domesticSpeciesAppeal
+                    + Rules.domesticExtraSpecimenAppeal * Math.Min(Rules.domesticExtraSpecimenLimit, item.count - 1);
                 else
                 {
                     DisplayedMythicalSpecies++;
-                    value += item.rating * 6d * (1d + .05d * Math.Min(3, item.count - 1));
+                    value += item.rating * (double)Rules.appealPerCreatureRating
+                        * (1d + Rules.extraSpecimenBonus * Math.Min(Rules.extraSpecimenLimit, item.count - 1));
                 }
             }
-            value += Math.Max(0, DisplayedMythicalSpecies - 1) * 10d + Math.Min(4d, domesticValue);
+            value += Math.Max(0, DisplayedMythicalSpecies - 1) * (double)Rules.speciesVarietyBonus
+                + Math.Min(Rules.maximumDomesticAppeal, domesticValue);
             ExhibitionScore = (float)Math.Min(100d, value);
         }
 
@@ -79,23 +91,24 @@ namespace Mythologicum
         {
             if (!Finite(satisfaction)) return;
             float score = Clamp(satisfaction, 0f, 100f);
-            GuestScore = Clamp(GuestScore * .85f + score * .15f, 0f, 100f);
+            GuestScore = Clamp(GuestScore * (1f - Rules.reviewWeight) + score * Rules.reviewWeight, 0f, 100f);
             ReviewedVisitors = Increment(ReviewedVisitors);
             // Strong positive experiences help repair trust after an accident, over many visits.
-            if (score > 60f) SafetyPenalty = Math.Max(0f, SafetyPenalty - (score - 60f) * .01f);
+            if (score > Rules.safetyReviewThreshold) SafetyPenalty = Math.Max(0f,
+                SafetyPenalty - (score - Rules.safetyReviewThreshold) * Rules.safetyRecoveryPerReviewPoint);
         }
 
         public void ReportDeath()
         {
             Fatalities = Increment(Fatalities);
-            GuestScore = Math.Max(0f, GuestScore - 8f);
-            SafetyPenalty = Math.Min(100f, SafetyPenalty + 20f);
+            GuestScore = Math.Max(0f, GuestScore - Rules.deathGuestPenalty);
+            SafetyPenalty = Math.Min(100f, SafetyPenalty + Rules.deathSafetyPenalty);
         }
 
         public void Tick(float dt)
         {
             if (!Finite(dt) || dt <= 0f) return;
-            SafetyPenalty = (float)Math.Max(0d, SafetyPenalty - (double)dt * .01d);
+            SafetyPenalty = (float)Math.Max(0d, SafetyPenalty - (double)dt * Rules.safetyRecoveryPerSecond);
         }
 
         /// <summary>Fraction of potential visitors accepting the current admission price.</summary>
@@ -103,11 +116,12 @@ namespace Mythologicum
         {
             if (!Finite(price) || price < 0f) return 0f;
             if (price <= RecommendedAdmissionPrice) return 1f;
-            return Clamp(1f - (price / RecommendedAdmissionPrice - 1f) / .8f, 0f, 1f);
+            if (RecommendedAdmissionPrice <= 0f) return 0f;
+            return Clamp(1f - (price / RecommendedAdmissionPrice - 1f) / Math.Max(.001f, Rules.admissionRefusalPremium), 0f, 1f);
         }
 
         public bool ServiceAffordable(float price, bool food) => Finite(price) && price >= 0f
-            && price <= (food ? RecommendedFoodPrice : RecommendedRestPrice) * 1.5f;
+            && price <= (food ? RecommendedFoodPrice : RecommendedRestPrice) * Rules.servicePriceTolerance;
 
         public ParkReputationSnapshot Capture()
         {
@@ -135,7 +149,7 @@ namespace Mythologicum
         public void Restore(ParkReputationSnapshot saved)
         {
             ValidateSnapshot(saved);
-            GuestScore = saved?.guestScore ?? 60f; SafetyPenalty = saved?.safetyPenalty ?? 0f;
+            GuestScore = saved?.guestScore ?? Rules.initialGuestScore; SafetyPenalty = saved?.safetyPenalty ?? 0f;
             ReviewedVisitors = saved?.reviewedVisitors ?? 0; Fatalities = saved?.fatalities ?? 0;
             UpdateExhibition(saved?.exhibits);
         }

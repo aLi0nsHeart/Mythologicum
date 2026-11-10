@@ -33,7 +33,7 @@ namespace Mythologicum
     public sealed class ParkProgression
     {
         public ProgressionRules Rules { get; }
-        public NotificationInbox Inbox { get; } = new NotificationInbox();
+        public NotificationInbox Inbox { get; }
         private readonly ParkEconomy economy;
         private readonly ParkBuildingNetwork buildings;
         private readonly Dictionary<string,int> ratings;
@@ -55,6 +55,13 @@ namespace Mythologicum
         {
             Rules=rules;this.economy=economy;this.buildings=buildings;this.ratings=ratings;
             var rng=new Random();this.random=random ?? rng.NextDouble;this.speciesName=speciesName ?? (id=>id);
+            Inbox = new NotificationInbox(rules.notificationMergeSeconds);
+            Teams = Math.Max(0, Math.Min(rules.maximumTeams, rules.startingTeams));
+            if (rules.startingRegions != null) foreach (string id in rules.startingRegions) if (Region(id) != null) access.Add(id);
+            if (rules.startingTechnologies != null) foreach (string id in rules.startingTechnologies) if (Technology(id) != null) completed.Add(id);
+            if (rules.startingCreatures != null) foreach (var item in rules.startingCreatures)
+                if (item != null && item.species != null && ratings.ContainsKey(item.species) && item.count > 0)
+                    stock[item.species] = (int)Math.Min(int.MaxValue, (long)Stock(item.species) + item.count);
         }
         public ExpeditionRegion Region(string id) => Array.Find(Rules.regions,r=>r.id==id);
         public ExpeditionDifficulty Difficulty(string id) => Array.Find(Rules.difficulties,d=>d.id==id);
@@ -72,7 +79,7 @@ namespace Mythologicum
         }
         public bool FenceUnlocked(FenceKind kind)
         {
-            if(kind==FenceKind.Wooden) return true;
+            if(Rules.startingFences != null && Array.IndexOf(Rules.startingFences, kind) >= 0) return true;
             foreach(var t in Rules.technologies) if(Array.IndexOf(t.fences,kind)>=0 && Completed(t.id)) return true;
             return false;
         }
@@ -95,6 +102,8 @@ namespace Mythologicum
             var d=Difficulty(difficulty); if(d==null||teams<1)return 0;
             return Math.Max(0f,Math.Min(Rules.maximumSuccess,d.successChance+(teams-1)*Rules.extraTeamSuccess+SuccessBonus));
         }
+        public float MissionSeconds(ExpeditionDifficulty difficulty) => difficulty == null ? 0f
+            : Math.Max(Rules.minimumMissionSeconds, difficulty.seconds * DurationMultiplier);
         public bool BuyTeam(ParkBuildingRecord home)
         {
             float cost=NextTeamCost;
@@ -115,7 +124,7 @@ namespace Mythologicum
             if(!CanUse(home,BuildingKind.ExpeditionCentre)||!HasAccess(region)||d==null||eligible.Count==0||teams<1||teams>AvailableTeams
                 ||!economy.TrySpend(d.costPerTeam*teams,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(d.costPerTeam*teams);
-            float chance=Chance(difficulty,teams), duration=Math.Max(1f,d.seconds*DurationMultiplier);
+            float chance=Chance(difficulty,teams), duration=MissionSeconds(d);
             missions.Add(new ExpeditionMission {id=++nextMission,region=region,difficulty=difficulty,teams=teams,
                 remaining=duration,duration=duration,chance=chance,succeeds=random()<chance,
                 species=eligible[Math.Min(eligible.Count-1,(int)(random()*eligible.Count))],quantity=Math.Max(1,d.creaturesFound)});
@@ -191,7 +200,7 @@ namespace Mythologicum
         }
         public void Validate(ProgressionSave saved,IReadOnlyList<ParkBuildingRecord> records)
         {
-            if(saved==null||saved.teams<0||saved.teams>Rules.maximumTeams||saved.nextMission<0||!Finite(saved.time)||saved.time<0
+            if(saved==null||saved.teams<0||saved.nextMission<0||!Finite(saved.time)||saved.time<0
                 ||saved.regions==null||saved.technologies==null||saved.inventory==null||saved.missions==null||saved.projects==null||saved.notices==null)
                 throw new InvalidDataException("Invalid park progression.");
             var regions=new HashSet<string>();foreach(string id in saved.regions)if(Region(id)==null||!regions.Add(id))throw new InvalidDataException("Unknown or duplicate expedition location.");
@@ -201,7 +210,7 @@ namespace Mythologicum
             foreach(var m in saved.missions)
             {
                 if(m==null||m.id<1||m.id>saved.nextMission||!ids.Add(m.id)||!regions.Contains(m.region)||Difficulty(m.difficulty)==null||m.teams<1||m.teams>saved.teams
-                    ||m.quantity<1||m.quantity>100||!Finite(m.remaining)||m.remaining<0||!Finite(m.duration)||m.duration<=0||m.remaining>m.duration
+                    ||m.quantity<1||!Finite(m.remaining)||m.remaining<0||!Finite(m.duration)||m.duration<=0||m.remaining>m.duration
                     ||!Finite(m.chance)||m.chance<0||m.chance>1||!ratings.ContainsKey(m.species))throw new InvalidDataException("Invalid active expedition.");
                 busy+=m.teams;
             }
@@ -210,7 +219,7 @@ namespace Mythologicum
             foreach(var p in saved.projects)
                 if(p==null||p.building<0||p.building>=records.Count||records[p.building].Footprint.Definition.kind!=BuildingKind.ResearchCentre
                     ||Technology(p.technology)==null||technologies.Contains(p.technology)||!researching.Add(p.technology)||!homes.Add(p.building)
-                    ||!Finite(p.work)||p.work<0||p.work>=Technology(p.technology).workSeconds)throw new InvalidDataException("Invalid active research project.");
+                    ||!Finite(p.work)||p.work<0)throw new InvalidDataException("Invalid active research project.");
             ids.Clear();if(saved.notices.Count>NotificationInbox.Capacity)throw new InvalidDataException("Inbox is too large.");
             foreach(var n in saved.notices)if(n==null||n.id<1||!ids.Add(n.id)||n.count<1||!Finite(n.time)||n.time<0||n.time>saved.time||n.title==null||n.body==null||n.key==null
                 ||!Enum.IsDefined(typeof(ParkNoticeKind),n.kind))throw new InvalidDataException("Invalid inbox entry.");

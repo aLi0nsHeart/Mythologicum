@@ -58,7 +58,15 @@ namespace Mythologicum
             recent.Clear(); TrackedSeconds = 0f;
         }
 
-        public ParkEconomy(float startingBalance = 5000f)
+        public ParkEconomy() : this(new ParkEconomyRules()) { }
+
+        public ParkEconomy(ParkEconomyRules rules)
+            : this((rules ?? new ParkEconomyRules()).startingFunds)
+        {
+            UnlimitedFunds = rules != null && rules.startWithUnlimitedFunds;
+        }
+
+        public ParkEconomy(float startingBalance)
         {
             Balance = ValidAmount(startingBalance) ? startingBalance : 0f;
         }

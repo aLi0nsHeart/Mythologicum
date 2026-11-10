@@ -12,7 +12,8 @@ namespace Mythologicum
         private string terrainMessage="";
         private void CreateTerrainEditingUI(Canvas canvas)
         {
-            terrainEditing=new TerrainEditingPresentation(canvas,SelectTerrainBrush,()=>SelectTool(Tool.None));
+            var settings=Resources.Load<TerrainDefinition>("Terrain/DefaultTerrain");
+            terrainEditing=new TerrainEditingPresentation(canvas,SelectTerrainBrush,()=>SelectTool(Tool.None),settings!=null?settings.brush:null);
             var root=new GameObject("Terrain brush outline",typeof(LineRenderer));terrainCursor=root.GetComponent<LineRenderer>();
             terrainCursorMaterial=new Material(Shader.Find("Universal Render Pipeline/Unlit")??gridMaterial.shader);
             terrainCursor.sharedMaterial=terrainCursorMaterial;terrainCursor.useWorldSpace=true;terrainCursor.loop=true;terrainCursor.widthMultiplier=.06f;

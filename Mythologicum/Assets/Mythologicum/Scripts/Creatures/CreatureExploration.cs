@@ -10,7 +10,8 @@ namespace Mythologicum
         {
             if (dt > 0f && !float.IsNaN(dt) && !float.IsInfinity(dt)) AwakeSeconds += dt;
         }
-        public bool WillClimb(float settlingSeconds, float hunger, float energy, bool fleeing) =>
-            fleeing || hunger >= 80f || energy <= 8f || AwakeSeconds >= Math.Max(0f, settlingSeconds);
+        public bool WillClimb(float settlingSeconds, float hunger, float energy, bool fleeing,
+            float urgentHunger = 80f, float urgentEnergy = 8f) =>
+            fleeing || hunger >= urgentHunger || energy <= urgentEnergy || AwakeSeconds >= Math.Max(0f, settlingSeconds);
     }
 }

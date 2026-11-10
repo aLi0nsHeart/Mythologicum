@@ -20,7 +20,7 @@ namespace Mythologicum
                 actor.Alive = false; actor.IsSedated = false; actor.SedationRemaining = 0f;
                 actor.RetirementRequested = false; actor.SedationRequested = false; actor.MoveRequestedDestination = null;
                 actor.Route.Clear(); actor.Goal = null; actor.AttackedFence = null;
-                actor.Activity = CreatureActivity.Dying; actor.CorpseTimer = 3f;
+                actor.Activity = CreatureActivity.Dying; actor.CorpseTimer = simulation.corpseSeconds;
                 actor.StaffStatus = "Deceased";
                 Collider collider = actor.GetComponent<Collider>();
                 if (collider != null) collider.enabled = false;
@@ -56,7 +56,7 @@ namespace Mythologicum
             Vector3 point = grid.CellCenter(cell);
             foreach (CreatureAgent other in agents)
                 if (other != actor && other != ignore && other.Alive
-                    && HorizontalDistance(other.transform.position, point) < grid.CellSize * .7f) return false;
+                    && HorizontalDistance(other.transform.position, point) < grid.CellSize * simulation.placementSpacingTiles) return false;
             return true;
         }
 
@@ -64,7 +64,7 @@ namespace Mythologicum
         {
             if (!RegisteredLiving(actor) || !RegisteredLiving(carrier) || actor == carrier || !actor.IsSedated
                 || actor.CarriedBy != null || Mathf.Abs(actor.Elevation) > .01f
-                || HorizontalDistance(actor.transform.position, carrier.transform.position) > 2.5f
+                || HorizontalDistance(actor.transform.position, carrier.transform.position) > simulation.carryPickupRange
                 || actor.Cell != carrier.Cell && !navigation.CanCross(carrier.Cell, actor.Cell)) return false;
             ClearCombatLinks(actor);
             actor.CarriedBy = carrier; actor.Route.Clear(); actor.Goal = null;

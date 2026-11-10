@@ -12,5 +12,7 @@ namespace Mythologicum
         [Range(0, 6)] public int patchesPerCell = 2;
         public int scatterSeed = 271026;
         [Min(0.1f)] public float treeHeight = 3.4f;
+        [Tooltip("Fraction of its tile counted as forest by a placed tree. This affects enclosure/environment statistics, independently of the tree's visual size.")]
+        [Range(0f, 1f)] public float forestCoveragePerTree = .5f;
     }
 }

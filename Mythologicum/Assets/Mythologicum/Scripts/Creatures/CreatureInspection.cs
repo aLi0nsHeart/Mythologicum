@@ -107,7 +107,7 @@ namespace Mythologicum
             string herd = definition.maximumCompanions < 0 ? $"{definition.minimumCompanions + 1}+"
                 : $"{definition.minimumCompanions + 1}-{definition.maximumCompanions + 1}";
             string reasons = "Rare curiosity";
-            if (selected.Vitals.Hunger > 75f) reasons += ", hunger";
+            if (selected.Vitals.Hunger > definition.Behaviour.escapeHungerStart) reasons += ", hunger";
             if (selected.Wellbeing.Agitation > 0f) reasons += ", agitation";
             if (selected.Crowding > 0f) reasons += ", space pressure";
             title.text=definition.displayName;

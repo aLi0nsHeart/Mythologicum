@@ -1,14 +1,43 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 
 namespace Mythologicum
 {
+    [Serializable]
+    public sealed class SpeciesResearchRules
+    {
+        [Tooltip("Knowledge percentage needed to reveal diet information.")]
+        [Range(0, 100)] public float foodDiscovery = 25f;
+        [Range(0, 100)] public float habitatDiscovery = 50f;
+        [Range(0, 100)] public float socialDiscovery = 75f;
+        [Range(0, 100)] public float containmentDiscovery = 100f;
+        public float Threshold(int stage) => stage <= 1 ? foodDiscovery : stage == 2 ? habitatDiscovery
+            : stage == 3 ? socialDiscovery : containmentDiscovery;
+        public int Unlocked(float progress)
+        {
+            int count = 0;
+            for (int stage = 1; stage <= SpeciesResearch.StageCount; stage++)
+                if (progress >= Threshold(stage)) count++; else break;
+            return count;
+        }
+        public void Validate()
+        {
+            foodDiscovery = Mathf.Clamp(foodDiscovery, 0, 100);
+            habitatDiscovery = Mathf.Clamp(habitatDiscovery, foodDiscovery, 100);
+            socialDiscovery = Mathf.Clamp(socialDiscovery, habitatDiscovery, 100);
+            containmentDiscovery = Mathf.Clamp(containmentDiscovery, socialDiscovery, 100);
+        }
+    }
+
     /// <summary>One species' discovery progress, independent of Unity and employee presentation.</summary>
     public sealed class ResearchProgress
     {
         public float Progress { get; private set; }
-        public int UnlockedStages => Math.Min(SpeciesResearch.StageCount,(int)(Progress/25f));
+        private readonly SpeciesResearchRules rules;
+        public ResearchProgress(SpeciesResearchRules rules = null) => this.rules = rules ?? new SpeciesResearchRules();
+        public int UnlockedStages => rules.Unlocked(Progress);
         public bool Study(float amount)
         {
             if (amount <= 0f || float.IsNaN(amount) || float.IsInfinity(amount) || Progress >= 100f) return false;
@@ -22,17 +51,20 @@ namespace Mythologicum
     {
         public event Action<CreatureDefinition> Finished;
         public const int StageCount = 4;
+        public SpeciesResearchRules Rules { get; }
         private readonly Dictionary<CreatureDefinition,ResearchProgress> progress = new Dictionary<CreatureDefinition,ResearchProgress>();
 
-        public SpeciesResearch(IEnumerable<CreatureDefinition> knownSpecies)
+        public SpeciesResearch(IEnumerable<CreatureDefinition> knownSpecies, SpeciesResearchRules rules = null)
         {
+            Rules = rules ?? new SpeciesResearchRules();
             if (knownSpecies == null) return;
             foreach (CreatureDefinition species in knownSpecies)
-                if (species != null && !progress.ContainsKey(species)) progress.Add(species,new ResearchProgress());
+                if (species != null && !progress.ContainsKey(species)) progress.Add(species,new ResearchProgress(Rules));
         }
 
         public float Progress(CreatureDefinition species) => species != null && progress.TryGetValue(species,out ResearchProgress value) ? value.Progress : 0f;
-        public int UnlockedStages(CreatureDefinition species) => Math.Min(StageCount,(int)(Progress(species)/25f));
+        public int UnlockedStages(CreatureDefinition species) => Rules.Unlocked(Progress(species));
+        public float NextDiscovery(CreatureDefinition species) => Rules.Threshold(Math.Min(StageCount, UnlockedStages(species) + 1));
         public bool Study(CreatureDefinition species,float amount)
         {
             if (species == null || !progress.TryGetValue(species,out ResearchProgress value)) return false;
@@ -71,12 +103,12 @@ namespace Mythologicum
             }
             if (stages >= 4)
             {
-                if (species.canPhaseFences) text.Append("Containment: sanctified barriers block phasing, which starts at hunger ").Append(species.phaseHungerThreshold.ToString("0")).Append(".\n");
-                if (species.canBreakFences) text.Append("Containment: reinforced barriers resist its attacks.\n");
-                if (species.canClimbWoodenFences) text.Append("Containment: can climb wood; spikes prevent climbing.\n");
+                if (species.canPhaseFences) text.Append("Containment: phasing begins at hunger ").Append(species.phaseHungerThreshold.ToString("0")).Append(". Fences with phasing protection block it.\n");
+                if (species.canBreakFences) text.Append("Containment: may attack fences; barriers with damage resistance stop these attacks.\n");
+                if (species.canClimbWoodenFences) text.Append("Containment: can cross barriers that permit climbing. Use a fence with climbing protection.\n");
                 text.Append("Escape pressure rises with hunger, agitation and overcrowding. Keep food, rest and space available.");
             }
-            else text.Append("Next discovery at ").Append((stages+1)*25).Append("%.");
+            else text.Append("Next discovery at ").Append(NextDiscovery(species).ToString("0.#")).Append("%.");
             return text.ToString().TrimEnd();
         }
     }

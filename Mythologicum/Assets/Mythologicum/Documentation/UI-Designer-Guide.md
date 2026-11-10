@@ -128,6 +128,15 @@ selected object's existing anchors.
 Scrolling remains disabled while content fits. Scroll settings change genuine
 overflow behaviour; they do not force short reports to scroll.
 
+The dark panel backing automatically follows the frame artwork's enclosed inner
+outline, including curved corners and the gaps beside ornaments. Its colour and
+transparency remain under **Theme > Colours > Panel Lining Color**. In
+**Layout > Panels**, leave **Match Frame Backing To Artwork** enabled. **Frame
+Backing Overlap Pixels** extends the backing slightly underneath the frame to hide
+seams; the default is two source-image pixels. These controls do not move the text.
+The vertical/horizontal **Lining Insets** apply only when automatic matching is
+disabled or replacement artwork has no enclosed interior.
+
 ## Variants, saving and repairs
 
 Duplicate the theme asset in the Project window, rename the duplicate, then assign
@@ -150,3 +159,8 @@ ScriptableObjects remain separate, including creature profiles in
 `Resources/Creatures`, `Visitors/DefaultVisitors`, `Staff/DefaultStaff`,
 `Progression/DefaultProgression`, and `Terrain/DefaultTerrain`. Changing UI text
 sizes or colours does not change simulation rules or saved park values.
+
+Open **Mythologicum > Gameplay > Balancing Tools** to edit gameplay values. The
+[gameplay balancing guide](Gameplay-Balancing-Guide.md) lists park/economy,
+building, fence, creature, visitor, staff, research, expedition and terrain assets,
+including units and when changes take effect.

@@ -19,6 +19,7 @@ namespace Mythologicum.Editor
                 case 0:
                     EditorGUILayout.HelpBox("Frame width preserves the illustration's native proportions. Safe areas use fractions: 0.1 reserves ten percent of that edge. Panel positions use Unity's anchored coordinates.", MessageType.None);
                     Draw("canvasMargin");
+                    Draw("matchFrameBackingToArtwork", "frameBackingOverlapPixels");
                     Draw("verticalBodyInsets", "verticalLiningInsets", "verticalHeadingInsets");
                     Draw("horizontalBodyInsets", "horizontalLiningInsets", "horizontalHeadingInsets");
                     Draw("panels");

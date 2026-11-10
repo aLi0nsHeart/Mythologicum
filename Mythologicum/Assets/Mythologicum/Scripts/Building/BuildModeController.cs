@@ -15,9 +15,12 @@ namespace Mythologicum
         [SerializeField] private GameObject pathTilePrefab;
         [SerializeField, Min(0.25f)] private float cellSize = 2f;
         [SerializeField, Min(0.25f)] private float buildingHeight = 2f;
-        [SerializeField] private BuildingDefinition[] buildingCatalog = BuildingDefinition.Defaults();
+        [SerializeField, Tooltip("Optional catalogue override. Empty uses Resources/Buildings/DefaultBuildings.")]
+        private BuildingCatalogDefinition buildingSettings;
+        [SerializeField, Tooltip("Optional park balance override. Empty uses Resources/Management/DefaultParkBalance.")]
+        private ParkBalanceDefinition parkSettings;
+        [SerializeField, HideInInspector] private BuildingDefinition[] buildingCatalog = BuildingDefinition.Defaults();
         [SerializeField] private VisitorDefinition visitorSettings;
-        [SerializeField, Min(0f)] private float startingFunds = 5000f;
         private SquareBuildGrid grid;
         private Camera view;
         private GameObject gridObject;
@@ -82,15 +85,9 @@ namespace Mythologicum
                 return;
             }
             view = GetComponent<Camera>();
-            // Add new catalogue entries without replacing the user's existing building settings.
-            var expanded = new List<BuildingDefinition>(buildingCatalog);
-            foreach (BuildingDefinition addition in BuildingDefinition.Defaults())
-            {
-                bool found = false;
-                foreach (BuildingDefinition existing in expanded) if (existing.kind == addition.kind) { found = true; break; }
-                if (!found) expanded.Add(addition);
-            }
-            buildingCatalog = expanded.ToArray();
+            if (buildingSettings == null) buildingSettings = BuildingCatalogDefinition.Current;
+            buildingCatalog = buildingSettings.CreateRuntimeCatalog();
+            if (parkSettings == null) parkSettings = ParkBalanceDefinition.Current;
             var buildingVisuals = Resources.Load<BuildingVisualCatalog>("Buildings/BuildingVisuals");
             buildingVisuals?.ApplyTo(buildingCatalog);
             creatureCatalog = Resources.LoadAll<CreatureDefinition>("Creatures");
@@ -125,20 +122,21 @@ namespace Mythologicum
             var fenceRoot = new GameObject("Fences");
             fenceRoot.transform.SetParent(buildings.transform);
             fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial,
-                Resources.Load<FenceVisualCatalog>("Fences/FenceVisuals"));
+                Resources.Load<FenceVisualCatalog>("Fences/FenceVisuals"), FenceBalanceDefinition.Current.rules);
             buildingConstruction = new BuildingConstruction(grid, fences.Layout, buildings.transform, buildingMaterial, entranceMaterial);
-            Environment = new EnvironmentGrid(grid);
+            var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
+            Environment = new EnvironmentGrid(grid, vegetation != null ? vegetation.forestCoveragePerTree : .5f);
             creatureWorld = new CreatureWorld(grid, fences.Layout, buildingConstruction.Network, view, buildingMaterial, creatureCatalog, Environment);
             if (visitorSettings == null) visitorSettings = Resources.Load<VisitorDefinition>("Visitors/DefaultVisitors");
             if (visitorSettings == null)
             { visitorSettings = ScriptableObject.CreateInstance<VisitorDefinition>(); ownsVisitorSettings = true; }
-            economy = new ParkEconomy(startingFunds);
-            visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy);
+            economy = new ParkEconomy(parkSettings.economy);
+            visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy,
+                new ParkReputation(parkSettings.reputation));
             staffWorld = new StaffWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, economy,
                 visitorSettings.people != null ? visitorSettings.people : Resources.Load<PeopleDefinition>("People/People"), creatureCatalog);
             InitializeProgression();
             var treeRoot = new GameObject("Enrichment trees"); treeRoot.transform.SetParent(buildings.transform);
-            var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
             var graveRoot = new GameObject("Graveyard gravestones"); graveRoot.transform.SetParent(buildings.transform);
             graves = new GravestoneConstruction(grid, Environment, graveRoot.transform, buildingMaterial);

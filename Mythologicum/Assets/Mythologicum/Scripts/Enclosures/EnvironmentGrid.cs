@@ -18,11 +18,17 @@ namespace Mythologicum
     public sealed class EnvironmentGrid
     {
         private readonly SquareBuildGrid grid;
+        private readonly float forestCoveragePerTree;
         private readonly Dictionary<Vector2Int, float> forest = new Dictionary<Vector2Int, float>();
         private readonly HashSet<Vector2Int> trees = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> gravestones = new HashSet<Vector2Int>();
         public int Revision { get; private set; }
-        public EnvironmentGrid(SquareBuildGrid grid) => this.grid = grid;
+        public EnvironmentGrid(SquareBuildGrid grid, float forestCoveragePerTree = .5f)
+        {
+            this.grid = grid;
+            this.forestCoveragePerTree = float.IsNaN(forestCoveragePerTree) || float.IsInfinity(forestCoveragePerTree)
+                ? .5f : Math.Max(0f, Math.Min(1f, forestCoveragePerTree));
+        }
 
         public int TreesAt(Vector2Int cell) => trees.Contains(cell) ? 1 : 0;
         public int GravestonesAt(Vector2Int cell) => gravestones.Contains(cell) ? 1 : 0;
@@ -84,7 +90,7 @@ namespace Mythologicum
                 forest.TryGetValue(cell, out float value);
                 // Authored ground coverage and constructed trees are independent layers.
                 // Demolishing a tree must restore the underlying environment exactly.
-                forestTiles += Math.Min(1f, value + (trees.Contains(cell) ? 0.5f : 0f));
+                forestTiles += Math.Min(1f, value + (trees.Contains(cell) ? forestCoveragePerTree : 0f));
             }
             float cellArea = grid.CellSize * grid.CellSize;
             return new EnvironmentStats(count, count * cellArea, forestTiles * cellArea);

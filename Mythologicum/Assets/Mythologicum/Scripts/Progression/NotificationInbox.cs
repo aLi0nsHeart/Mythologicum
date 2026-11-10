@@ -18,6 +18,8 @@ namespace Mythologicum
     public sealed class NotificationInbox
     {
         public const int Capacity = 100;
+        private readonly float mergeSeconds;
+        public NotificationInbox(float mergeSeconds = 5f) => this.mergeSeconds = Math.Max(0, mergeSeconds);
         private readonly List<ParkNotice> entries = new List<ParkNotice>();
         private int nextId;
         public int Revision { get; private set; }
@@ -29,7 +31,7 @@ namespace Mythologicum
         {
             ParkNotice notice = null;
             for(int i=entries.Count-1;i>=0;i--)
-                if(entries[i].key==key && Time-entries[i].time<=5f) { notice=entries[i]; break; }
+                if(entries[i].key==key && Time-entries[i].time<=mergeSeconds) { notice=entries[i]; break; }
             if(notice==null)
             {
                 notice=new ParkNotice {id=++nextId,key=key,kind=kind}; entries.Add(notice);

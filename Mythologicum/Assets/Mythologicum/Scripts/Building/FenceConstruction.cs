@@ -21,14 +21,14 @@ namespace Mythologicum
         public static float HeightFor(FenceKind kind) => kind == FenceKind.Heavy ? HeavyHeight
             : kind == FenceKind.Spiked || kind == FenceKind.Sanctified ? SpikedHeight : Height;
 
-        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null)
+        public FenceConstruction(SquareBuildGrid grid, Transform parent, Material material, Material gateMaterial = null, FenceVisualCatalog visuals = null, FenceRules rules = null)
         {
             this.grid = grid;
             this.parent = parent;
             this.material = material;
             this.visuals = visuals;
             this.gateMaterial = gateMaterial != null ? gateMaterial : material;
-            Layout = new FenceLayout(grid);
+            Layout = new FenceLayout(grid, rules);
         }
 
         public bool CanPlace(FenceEdge edge, FenceKind kind = FenceKind.Wooden)
@@ -63,7 +63,7 @@ namespace Mythologicum
         {
             if (!Layout.TryAdd(edge, kind)) return false;
             if (gate && !Layout.TrySetGate(edge)) { Layout.TryRemove(edge); return false; }
-            Layout.TryDamage(edge, Mathf.Max(0f, Layout.MaximumHealthAt(edge) - health));
+            if (!Layout.RestoreHealth(edge, health)) { Layout.TryRemove(edge); return false; }
             CreateObject(edge, gate); return true;
         }
 

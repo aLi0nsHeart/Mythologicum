@@ -15,11 +15,150 @@ MonoBehaviour:
   bodyFont: {fileID: 12800000, guid: 8ff2be35269da9a42b4fb21ee8cf2469, type: 3}
   headingFont: {fileID: 12800000, guid: 8ff2be35269da9a42b4fb21ee8cf2469, type: 3}
   titleFont: {fileID: 12800000, guid: 8ff2be35269da9a42b4fb21ee8cf2469, type: 3}
+  globalTextScale: 1
+  bodyText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  headingText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  titleText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  buttonText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 1
+    minimumFontSize: 11
+    shrinkRange: 4
+  inputText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  smallText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  hudText:
+    font: {fileID: 0}
+    fontSize: 0
+    sizeScale: 1
+    overrideColor: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideFontStyle: 0
+    fontStyle: 0
+    overrideAlignment: 0
+    alignment: 0
+    overrideLineSpacing: 0
+    lineSpacing: 1
+    fitMode: 0
+    minimumFontSize: 11
+    shrinkRange: 4
+  textColor: {r: 0.96, g: 0.92, b: 0.83, a: 1}
+  headingColor: {r: 1, g: 1, b: 1, a: 1}
+  mutedColor: {r: 0.73, g: 0.69, b: 0.61, a: 1}
+  dangerColor: {r: 0.30437878, g: 0.46673784, b: 0.6792453, a: 1}
+  accentColor: {r: 0.27843136, g: 0.67722654, b: 0.83137256, a: 1}
+  preserveStatusColors: 1
+  textShadows: 1
+  shadowColor: {r: 0.025, g: 0.012, b: 0.006, a: 0.8}
+  shadowOffset: {x: 1, y: -1}
+  textOutlines: 0
+  outlineColor: {r: 0.055, g: 0.035, b: 0.01, a: 1}
+  outlineOffset: {x: 1, y: -1}
+  starFilledColor: {r: 1, g: 0.78, b: 0.2, a: 1}
+  starEmptyColor: {r: 0.18, g: 0.24, b: 0.25, a: 1}
+  hudOutlines: 1
+  hudOutlineColor: {r: 0.055, g: 0.035, b: 0.01, a: 1}
+  hudOutlineOffset: {x: 1, y: -1}
+  panelLiningColor: {r: 0.055, g: 0.035, b: 0.018, a: 0.985}
+  frameTint: {r: 1, g: 1, b: 1, a: 1}
+  surfaceColor: {r: 0.055, g: 0.035, b: 0.02, a: 0.65}
+  overlayColor: {r: 0.055, g: 0.033, b: 0.018, a: 0.93}
+  buttonTint: {r: 1, g: 1, b: 1, a: 1}
+  buttonDisabledTint: {r: 0.47, g: 0.45, b: 0.42, a: 0.8}
+  inputTint: {r: 1, g: 1, b: 1, a: 1}
+  trackTint: {r: 1, g: 1, b: 1, a: 1}
+  fillTint: {r: 1, g: 1, b: 1, a: 1}
+  thumbTint: {r: 1, g: 1, b: 1, a: 1}
+  badgeColor: {r: 0.85, g: 0.27, b: 0.17, a: 1}
+  hintTint: {r: 1, g: 1, b: 1, a: 0.93}
+  buttonTextPadding: {x: 10, y: 4}
+  buttonArtworkScale: 4
+  controlArtworkScale: 3
   windowFrame: {fileID: 802451727016168549, guid: c3cbd015370c5294385a8d880c234850, type: 3}
   panelFrame: {fileID: 2750874915692591106, guid: 1f4bdf5b60f5e0c42b43c60999bba131, type: 3}
   verticalInfoFrame: {fileID: 2793176097393672575, guid: 1f4bdf5b60f5e0c42b43c60999bba131, type: 3}
   horizontalInfoFrame: {fileID: 4840479622272537927, guid: c1d0056efa7a4f547ac230e6a51f5ffc, type: 3}
   expeditionMapBackground: {fileID: -3068565433328477323, guid: 7bdb04714e45e094c92848d99e6249df, type: 3}
+  tooltipFrame: {fileID: 0}
   buttonNormal: {fileID: -1388602495020635306, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
   buttonHover: {fileID: 6912372366057910295, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
   buttonPressed: {fileID: -6513349321188212269, guid: f85c0b0d6e5acd64185eafcda5d6cba8, type: 3}
@@ -137,12 +276,16 @@ MonoBehaviour:
     highlighted: {fileID: 2071443655879868920, guid: 252d1f9f9eb6dfe46873735361f596d6, type: 3}
     pressed: {fileID: 2071443655879868920, guid: 252d1f9f9eb6dfe46873735361f596d6, type: 3}
     disabled: {fileID: 2071443655879868920, guid: 252d1f9f9eb6dfe46873735361f596d6, type: 3}
+  iconTint: {r: 1, g: 1, b: 1, a: 1}
+  disabledIconTint: {r: 0.65, g: 0.65, b: 0.65, a: 0.75}
+  tintDisabledIconArtwork: 0
+  iconPadding: 14
+  iconGap: 9
+  iconInset: 12
+  iconMinSize: 18
+  iconMaxSize: 44
   cursorSource: {fileID: -4676717269735476019, guid: 252d1f9f9eb6dfe46873735361f596d6, type: 3}
   cursorTexture: {fileID: 2800000, guid: 5ba420e01ed539f4cb4987dbd5d7512b, type: 3}
   cursorHotspot: {x: 2, y: 2}
   background: {fileID: 2800000, guid: b464ee8350ce3984aa31ea54d12d9236, type: 3}
-  textColor: {r: 0.96, g: 0.92, b: 0.83, a: 1}
-  headingColor: {r: 1, g: 0.82, b: 0.48, a: 1}
-  mutedColor: {r: 0.73, g: 0.69, b: 0.61, a: 1}
-  dangerColor: {r: 1, g: 0.47, b: 0.35, a: 1}
-  accentColor: {r: 0.83, g: 0.59, b: 0.28, a: 1}
+  textOverrides: []

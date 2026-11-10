@@ -113,6 +113,9 @@ namespace Mythologicum
         [Min(1f)] public float socializingEnergyMultiplier = 2f;
 
         [Header("Happiness")]
+        [Tooltip("Additional species behaviour and happiness weights. Weights are normalized automatically; they do not need to add up to one.")]
+        public CreatureBehaviourSettings behaviour = new CreatureBehaviourSettings();
+        public CreatureBehaviourSettings Behaviour => behaviour ?? (behaviour = new CreatureBehaviourSettings());
         [Tooltip("Below this happiness, agitation gradually intensifies.")]
         [Range(0f, 100f)] public float happinessThreshold = 50f;
         [Tooltip("Maximum happiness points gained or lost each second.")]
@@ -143,5 +146,94 @@ namespace Mythologicum
         [Header("Placeholder appearance and simulation bounds")]
         public Color color = new Color(0.85f, 0.8f, 0.65f);
         public Vector3 bodyScale = new Vector3(0.8f, 0.8f, 1.1f);
+
+        private void OnValidate()
+        {
+            maximumHealth = Mathf.Max(1f, maximumHealth);
+            damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
+            pauseMinSeconds = Mathf.Max(0f, pauseMinSeconds);
+            pauseMaxSeconds = Mathf.Max(pauseMinSeconds, pauseMaxSeconds);
+            sleepThreshold = Mathf.Clamp(sleepThreshold, 0f, 99.9f);
+            wakeThreshold = Mathf.Clamp(wakeThreshold, sleepThreshold + .1f, 100f);
+            minimumCompanions = Mathf.Max(0, minimumCompanions);
+            maximumCompanions = maximumCompanions < 0 ? -1 : Mathf.Max(minimumCompanions, maximumCompanions);
+            decisionInterval = Mathf.Max(.05f, decisionInterval);
+            minimumSpace = Mathf.Max(0f, minimumSpace);
+            requiredTrees = Mathf.Max(0, requiredTrees); requiredGravestones = Mathf.Max(0, requiredGravestones);
+            Behaviour.Validate();
+        }
+    }
+
+    /// <summary>Extra species tuning; plain data so need evaluation remains testable without a Unity scene.</summary>
+    [Serializable]
+    public sealed class CreatureBehaviourSettings
+    {
+        [Header("Happiness contribution weights")]
+        [Range(0f, 100f), Tooltip("Happiness of newly placed or dispensed creatures. Saved individuals retain their saved happiness.")]
+        public float initialHappiness = 75f;
+        [Min(0f)] public float hungerWeight = .30f;
+        [Min(0f)] public float fearWeight = .10f;
+        [Min(0f)] public float environmentWeight = .25f;
+        [Min(0f)] public float spaceWeight = .20f;
+        [Min(0f)] public float herdWeight = .15f;
+
+        [Header("Socializing and local exploration")]
+        [Min(.1f), Tooltip("Maximum distance in metres for starting and continuing a social interaction.")]
+        public float socialInteractionRange = 3f;
+        [Min(1), Tooltip("Maximum grid steps examined when selecting a normal wander destination.")]
+        public int wanderSearchSteps = 4;
+        [Min(1), Tooltip("Maximum grid steps examined while looking for edible ground vegetation.")]
+        public int grazingSearchSteps = 5;
+        [Range(0f, 1f), Tooltip("Multiplier on ordinary pause duration at maximum agitation.")]
+        public float agitatedPauseMultiplier = .4f;
+        [Min(.05f), Tooltip("Seconds between habitat and herd measurements. Shorter values use more CPU.")]
+        public float needsCheckSeconds = .5f;
+
+        [Header("Urgency and escape attempts")]
+        [Range(0f, 100f), Tooltip("Hunger that overrides initial settling caution and permits fence attacks.")]
+        public float urgentHunger = 80f;
+        [Range(0f, 100f), Tooltip("Energy low enough to override settling caution when seeking a sleeping site.")]
+        public float urgentEnergy = 8f;
+        [Range(0f, 100f), Tooltip("Hunger where hunger-driven escape pressure begins; it reaches full strength at 100.")]
+        public float escapeHungerStart = 75f;
+        [Range(0f, 1f), Tooltip("Cap on combined escape intention chance per simulation minute.")]
+        public float maximumEscapeChance = .95f;
+        [Min(.1f), Tooltip("Maximum duration of one escape intention, in seconds.")]
+        public float escapeAttemptSeconds = 30f;
+        [Min(.05f)] public float crowdingCheckSeconds = .5f;
+        [Min(1), Tooltip("Local search distance, in grid steps, when leaving through a gap or moving away from a crowd.")]
+        public int escapeSearchSteps = 6;
+        [Min(0f), Tooltip("Preference score for ground beyond Flee Safe Distance, reduced by travel steps. Higher values favour reaching safety over moving farther while still exposed.")]
+        public float safeEscapeScore = 1000f;
+
+        [Header("Special abilities and combat effort")]
+        [Min(.1f), Tooltip("Seconds to phase through a fence.")]
+        public float phaseSeconds = 1.5f;
+        [Range(0f, 100f), Tooltip("Immediate fear points caused by a successful scare.")]
+        public float scareFearImpulse = 15f;
+        [Min(0f), Tooltip("Immediate fear after surviving a hit, expressed as seconds of the victim's normal fear gain.")]
+        public float attackFearSeconds = .25f;
+        [Range(0f, 100f)] public float fenceStrikeEnergyCost = 1f;
+        [Min(1), Tooltip("Maximum fence strikes in one attack before pausing and reconsidering.")]
+        public int maximumFenceStrikes = 30;
+
+        public void Validate()
+        {
+            initialHappiness = Mathf.Clamp(initialHappiness, 0, 100);
+            hungerWeight = Mathf.Max(0, hungerWeight); fearWeight = Mathf.Max(0, fearWeight);
+            environmentWeight = Mathf.Max(0, environmentWeight); spaceWeight = Mathf.Max(0, spaceWeight);
+            herdWeight = Mathf.Max(0, herdWeight);
+            socialInteractionRange = Mathf.Max(.1f, socialInteractionRange);
+            wanderSearchSteps = Mathf.Max(1, wanderSearchSteps); grazingSearchSteps = Mathf.Max(1, grazingSearchSteps);
+            agitatedPauseMultiplier = Mathf.Clamp01(agitatedPauseMultiplier);
+            needsCheckSeconds = Mathf.Max(.05f, needsCheckSeconds); crowdingCheckSeconds = Mathf.Max(.05f, crowdingCheckSeconds);
+            urgentHunger = Mathf.Clamp(urgentHunger, 0, 100); urgentEnergy = Mathf.Clamp(urgentEnergy, 0, 100);
+            escapeHungerStart = Mathf.Clamp(escapeHungerStart, 0, 100); maximumEscapeChance = Mathf.Clamp01(maximumEscapeChance);
+            escapeAttemptSeconds = Mathf.Max(.1f, escapeAttemptSeconds); escapeSearchSteps = Mathf.Max(1, escapeSearchSteps);
+            safeEscapeScore = Mathf.Max(0, safeEscapeScore);
+            phaseSeconds = Mathf.Max(.1f, phaseSeconds); scareFearImpulse = Mathf.Clamp(scareFearImpulse, 0, 100);
+            attackFearSeconds = Mathf.Max(0, attackFearSeconds); fenceStrikeEnergyCost = Mathf.Clamp(fenceStrikeEnergyCost, 0, 100);
+            maximumFenceStrikes = Mathf.Max(1, maximumFenceStrikes);
+        }
     }
 }

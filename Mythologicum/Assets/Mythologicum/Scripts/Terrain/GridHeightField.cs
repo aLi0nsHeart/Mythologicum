@@ -21,15 +21,17 @@ namespace Mythologicum
         public float MaximumWalkSlope {get;private set;}
         public float MaximumPathSlope {get;private set;}
         public float MaximumEarthwork {get;private set;}
+        public float UphillCostMultiplier {get;private set;}
         public int Revision {get;private set;}
         public event Action Changed;
         private readonly float[] heights,slopes;
         private readonly Dictionary<object,HashSet<int>> foundations=new Dictionary<object,HashSet<int>>();
         private readonly Dictionary<int,int> locks=new Dictionary<int,int>();
-        public GridHeightField(int width,int depth,float cellSize,float maximumWalkSlope=45f,float maximumPathSlope=28f,float maximumEarthwork=4f)
+        public GridHeightField(int width,int depth,float cellSize,float maximumWalkSlope=45f,float maximumPathSlope=28f,float maximumEarthwork=4f,float uphillCostMultiplier=.25f)
         {
             if(width<1||depth<1||cellSize<=0)throw new ArgumentOutOfRangeException(nameof(width));
             Width=width;Depth=depth;CellSize=cellSize;MaximumWalkSlope=maximumWalkSlope;MaximumPathSlope=maximumPathSlope;MaximumEarthwork=maximumEarthwork;
+            UphillCostMultiplier = Finite(uphillCostMultiplier) ? Math.Max(0f, uphillCostMultiplier) : .25f;
             heights=new float[(width+1)*(depth+1)];slopes=new float[width*depth];
         }
         private int Index(int x,int z)=>z*(Width+1)+x;
@@ -251,12 +253,16 @@ namespace Mythologicum
         }
         public void ReleaseFoundation(object owner)
         {if(!foundations.TryGetValue(owner,out var nodes))return;foundations.Remove(owner);foreach(int i in nodes){if(--locks[i]==0)locks.Remove(i);}}
-        public SavedTerrain Capture()=>new SavedTerrain{seed=Seed,maximumWalkSlope=MaximumWalkSlope,maximumPathSlope=MaximumPathSlope,maximumFoundationEarthwork=MaximumEarthwork,heights=(float[])heights.Clone()};
+        public SavedTerrain Capture()=>new SavedTerrain{seed=Seed,maximumWalkSlope=MaximumWalkSlope,maximumPathSlope=MaximumPathSlope,maximumFoundationEarthwork=MaximumEarthwork,uphillCostMultiplier=UphillCostMultiplier,uphillCostVersion=1,heights=(float[])heights.Clone()};
         public void Restore(SavedTerrain saved)
         {
             if(saved==null||!Finite(saved.maximumWalkSlope)||saved.maximumWalkSlope<1||saved.maximumWalkSlope>80
                 ||!Finite(saved.maximumPathSlope)||saved.maximumPathSlope<1||saved.maximumPathSlope>80
-                ||!Finite(saved.maximumFoundationEarthwork)||saved.maximumFoundationEarthwork<=0||saved.maximumFoundationEarthwork>1000)throw new InvalidDataException("Invalid terrain settings.");
+                ||!Finite(saved.maximumFoundationEarthwork)||saved.maximumFoundationEarthwork<=0||saved.maximumFoundationEarthwork>1000
+                ||!Finite(saved.uphillCostMultiplier)||saved.uphillCostMultiplier<0
+                ||saved.uphillCostVersion<0||saved.uphillCostVersion>1)throw new InvalidDataException("Invalid terrain settings.");
+            // Saves written before editable traversal costs must retain their historical quarter-point uphill penalty.
+            UphillCostMultiplier=saved.uphillCostVersion<1?.25f:saved.uphillCostMultiplier;
             MaximumWalkSlope=saved.maximumWalkSlope;MaximumPathSlope=saved.maximumPathSlope;MaximumEarthwork=saved.maximumFoundationEarthwork;Seed=saved.seed;ImportHeights(saved.heights);
         }
         private static bool Finite(float x)=>!float.IsNaN(x)&&!float.IsInfinity(x);

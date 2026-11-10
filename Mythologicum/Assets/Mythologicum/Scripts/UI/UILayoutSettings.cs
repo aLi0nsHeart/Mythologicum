@@ -33,14 +33,22 @@ namespace Mythologicum
         [Tooltip("Minimum space between an illustrated panel and the screen edges, in UI units.")]
         [Min(0)] public float canvasMargin = 24f;
 
+        [Header("Frame backing")]
+        [Tooltip("Fill the enclosed interior of the frame artwork, including its curved corners and ornaments. Disable to use the manual lining insets instead.")]
+        public bool matchFrameBackingToArtwork = true;
+        [Tooltip("Extend the backing underneath the artwork by this many source-image pixels to hide seams. Does not change the text safe areas.")]
+        [Range(0, 8)] public int frameBackingOverlapPixels = 2;
+
         [Header("Vertical frame safe areas")]
         [Tooltip("Proportional space reserved for the frame's ornament. 0.1 means ten percent of the frame.")]
         public UIFrameInsets verticalBodyInsets = new UIFrameInsets(.13f, .12f, .13f, .21f);
+        [Tooltip("Manual rectangular backing margins. Used only when artwork matching is disabled or the artwork has no enclosed interior.")]
         public UIFrameInsets verticalLiningInsets = new UIFrameInsets(.075f, .075f, .075f, .16f);
         public UIFrameInsets verticalHeadingInsets = new UIFrameInsets(.25f, .79f, .25f, .12f);
 
         [Header("Horizontal frame safe areas")]
         public UIFrameInsets horizontalBodyInsets = new UIFrameInsets(.07f, .13f, .07f, .22f);
+        [Tooltip("Manual rectangular backing margins. Used only when artwork matching is disabled or the artwork has no enclosed interior.")]
         public UIFrameInsets horizontalLiningInsets = new UIFrameInsets(.055f, .11f, .055f, .18f);
         public UIFrameInsets horizontalHeadingInsets = new UIFrameInsets(.28f, .80f, .28f, .08f);
 
@@ -119,6 +127,7 @@ namespace Mythologicum
         private void OnValidate()
         {
             canvasMargin = Mathf.Max(0, canvasMargin);
+            frameBackingOverlapPixels = Mathf.Clamp(frameBackingOverlapPixels, 0, 8);
             toolbarIconSize = Mathf.Max(16, toolbarIconSize);
             categoryColumns = Mathf.Max(1, categoryColumns);
             choiceColumns = Mathf.Max(1, choiceColumns);

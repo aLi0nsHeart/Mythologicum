@@ -85,7 +85,7 @@ namespace Mythologicum
             GridHeightField checkTerrain=null;
             if(data.version>=3){checkTerrain=new GridHeightField(data.width,data.depth,data.cellSize);checkTerrain.Restore(data.terrain);}
             var checkGrid = new SquareBuildGrid(grid.Origin, data.cellSize, data.width, data.depth,checkTerrain);
-            var checkFences = new FenceLayout(checkGrid);
+            var checkFences = new FenceLayout(checkGrid, fences.Layout.Rules);
             var network = new ParkBuildingNetwork(checkGrid, checkFences);
             network.RestoringSave = true;
             foreach (var saved in data.buildings)
@@ -127,7 +127,9 @@ namespace Mythologicum
                 if (!ValidActor(saved, checkGrid) || saved.building < 0 || saved.building >= data.buildings.Count
                     ||rockCells.Contains(saved.cell)|| !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException("Invalid staff home or employee.");
                 hired.TryGetValue(saved.building, out int count); hired[saved.building] = count + 1;
-                if (count >= ParkBuildingRecord.EmployeeCapacity) throw new InvalidDataException("Too many saved employees.");
+                // A lowered hiring limit must not discard employees already hired in an older balance.
+                // This is a corrupt-file guard, not the live hiring limit.
+                if (count >= 1000000) throw new InvalidDataException("Too many saved employees.");
             }
             foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException("Invalid saved visitor.");
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException("Invalid species research.");
@@ -182,6 +184,8 @@ namespace Mythologicum
                 foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException("Could not restore gravestone.");
                 if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException("Could not restore rock.");
                 buildingConstruction.Network.Refresh();
+                // Restore all saved actors even if the designer has since lowered the shared population cap.
+                creatureWorld.PopulationLimit = Math.Max(creatureWorld.PopulationLimit, data.creatures.Count + data.staff.Count + data.visitors.Count);
                 // Restore staff without charging hiring fees, including temporarily disconnected homes.
                 foreach (var saved in data.staff)
                 {
@@ -191,7 +195,6 @@ namespace Mythologicum
                     if (worker == null) throw new InvalidDataException("Could not restore employee.");
                     RestoreActor(worker.Actor, saved);
                 }
-                creatureWorld.PopulationLimit = Math.Max(creatureWorld.PopulationLimit, data.creatures.Count + data.staff.Count + data.visitors.Count);
                 foreach (var saved in data.creatures)
                 {
                     var dispenser = saved.building >= 0 && saved.building < restored.Count ? restored[saved.building] : null;

@@ -44,6 +44,14 @@ same vertical layout; larger menus use a standard 1160-by-500 logical body fitte
 inside the horizontal frame. Controls reflow inside that body rather than changing
 the frame's proportions.
 
+`UIFrameFillGraphic` fills the largest enclosed transparent region in the frame
+artwork. This follows the curved interior and title ornaments rather than leaving
+gaps around an inset rectangle. The result is cached per sprite and seam overlap;
+non-overlapping mesh spans keep the theme's backing opacity uniform. It does not
+change source textures or their import settings. `UILayoutSettings` exposes the
+automatic matching toggle and overlap in source pixels; lining insets remain the
+manual fallback for artwork without a closed interior.
+
 `UIOverflowScroll` measures visible content after fonts and layout are applied.
 Scrolling and scrollbars activate only when that content exceeds the viewport.
 Short reports stay stationary, hidden sections leave no blank gaps, and changing

@@ -54,7 +54,7 @@ namespace Mythologicum
             regionText=ManagementWidgets.Label(card,"Choose a region",new Vector2(right,0),new Vector2(rw,90),18);
             buyRegion=ManagementWidgets.Button(card,"Buy location",new Vector2(right,98),new Vector2(rw,38),()=>{progression.BuyAccess(home,selectedRegion);Refresh();});
             ManagementWidgets.Label(card,"Mission difficulty",new Vector2(right,146),new Vector2(rw,24));
-            float bw=(rw-12)/3;
+            float bw=(rw-6*Math.Max(0,progression.Rules.difficulties.Length-1))/Math.Max(1,progression.Rules.difficulties.Length);
             for(int i=0;i<progression.Rules.difficulties.Length;i++)
             {
                 var d=progression.Rules.difficulties[i];
@@ -67,7 +67,8 @@ namespace Mythologicum
             send=ManagementWidgets.Button(card,"Send expedition",new Vector2(right,414),new Vector2(rw,38),()=>{
                 result.text=progression.Launch(home,selectedRegion,selectedDifficulty,teamCount)?"Expedition dispatched.":"Check access, teams, funds and the centre's path connection.";Refresh();});
             result=ManagementWidgets.Label(card,"",new Vector2(right,460),new Vector2(rw,38),16);
-            selectedRegion=progression.Rules.regions[0].id;selectedDifficulty=progression.Rules.difficulties[0].id;
+            selectedRegion=progression.Rules.regions.Length>0?progression.Rules.regions[0].id:null;
+            selectedDifficulty=progression.Rules.difficulties.Length>0?progression.Rules.difficulties[0].id:null;
 
             research=ManagementWidgets.Modal(canvas,"Technology research");card=ManagementWidgets.Card(research,canvas);w=card.rect.width;h=card.rect.height;techWidth=w-24;
             ManagementWidgets.Label(card,"Technology research",new Vector2(12,8),new Vector2(w-150,45),26);
@@ -101,7 +102,7 @@ namespace Mythologicum
             if(research.activeSelf)
             {
                 var p=progression.ActiveProject(home);
-                researchStatus.text=$"Funds: {economy.Balance:0} | Researchers: {home.HiredCount}/5 | Work speed: {progression.StaffEfficiency:0.##}x\n"
+                researchStatus.text=$"Funds: {economy.Balance:0} | Researchers: {home.HiredCount}/{home.Footprint.Definition.staffCapacity} | Work speed: {progression.StaffEfficiency:0.##}x\n"
                     +(p==null?"Choose a technology below. Creature care research remains a separate assignment."
                     :$"{p.Definition.name}: {100*p.Work/p.Definition.workSeconds:0}% | {Mathf.CeilToInt(p.Definition.workSeconds-p.Work)} researcher-seconds left")
                     +(home.IsOpen?"":"\nPaused: reconnect the research centre's entrance path.");
@@ -121,6 +122,13 @@ namespace Mythologicum
             buyTeam.GetComponentInChildren<Text>().text=$"Buy team ({progression.NextTeamCost:0})";
             buyTeam.interactable=open&&progression.Teams<progression.Rules.maximumTeams&&economy.CanAfford(progression.NextTeamCost);
             var region=progression.Region(selectedRegion);var d=progression.Difficulty(selectedDifficulty);bool available=progression.RegionHasCreatures(selectedRegion);
+            if (region == null || d == null)
+            {
+                regionText.text = "Assign at least one location and mission difficulty in the progression settings.";
+                missionPreview.text = "No mission configured.";
+                buyRegion.interactable = false; send.interactable = false;
+                return;
+            }
             bool access=progression.HasAccess(selectedRegion);
             regionText.text=region.name+"\n"+(available?(access?"Expedition permit owned.":$"Expedition permit: {region.accessCost:0}")+"\nPossible creatures: "+Names(region.species):"No creature species assigned yet. This location cannot be purchased.");
             buyRegion.GetComponentInChildren<Text>().text=access?"Location unlocked":"Buy location ("+region.accessCost.ToString("0")+")";
@@ -129,7 +137,7 @@ namespace Mythologicum
                 :progression.HasAccess(pin.Key.id)?new Color(.16f,.4f,.29f):new Color(.13f,.21f,.25f);
             foreach(var choice in difficulties)choice.Value.GetComponent<Image>().color=choice.Key.id==selectedDifficulty?new Color(.45f,.37f,.17f):new Color(.18f,.28f,.31f);
             var eligible=progression.Eligible(selectedRegion,selectedDifficulty);
-            missionPreview.text=$"Teams assigned: {teamCount}\nSuccess: {100*progression.Chance(selectedDifficulty,teamCount):0}% | Time: {d.seconds*progression.DurationMultiplier:0}s\n"
+            missionPreview.text=$"Teams assigned: {teamCount}\nSuccess: {100*progression.Chance(selectedDifficulty,teamCount):0}% | Time: {progression.MissionSeconds(d):0}s\n"
                 +$"Cost: {teamCount*d.costPerTeam:0} | Rating: {d.minimumRating}-{d.maximumRating}/5\n"
                 +(eligible.Count>0?$"On success: {d.creaturesFound} of one species\nCandidates: "+Names(eligible):"No eligible creatures for this difficulty.");
             send.interactable=open&&access&&eligible.Count>0&&progression.AvailableTeams>=teamCount&&economy.CanAfford(teamCount*d.costPerTeam);

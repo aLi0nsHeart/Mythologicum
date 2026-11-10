@@ -99,13 +99,14 @@ public static class SteampunkUIIntegrationValidation
         if (SceneManager.GetActiveScene().name != "MainMenuScene") yield break;
         var menu = GameObject.Find("Main menu"); if (menu == null) yield break;
         Check(SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null, "UI validation uses a real graphics device");
-        ValidateThemeAssets(); ValidateMenuActions(menu);
+        ValidateThemeAssets(); ValidateFrameBackingShapes(); ValidateMenuActions(menu);
         ValidateCursor(true);
         ValidateButtonIcon(FindButton(menu.transform, "New Game"), UIIconKind.Play, true);
         ValidateButtonIcon(FindButton(menu.transform, "Settings"), UIIconKind.Settings);
         ValidateButtonIcon(FindButton(menu.transform, "Quit"), UIIconKind.Quit);
         Check(!FindButton(menu.transform, "Load Game").interactable, "Load Game is disabled when the save slot is empty");
         Capture("MainMenu-NoSave", menu, 1280, 720);
+        Capture("MainMenu-NoSave-1920", menu, 1920, 1080);
         FindButton(menu.transform, "Settings").onClick.Invoke();
         yield return null;
         Check(SettingsPresentation.IsOpen, "Main-menu Settings opens a working settings window");
@@ -266,6 +267,7 @@ public static class SteampunkUIIntegrationValidation
         var paths = Field<PathConstruction>(controller, "paths"); var fences = Field<FenceConstruction>(controller, "fences");
         var creatures = Field<CreatureWorld>(controller, "creatureWorld");
         var palette = Field<ConstructionPalette>(controller, "palette");
+        ValidateGameplayBalanceAssets(controller);
         ValidateGameplayChrome(canvas, palette);
         ValidateParkStatus(controller, true);
         ValidateCursor(false);
@@ -441,7 +443,8 @@ public static class SteampunkUIIntegrationValidation
         notifications.Toggle();
         ValidateMailIcon(canvas, false);
         yield return null;
-        Capture("Notifications", Field<GameObject>(notifications, "panel"), 1280, 720); notifications.Close();
+        Capture("Notifications", Field<GameObject>(notifications, "panel"), 1280, 720);
+        Capture("Notifications-1920", Field<GameObject>(notifications, "panel"), 1920, 1080); notifications.Close();
         Invoke(controller, "OpenExpeditions", records[BuildingKind.ExpeditionCentre]);
         yield return null;
         var progression = Field<ProgressionPresentation>(controller, "management");
@@ -564,6 +567,7 @@ public static class SteampunkUIIntegrationValidation
         Check(GameSaveMenu.IsOpen && Time.timeScale == 0, "Pause still freezes the simulation after restyling");
         Check(!palette.IsOpen, "The bottom Pause action folds construction before opening its menu");
         var overlay = Field<GameObject>(pause, "overlay"); Capture("Pause", overlay, 1280, 720);
+        Capture("Pause-1920", overlay, 1920, 1080);
         FindButton(overlay.transform, "Quit to main menu").onClick.Invoke();
         yield return null;
         var confirm = GameObject.Find("Confirm action"); Check(confirm != null, "Quit-to-menu retains its confirmation dialog");
@@ -648,6 +652,270 @@ public static class SteampunkUIIntegrationValidation
         Check(height > 0 && Mathf.Abs(width / height / sourceAspect - 1f) < .01f,
             page + " keeps the artwork's original aspect ratio: " + image.sprite.name
                 + "; displayed=" + width + "x" + height + "; source=" + image.sprite.rect.size);
+    }
+
+    static void ValidateGameplayBalanceAssets(BuildModeController controller)
+    {
+        var park = Resources.Load<ParkBalanceDefinition>("Management/DefaultParkBalance");
+        var catalog = Resources.Load<BuildingCatalogDefinition>("Buildings/DefaultBuildings");
+        var fences = Resources.Load<FenceBalanceDefinition>("Fences/DefaultFences");
+        var simulation = Resources.Load<CreatureSimulationDefinition>("Creatures/SimulationSettings");
+        Check(park != null && park == ParkBalanceDefinition.Current && park.economy != null && park.reputation != null,
+            "The shipped park balance asset supplies initialized economy and reputation rules");
+        Check(catalog != null && catalog == BuildingCatalogDefinition.Current && catalog.buildings.Length > 0,
+            "The shipped building catalogue supplies persistent construction and service settings");
+        Check(fences != null && fences == FenceBalanceDefinition.Current && fences.rules != null
+            && fences.rules.wooden != null && fences.rules.spiked != null && fences.rules.heavy != null && fences.rules.sanctified != null,
+            "The shipped fence balance asset supplies every fence type's configurable rules");
+        Check(simulation != null && simulation == CreatureSimulationDefinition.Current && simulation.populationLimit > 0,
+            "The shipped creature simulation asset supplies population and shared creature settings");
+        Check(ReferenceEquals(controller.Visitors.Reputation.Rules, park.reputation)
+            && Near(controller.Visitors.Reputation.GuestScore, park.reputation.initialGuestScore),
+            "The live visitor world uses the park asset's reputation rules and initial score");
+        Check(Near(controller.Economy.Balance, park.economy.startingFunds)
+            && controller.Economy.UnlimitedFunds == park.economy.startWithUnlimitedFunds,
+            "A new park uses the asset's starting cash and unlimited-funds setting");
+        Check(ReferenceEquals(controller.Barriers.Rules, fences.rules)
+            && ReferenceEquals(Field<CreatureSimulationDefinition>(Field<CreatureWorld>(controller, "creatureWorld"), "simulation"), simulation),
+            "The live fence and creature worlds receive the shared balance assets");
+
+        var visitors = Resources.Load<VisitorDefinition>("Visitors/DefaultVisitors");
+        var staff = Resources.Load<StaffDefinition>("Staff/DefaultStaff");
+        var progression = Resources.Load<ProgressionDefinition>("Progression/DefaultProgression");
+        var terrain = Resources.Load<TerrainDefinition>("Terrain/DefaultTerrain");
+        Check(visitors != null && visitors.mood != null && Near(visitors.mood.patienceSeconds, 120f)
+            && Near(visitors.maximumHealth, 60f) && Near(visitors.mealSatisfactionReward, 8f),
+            "Existing visitor asset YAML initializes the newly added mood, health and reward fields");
+        Check(staff != null && staff.discoveries != null && Near(staff.discoveries.foodDiscovery, 25f)
+            && Near(staff.discoveries.containmentDiscovery, 100f) && Near(staff.technologyWorkPerSecond, 1f),
+            "Existing staff asset YAML initializes the newly added discovery and laboratory fields");
+        Check(ReferenceEquals(controller.Personnel.Research.Rules, staff.discoveries),
+            "The live species research system uses the editable staff discovery milestones");
+        Check(progression != null && progression.rules != null && progression.rules.startingRegions != null
+            && progression.rules.startingTechnologies != null && progression.rules.startingCreatures != null
+            && progression.rules.startingFences != null && Array.IndexOf(progression.rules.startingFences, FenceKind.Wooden) >= 0
+            && Near(progression.rules.minimumMissionSeconds, 1f),
+            "Existing progression asset YAML initializes the new starting-unlock and mission fields");
+        Check(terrain != null && terrain.brush != null && Near(terrain.settings.uphillCostMultiplier, .25f),
+            "Existing terrain asset YAML initializes editable brush settings and uphill travel cost");
+        var legacyTerrain = JsonUtility.FromJson<SavedTerrain>("{\"seed\":1,\"maximumWalkSlope\":45,\"maximumPathSlope\":28,\"maximumFoundationEarthwork\":4,\"heights\":[0,0,0,0]}");
+        var legacyField = new GridHeightField(1, 1, 2f);
+        legacyField.Restore(legacyTerrain);
+        Check(Near(legacyField.UphillCostMultiplier, .25f),
+            "Restoring legacy terrain JSON without uphill cost retains its former movement-cost default");
+        var zeroUphillField = new GridHeightField(1, 1, 2f, uphillCostMultiplier: 0f);
+        var savedZeroUphill = JsonUtility.FromJson<SavedTerrain>(JsonUtility.ToJson(zeroUphillField.Capture()));
+        var restoredZeroUphill = new GridHeightField(1, 1, 2f);
+        restoredZeroUphill.Restore(savedZeroUphill);
+        Check(Near(restoredZeroUphill.UphillCostMultiplier, 0f),
+            "An explicitly configured zero uphill cost survives native JSON save and restore");
+
+        string catalogBefore = JsonUtility.ToJson(catalog);
+        var runtime = catalog.CreateRuntimeCatalog();
+        foreach (var item in runtime)
+        {
+            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            Check(!ReferenceEquals(item, original) && item.width == original.width && item.depth == original.depth
+                && Near(item.height, original.height) && Near(item.constructionCost, original.constructionCost)
+                && Near(item.operatingCostPerSecond, original.operatingCostPerSecond),
+                "A runtime building clone retains the editable footprint and costs before visual binding: " + item.kind);
+            item.width++; item.constructionCost += 17f;
+        }
+        var visuals = Resources.Load<BuildingVisualCatalog>("Buildings/BuildingVisuals");
+        Check(visuals != null, "The building appearance catalogue remains available for fallback models");
+        visuals.ApplyTo(runtime);
+        foreach (var item in runtime)
+        {
+            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            Check(item.width == original.width + 1 && item.depth == original.depth && Near(item.height, original.height)
+                && item.entranceColumn == original.entranceColumn && Near(item.constructionCost, original.constructionCost + 17f),
+                "Visual binding preserves edited building geometry, doors and balance values: " + item.kind);
+        }
+        var explicitAppearance = catalog.buildings.First(item => item.visualPrefab != null).Copy();
+        var chosenPrefab = explicitAppearance.visualPrefab;
+        explicitAppearance.visualYaw = 47f;
+        visuals.ApplyTo(new[] { explicitAppearance });
+        Check(explicitAppearance.visualPrefab == chosenPrefab && Near(explicitAppearance.visualYaw, 47f),
+            "Explicit building prefab and rotation choices take precedence over appearance fallbacks");
+        Check(JsonUtility.ToJson(catalog) == catalogBefore,
+            "Runtime catalogue edits do not modify the designer's building asset");
+        var customBuilding = catalog.buildings.First(item => item.IsEmployeeBuilding).Copy();
+        customBuilding.staffCapacity = 9;
+        customBuilding.staffSalaryPerSecond = 2f;
+        var record = new ParkBuildingRecord(new BuildingFootprint(customBuilding, Cell(1, 1), 0));
+        typeof(ParkBuildingRecord).GetProperty("HiredCount").GetSetMethod(true).Invoke(record, new object[] { 8 });
+        Check(record.Capacity == 9 && record.HiredCount == 8
+            && Near(record.UpkeepPerSecond, customBuilding.operatingCostPerSecond + 16f),
+            "An edited building capacity allows more than five employees and charges their configured salaries");
+
+        var species = Resources.LoadAll<CreatureDefinition>("Creatures");
+        foreach (var definition in species)
+            Check(definition.behaviour != null && Near(definition.Behaviour.initialHappiness, 75f),
+                "Existing species asset YAML initializes its new behavior settings: " + definition.name);
+        CreatureDefinition clone = null;
+        CreatureSimulationDefinition simulationClone = null;
+        CreatureWorld testWorld = null;
+        var oldRandomState = UnityEngine.Random.state;
+        string sourceBefore = JsonUtility.ToJson(species[0]);
+        try
+        {
+            clone = UnityEngine.Object.Instantiate(species[0]);
+            clone.visualPrefab = null;
+            clone.Behaviour.initialHappiness = 23f;
+            clone.initialHunger = 13f;
+            clone.initialEnergy = 41f;
+            clone.maximumHealth = 17f;
+            simulationClone = UnityEngine.Object.Instantiate(simulation);
+            simulationClone.populationLimit = 1;
+            var testGrid = new SquareBuildGrid(new Vector3(10000f, 0f, 10000f), 2f, 8, 8);
+            var testFences = new FenceLayout(testGrid, fences.rules);
+            var testBuildings = new ParkBuildingNetwork(testGrid, testFences);
+            testWorld = new CreatureWorld(testGrid, testFences, testBuildings, CurrentCamera,
+                Field<Material>(controller, "buildingMaterial"), new[] { clone }, null, simulationClone);
+            Check(testWorld.TrySpawn(clone, Cell(3, 3)), "A disposable creature world can spawn an edited species profile");
+            var animal = testWorld.Agents.Single();
+            Check(Near(animal.Wellbeing.Happiness, 23f) && Near(animal.Vitals.Hunger, 13f)
+                && Near(animal.Energy.Energy, 41f) && Near(animal.Health.Maximum, 17f),
+                "Spawned creatures use edited happiness, hunger, energy and health rather than fixed spawn values");
+            Check(testWorld.PopulationLimit == 1 && !testWorld.TrySpawn(clone, Cell(5, 5)),
+                "The creature world's injected population setting limits actual spawning");
+            Check(JsonUtility.ToJson(species[0]) == sourceBefore,
+                "Editing a cloned species' nested behavior settings leaves its source asset untouched");
+        }
+        finally
+        {
+            if (testWorld != null) UnityEngine.Object.DestroyImmediate(Field<GameObject>(testWorld, "root"));
+            if (clone != null) UnityEngine.Object.DestroyImmediate(clone);
+            if (simulationClone != null) UnityEngine.Object.DestroyImmediate(simulationClone);
+            UnityEngine.Random.state = oldRandomState;
+        }
+    }
+
+    static void ValidateFrameBackingShapes()
+    {
+        foreach (var source in new[] { UITheme.Current.verticalInfoFrame, UITheme.Current.horizontalInfoFrame })
+        {
+            bool vertical = source == UITheme.Current.verticalInfoFrame;
+            var root = new GameObject("Frame backing GPU validation");
+            RenderTexture target = null;
+            Texture2D capture = null;
+            var oldActive = RenderTexture.active;
+            try
+            {
+                var cameraObject = new GameObject("Frame backing probe camera", typeof(Camera));
+                cameraObject.transform.SetParent(root.transform, false);
+                cameraObject.transform.localPosition = new Vector3(0, 0, -10);
+                var camera = cameraObject.GetComponent<Camera>();
+                camera.enabled = false;
+                camera.orthographic = true;
+                camera.orthographicSize = source.rect.height * .5f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(.4f, .6f, .8f, 1f);
+                camera.cullingMask = 1 << 30;
+                camera.nearClipPlane = .1f;
+                camera.farClipPlane = 20f;
+                camera.allowHDR = false;
+                camera.allowMSAA = false;
+                camera.GetUniversalAdditionalCameraData().renderPostProcessing = false;
+                var canvasObject = new GameObject("Frame backing probe canvas", typeof(RectTransform), typeof(Canvas));
+                canvasObject.transform.SetParent(root.transform, false);
+                canvasObject.layer = 30;
+                var canvas = canvasObject.GetComponent<Canvas>();
+                canvas.renderMode = RenderMode.WorldSpace;
+                canvas.worldCamera = camera;
+                ((RectTransform)canvas.transform).sizeDelta = source.rect.size;
+                var fillObject = new GameObject("Frame backing probe", typeof(RectTransform), typeof(UIFrameFillGraphic));
+                fillObject.transform.SetParent(canvas.transform, false);
+                fillObject.layer = 30;
+                var fill = fillObject.GetComponent<UIFrameFillGraphic>();
+                var rect = fill.rectTransform;
+                rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+                rect.offsetMin = rect.offsetMax = Vector2.zero;
+                fill.color = new Color(.055f, .035f, .018f, .5f);
+                fill.raycastTarget = false;
+                fill.Configure(source);
+                Check(fill.Source == source && fill.HasMatchedInterior,
+                    source.name + " derives its backing from the enclosed transparent interior");
+                Check(fill.Covers(new Vector2(.5f, .5f)) && !fill.Covers(new Vector2(.01f, .01f)),
+                    source.name + " fills the middle while leaving exterior corners transparent");
+                var gaps = vertical ? new[] { new Vector2(.25f, .85f), new Vector2(.5f, .065f) }
+                    : new[] { new Vector2(.18f, .84f) };
+                foreach (var gap in gaps)
+                    Check(fill.Covers(gap), source.name + " closes the former rectangular-backing gap at " + gap);
+                fill.Configure(source, false);
+                Check(!fill.HasMatchedInterior, source.name + " supports the optional manual rectangular backing");
+                fill.Configure(source);
+                Check(fill.HasMatchedInterior, source.name + " restores its matched backing after manual mode");
+
+                int width = Mathf.RoundToInt(source.rect.width), height = Mathf.RoundToInt(source.rect.height);
+                target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                target.Create(); camera.targetTexture = target;
+                camera.aspect = (float)width / height;
+                capture = new Texture2D(width, height, TextureFormat.RGB24, false);
+                var request = new UniversalRenderPipeline.SingleCameraRequest { destination = target };
+                Action render = () =>
+                {
+                    Canvas.ForceUpdateCanvases();
+                    for (int pass = 0; pass < 3; pass++) RenderPipeline.SubmitRenderRequest(camera, request);
+                    RenderTexture.active = target;
+                    capture.ReadPixels(new Rect(0, 0, width, height), 0, 0); capture.Apply();
+                };
+                fill.enabled = false; render();
+                var background = capture.GetPixels();
+                fill.enabled = true; render();
+                var pixels = capture.GetPixels();
+                Color middle = pixels[(height / 2) * width + width / 2];
+                Check(ColorDistance(middle, background[(height / 2) * width + width / 2]) > .1f,
+                    source.name + " actually draws its dark translucent backing on the GPU");
+                foreach (var gap in gaps)
+                {
+                    Color sample = pixels[Mathf.FloorToInt(gap.y * height) * width + Mathf.FloorToInt(gap.x * width)];
+                    Check(ColorDistance(sample, middle) < .02f,
+                        source.name + " renders former gaps with the same opacity as its center at " + gap);
+                }
+                int interiorSamples = 0, exteriorSamples = 0, badSamples = 0;
+                var neighbors = new[] { new Vector2(-2, -2), new Vector2(-2, 2), new Vector2(2, -2), new Vector2(2, 2) };
+                for (int y = 3; y < height - 3; y += 5)
+                    for (int x = 3; x < width - 3; x += 5)
+                    {
+                        bool center = fill.Covers(new Vector2((x + .5f) / width, (y + .5f) / height));
+                        // Skip the rasterized outline itself; compare stable interior/exterior pixels.
+                        if (neighbors.Any(offset => fill.Covers(new Vector2((x + .5f + offset.x) / width,
+                                (y + .5f + offset.y) / height)) != center)) continue;
+                        int index = y * width + x;
+                        if (center) interiorSamples++; else exteriorSamples++;
+                        if (ColorDistance(pixels[index], center ? middle : background[index]) > .02f) badSamples++;
+                    }
+                Check(interiorSamples > 500 && exteriorSamples > 100 && badSamples == 0,
+                    source.name + " has continuous single-layer opacity with no darkening outside its shape; interior="
+                        + interiorSamples + "; exterior=" + exteriorSamples + "; mismatches=" + badSamples);
+                File.WriteAllBytes(Path.Combine(Captures, "Frame-Backing-" + (vertical ? "Vertical" : "Horizontal") + ".png"), capture.EncodeToPNG());
+                captures++;
+            }
+            finally
+            {
+                RenderTexture.active = oldActive;
+                UnityEngine.Object.DestroyImmediate(root);
+                if (capture != null) UnityEngine.Object.DestroyImmediate(capture);
+                if (target != null) { target.Release(); UnityEngine.Object.DestroyImmediate(target); }
+            }
+        }
+    }
+
+    static float ColorDistance(Color a, Color b) => Mathf.Max(Mathf.Abs(a.r - b.r), Mathf.Abs(a.g - b.g), Mathf.Abs(a.b - b.b));
+
+    static void ValidatePanelBacking(UIFramedPanel frame, string page)
+    {
+        var fill = frame.GetComponentInChildren<UIFrameFillGraphic>();
+        Check(fill != null && fill.Source == frame.Artwork && !fill.raycastTarget,
+            page + " keeps the backing matched to its frame without intercepting clicks: " + frame.name);
+        if (!UILayoutSettings.Current.matchFrameBackingToArtwork) return;
+        Check(fill.HasMatchedInterior, page + " uses the complete contoured interior backing: " + frame.name);
+        var fillCorners = new Vector3[4]; var artCorners = new Vector3[4];
+        fill.rectTransform.GetWorldCorners(fillCorners);
+        frame.GetComponentsInChildren<Image>().Single(image => image.name == "Panel artwork").rectTransform.GetWorldCorners(artCorners);
+        Check(fillCorners.Zip(artCorners, Vector3.Distance).All(distance => distance < .01f),
+            page + " aligns backing geometry with the entire frame instead of an inset rectangle: " + frame.name);
     }
 
     static void ValidateScrollInput(ScrollRect scroll, bool overflowExpected, string report)
@@ -793,7 +1061,7 @@ public static class SteampunkUIIntegrationValidation
             Check(shadow != null && shadow.enabled && SameColor(shadow.effectColor, theme.shadowColor)
                 && shadow.effectDistance == theme.shadowOffset, "Text shadow colour and offset are live theme controls");
             Check(SameColor(panel.GetComponentsInChildren<Image>().Single(image => image.name == "Panel artwork").color, theme.frameTint)
-                && SameColor(panel.GetComponentsInChildren<Image>().Single(image => image.name == "Panel lining").color, theme.panelLiningColor),
+                && SameColor(panel.GetComponentsInChildren<Graphic>().Single(image => image.name == "Panel lining").color, theme.panelLiningColor),
                 "Panel artwork tint and backing colour update through the shared appearance asset");
             var dockIcon = FindButton(Field<ConstructionPalette>(controller, "palette").Root.transform, "Building").GetComponent<UIIcon>();
             dockIcon.Refresh();
@@ -1397,6 +1665,7 @@ public static class SteampunkUIIntegrationValidation
             // Populate CanvasRenderer absolute depths before asking GraphicRaycaster to sort them.
             var request = new UniversalRenderPipeline.SingleCameraRequest { destination = target };
             for (int i = 0; i < 3; i++) RenderPipeline.SubmitRenderRequest(camera, request);
+            foreach (var frame in focus.GetComponentsInChildren<UIFramedPanel>()) ValidatePanelBacking(frame, name);
             foreach (var frameImage in focus.GetComponentsInChildren<Image>())
             {
                 if (frameImage.sprite == null || !frameImage.isActiveAndEnabled) continue;

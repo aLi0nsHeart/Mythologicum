@@ -9,6 +9,7 @@ namespace Mythologicum
     {
         private RectTransform rect, content, header, lining;
         private Image artwork;
+        private UIFrameFillGraphic background;
         private bool vertical;
         private float preferredWidth;
         [SerializeField, Tooltip("Layout preset key. Generated panels choose their stable screen name automatically.")]
@@ -48,7 +49,7 @@ namespace Mythologicum
             UIThemeElement.Mark(gameObject, UIThemeRole.Ignore);
             if (content != null) return;
             lining = Child("Panel lining");
-            var background = lining.gameObject.AddComponent<Image>();
+            background = lining.gameObject.AddComponent<UIFrameFillGraphic>();
             background.color = UITheme.Current != null ? UITheme.Current.panelLiningColor : new Color(.055f, .035f, .018f, .985f);
             background.raycastTarget = false;
             UIThemeElement.Mark(background.gameObject, UIThemeRole.Ignore);
@@ -92,15 +93,18 @@ namespace Mythologicum
             var canvas = GetComponentInParent<Canvas>();
             if (canvas != null) FitWithinCanvas(canvas);
             ApplyArtwork(artwork, sprite);
+            background.Configure(sprite, layout.matchFrameBackingToArtwork, layout.frameBackingOverlapPixels);
             if (theme != null)
             {
                 artwork.color = theme.frameTint;
-                lining.GetComponent<Image>().color = theme.panelLiningColor;
+                background.color = theme.panelLiningColor;
             }
             Inset((RectTransform)artwork.transform, 0, 0, 0, 0);
             // Source-space safe rectangles keep text clear of the crest and curved corners.
             Inset(content, vertical ? layout.verticalBodyInsets : layout.horizontalBodyInsets);
-            Inset(lining, vertical ? layout.verticalLiningInsets : layout.horizontalLiningInsets);
+            // The backing follows the illustration's inner contour at the same native proportions.
+            if (background.HasMatchedInterior) Inset(lining, 0, 0, 0, 0);
+            else Inset(lining, vertical ? layout.verticalLiningInsets : layout.horizontalLiningInsets);
             Inset(header, vertical ? layout.verticalHeadingInsets : layout.horizontalHeadingInsets);
             if (logicalContent != null)
             {

@@ -26,10 +26,10 @@ namespace Mythologicum
         }
 
         public GridHeightField CreateHeightField(float cellSize = PreviewCellSize, float walkSlope = 45f,
-            float pathSlope = 28f, float earthwork = 4f)
+            float pathSlope = 28f, float earthwork = 4f, float uphillCostMultiplier = .25f)
         {
             if (!Validate(out string error)) throw new ArgumentException(error);
-            var field = new GridHeightField(width, depth, cellSize, walkSlope, pathSlope, earthwork);
+            var field = new GridHeightField(width, depth, cellSize, walkSlope, pathSlope, earthwork, uphillCostMultiplier);
             // Relief zero remains seeded, so forest and natural decoration keep the chosen map identity.
             field.Generate(seed, relief, featureSize);
             return field;

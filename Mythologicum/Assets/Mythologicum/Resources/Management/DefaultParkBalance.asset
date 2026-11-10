@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c60b097aa9bf48c89dab6484927bdc8c, type: 3}
+  m_Name: DefaultParkBalance
+  m_EditorClassIdentifier: 
+  economy:
+    startingFunds: 15000
+    startWithUnlimitedFunds: 0
+  reputation:
+    initialGuestScore: 60
+    reviewWeight: 0.15
+    deathGuestPenalty: 8
+    appealPerCreatureRating: 6
+    extraSpecimenBonus: 0.05
+    extraSpecimenLimit: 3
+    speciesVarietyBonus: 10
+    domesticSpeciesAppeal: 2
+    domesticExtraSpecimenAppeal: 1
+    domesticExtraSpecimenLimit: 2
+    maximumDomesticAppeal: 4
+    exhibitionQualityFloor: 0.6
+    guestQualityWeight: 0.4
+    qualityPointsPerStar: 20
+    deathSafetyPenalty: 20
+    safetyRecoveryPerSecond: 0.01
+    safetyReviewThreshold: 60
+    safetyRecoveryPerReviewPoint: 0.01
+    baseAdmissionPrice: 15
+    admissionPricePerStar: 5
+    baseFoodPrice: 8
+    foodPricePerStar: 1
+    baseRestPrice: 3
+    restPricePerStar: 0.5
+    admissionRefusalPremium: 0.8
+    servicePriceTolerance: 1.5
+    baseDemand: 0.7
+    guestDemandBonus: 0.5
+    starDemandBonus: 0.12
+    safetyDemandLossPerPoint: 0.006

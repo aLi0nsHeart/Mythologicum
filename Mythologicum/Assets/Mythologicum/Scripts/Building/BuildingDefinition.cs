@@ -12,38 +12,83 @@ namespace Mythologicum
     {
         public BuildingKind kind;
         public string displayName;
+        [Tooltip("Footprint width in grid tiles before rotation.")]
         [Min(1)] public int width = 2;
+        [Tooltip("Footprint depth in grid tiles before rotation.")]
         [Min(1)] public int depth = 2;
+        [Tooltip("Placeholder/collider height in metres; the visual catalogue may supply a model separately.")]
         [Min(0.5f)] public float height = 3f;
         public Color openColor = new Color(0.45f, 0.7f, 0.45f);
         [Header("Appearance")]
         public GameObject visualPrefab;
         public float visualYaw;
+        [Tooltip("Use a legacy visual-catalogue model only when Visual Prefab is empty. Disable to deliberately show the placeholder instead.")]
+        public bool useVisualCatalogFallback = true;
         [Tooltip("Front-edge cell used for access; -1 selects the middle cell.")]
         public int entranceColumn = -1;
         public int DoorColumn => entranceColumn < 0 ? width / 2 : Math.Min(entranceColumn, width - 1);
         [Header("Economy and visitor services")]
+        [Tooltip("One-time purchase cost in park currency.")]
         [Min(0f)] public float constructionCost = 100f;
+        [Tooltip("Base running cost per simulation second, before employee salaries. Multiply by 60 for the per-minute cost.")]
         [Min(0f)] public float operatingCostPerSecond = 0.05f;
+        [Tooltip("Starting admission ticket price for each new park entrance. Existing placed entrances retain their chosen price.")]
+        [Min(0f)] public float admissionPrice = 15f;
+        [Tooltip("Starting price for one visit to a rest area. Zero makes resting free.")]
+        [Min(0f)] public float restPrice;
         [Tooltip("Starting price for a kiosk meal. Each placed building keeps its own editable price.")]
         [Min(0f)] public float foodPrice = 8f;
+        [Tooltip("Visitor hunger points relieved by one completed kiosk meal (0-100 scale).")]
         [Range(0f, 100f)] public float foodRelief = 65f;
+        [Tooltip("Simulation seconds spent purchasing food or completing a paid rest visit.")]
         [Min(0.1f)] public float serviceSeconds = 3f;
+        [Tooltip("Visitors served simultaneously at this building.")]
         [Min(1)] public int serviceCapacity = 2;
+        [Tooltip("Rest points recovered per simulation second while using a rest area (0-100 scale).")]
         [Min(0f)] public float restRecoveryPerSecond = 10f;
         [Tooltip("Optional creature profile released by a dispenser. Defaults to the goat profile.")]
         public CreatureDefinition dispensedCreature;
+        [Tooltip("Simulation seconds between dispenser release attempts. One supply unit is consumed by each successful release.")]
         [Min(1f)] public float dispenseInterval = 20f;
+        [Tooltip("Maximum living creatures originating from this individual dispenser. Releases resume when one dies.")]
         [Min(1)] public int maximumDispensed = 12;
+        [Tooltip("Maximum grid steps searched around the dispenser for an available release position.")]
+        [Min(1)] public int dispenseSearchSteps = 2;
         [Header("Personnel and supplies")]
+        [Tooltip("Maximum employees hired by one employee building. Salaries are charged separately for each employee.")]
+        [Min(0)] public int staffCapacity = 5;
+        [Tooltip("Salary per hired employee per simulation second. Multiply by 60 for the per-minute amount.")]
         [Min(0f)] public float staffSalaryPerSecond = 0.12f;
+        [Tooltip("One-time charge for hiring one employee.")]
         [Min(0f)] public float hireCost = 50f;
+        [Tooltip("Supply units delivered by one complete keeper restock. One unit releases one creature.")]
         [Min(1)] public int feederCapacity = 6;
+        [Tooltip("Cost of one keeper supply delivery, regardless of how many supply units were missing.")]
         [Min(0f)] public float restockCost = 12f;
         public bool RequiresPathConnection => kind != BuildingKind.GoatDispenser;
         public bool IsEmployeeBuilding => kind == BuildingKind.ResearchCentre || kind == BuildingKind.MercenaryHQ
             || kind == BuildingKind.ZookeeperHut;
         public bool CanSetPrice => kind == BuildingKind.ParkEntrance || kind == BuildingKind.Kiosk || kind == BuildingKind.RestArea;
+
+        public BuildingDefinition Copy() => (BuildingDefinition)MemberwiseClone();
+
+        public void Validate()
+        {
+            width = Math.Max(1, width); depth = Math.Max(1, depth);
+            height = Positive(height, .5f);
+            entranceColumn = Math.Max(-1, Math.Min(width - 1, entranceColumn));
+            constructionCost = Amount(constructionCost); operatingCostPerSecond = Amount(operatingCostPerSecond);
+            admissionPrice = Amount(admissionPrice); restPrice = Amount(restPrice); foodPrice = Amount(foodPrice);
+            foodRelief = Math.Min(100f, Amount(foodRelief)); serviceSeconds = Positive(serviceSeconds, .1f);
+            serviceCapacity = Math.Max(1, serviceCapacity); restRecoveryPerSecond = Amount(restRecoveryPerSecond);
+            dispenseInterval = Positive(dispenseInterval, 1f); maximumDispensed = Math.Max(1, maximumDispensed);
+            dispenseSearchSteps = Math.Max(1, dispenseSearchSteps); staffCapacity = Math.Max(0, staffCapacity);
+            staffSalaryPerSecond = Amount(staffSalaryPerSecond); hireCost = Amount(hireCost);
+            feederCapacity = Math.Max(1, feederCapacity); restockCost = Amount(restockCost);
+        }
+
+        private static float Amount(float value) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Math.Max(0f, value);
+        private static float Positive(float value, float minimum) => Math.Max(minimum, Amount(value));
 
         public static BuildingDefinition[] Defaults() => new[]
         {

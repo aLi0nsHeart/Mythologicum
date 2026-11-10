@@ -57,7 +57,7 @@ namespace Mythologicum
                 { worker.Target = creature; SetStatus(worker, StaffTask.Healing, "Going to treat " + creature.Definition.displayName); return; }
             foreach (ParkBuildingRecord feeder in Buildings.Records)
             {
-                if (feeder.Footprint.Definition.kind != BuildingKind.GoatDispenser || feeder.FeedStock > 2) continue;
+                if (feeder.Footprint.Definition.kind != BuildingKind.GoatDispenser || feeder.FeedStock > tuning.feederRestockThreshold) continue;
                 bool reserved = false; foreach (StaffAgent other in workers) if (other.Feeder == feeder) reserved = true;
                 if (reserved || !SetGoal(worker, feeder.Footprint.AccessCell)) continue;
                 worker.Feeder = feeder; SetStatus(worker, StaffTask.Restocking, "Taking supplies to a goat feeder"); return;
@@ -84,7 +84,7 @@ namespace Mythologicum
                 if (AtNode(worker) && worker.Actor.Route.Count == 0)
                 {
                     worker.Status = "Developing " + project.Definition.name;
-                    Progression.AdvanceResearch(worker.Home, dt * Efficiency);
+                    Progression.AdvanceResearch(worker.Home, dt * tuning.technologyWorkPerSecond * Efficiency);
                 }
             }
             else if (worker.Task == StaffTask.Researching)
@@ -209,7 +209,7 @@ namespace Mythologicum
             Vector2Int best = worker.Home.Footprint.AccessCell; int score = int.MaxValue;
             foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
             {
-                if (!Buildings.IsPathConnected(cell) || Distance(grid.CellCenter(cell),target.transform.position) < tuning.shootingRange + 1f) continue;
+                if (!Buildings.IsPathConnected(cell) || Distance(grid.CellCenter(cell),target.transform.position) < tuning.shootingRange + tuning.regroupSafetyMargin) continue;
                 int distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell);
                 if (distance < score) { score = distance; best = cell; }
             }
@@ -249,7 +249,7 @@ namespace Mythologicum
             {
                 if (Distance(grid.CellCenter(cell),target.transform.position) > range || !navigation.HasLineOfSight(cell,target.Cell)) continue;
                 if (clearShot && !navigation.HasClearShot(cell,target.Cell)) continue;
-                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : .5f);
+                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : tuning.offPathApproachPenalty);
                 if (distance < score) { score = distance; best = cell; }
             }
             return best;
@@ -270,7 +270,7 @@ namespace Mythologicum
         private bool ApproachHandsOn(StaffAgent worker, CreatureAgent target)
         {
             if (!SetGoal(worker,target.Cell)) { Block(worker,"Hands-on access blocked: add a staff gate"); return false; }
-            return worker.Actor.Route.Count == 0 && AtNode(worker) && Distance(worker.Actor.transform.position,target.transform.position) <= 2.5f;
+            return worker.Actor.Route.Count == 0 && AtNode(worker) && Distance(worker.Actor.transform.position,target.transform.position) <= tuning.handsOnRange;
         }
         private Vector2Int? FenceApproach(StaffAgent worker, FenceEdge edge)
         {
@@ -339,7 +339,7 @@ namespace Mythologicum
             foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
             {
                 float score = Distance(grid.CellCenter(cell),danger.transform.position)
-                    - ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) * .05f;
+                    - ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) * tuning.fleeingTravelPenalty;
                 if (score > distance) { distance = score; best = cell; }
             }
             SetGoal(worker,best); SetStatus(worker,StaffTask.Fleeing,"Retreating from a dangerous creature");

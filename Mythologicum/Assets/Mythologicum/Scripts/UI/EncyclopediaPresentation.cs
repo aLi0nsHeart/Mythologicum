@@ -170,7 +170,7 @@ namespace Mythologicum
                 + "The inbox records expedition success or failure. Allow room in the budget for teams, permits and future missions as well as the park's regular expenses."));
             sections[0].Add(new Entry("Research", "Creature knowledge and technology are separate kinds of progress.",
                 "Hire researchers at an operating research centre. Select a creature species there so researchers can observe a living, reachable specimen.\n\n"
-                + "Creature research reveals care notes in four stages. The Creatures section of this encyclopedia uses the same park-wide knowledge as the research centre. Notes expand as research reaches 25%, 50%, 75% and 100%.\n\n"
+                + $"Creature research reveals care notes in four stages. The Creatures section of this encyclopedia uses the same park-wide knowledge as the research centre. Notes expand at {research.Rules.foodDiscovery:0.#}%, {research.Rules.habitatDiscovery:0.#}%, {research.Rules.socialDiscovery:0.#}% and {research.Rules.containmentDiscovery:0.#}%.\n\n"
                 + "The discoveries cover food, habitat and sleep, space and social needs, and containment. Before a discovery is made, its species-specific details remain undisclosed here.\n\n"
                 + "Technology research unlocks additional fence types, visitor services, staff improvements and expedition improvements. Open the research centre's technology screen to choose an available project.\n\n"
                 + "Technology projects and creature observation use your research staff. Watch their workplace connection and assigned work when progress is slow."));
@@ -183,7 +183,7 @@ namespace Mythologicum
                 + "Satisfied visitors and accessible creature exhibitions improve the park's star rating. Dangerous or rare exhibits have appeal, but visitor deaths and poor departing reviews damage reputation.\n\n"
                 + "Infinite funds can be switched on in Park Management when you want to build freely in the sandbox."));
             sections[2].Add(new Entry("Staff", "Hire employees at their workplace and keep jobs physically accessible.",
-                "Research centres, mercenary headquarters and zookeeper stations each support up to five hired employees. Hiring has a cost, and every employee adds a salary to that building's upkeep.\n\n"
+                "Research centres, mercenary headquarters and zookeeper stations have individual hiring limits shown in their information panels. Hiring has a cost, and every employee adds a salary to that building's upkeep.\n\n"
                 + "Researchers observe selected creature species or work on technology projects. Their home research centre must be operating, and creature observation requires a suitable specimen they can reach.\n\n"
                 + "Mercenaries patrol visitor paths and respond to escaped creatures. They can group up against a threat that is too dangerous for one mercenary. The Retire action in a creature's information panel requests lethal removal.\n\n"
                 + "Zookeepers heal injured creatures, repair damaged fence segments and restock goat dispensers. They can also sedate a creature. After sedation, choose Move in the creature's information panel and select a destination for a keeper to carry it there.\n\n"

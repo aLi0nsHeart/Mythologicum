@@ -8,12 +8,15 @@ namespace Mythologicum
         private readonly GameObject root;
         private readonly Text radiusText,strengthText,hint;
         private readonly Action<TerrainBrushMode> select;
-        public float Radius {get;private set;}=3f;
-        public float Strength {get;private set;}=1f;
+        private readonly TerrainBrushSettings settings;
+        public float Radius {get;private set;}
+        public float Strength {get;private set;}
         public TerrainBrushMode Mode {get;private set;}
-        public TerrainEditingPresentation(Canvas canvas,Action<TerrainBrushMode> select,Action close)
+        public TerrainEditingPresentation(Canvas canvas,Action<TerrainBrushMode> select,Action close,TerrainBrushSettings settings=null)
         {
             this.select=select;
+            this.settings=settings??new TerrainBrushSettings();this.settings.Validate();
+            Radius=this.settings.initialRadius;Strength=this.settings.initialStrength;
             root=ManagementWidgets.Box(canvas.transform,"Terrain editing controls",Vector2.zero,Vector2.one);
             var rect=(RectTransform)root.transform;rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(1,0);rect.anchoredPosition=new Vector2(-24,24);
             var body=UIFramedPanel.Attach(root,false,640).Content;
@@ -22,10 +25,10 @@ namespace Mythologicum
             hint=ManagementWidgets.Label(body,"Hold left mouse to sculpt.",new Vector2(0,100),new Vector2(250,100),17);
             radiusText=ManagementWidgets.Label(body,"",new Vector2(280,0),new Vector2(250,28),18);
             strengthText=ManagementWidgets.Label(body,"",new Vector2(280,88),new Vector2(250,28),18);
-            ManagementWidgets.Button(body,"Radius -",new Vector2(280,32),new Vector2(110,36),()=>{Radius=Mathf.Max(1,Radius-1);Refresh();},14);
-            ManagementWidgets.Button(body,"Radius +",new Vector2(400,32),new Vector2(110,36),()=>{Radius=Mathf.Min(8,Radius+1);Refresh();},14);
-            ManagementWidgets.Button(body,"Rate -",new Vector2(280,120),new Vector2(110,36),()=>{Strength=Mathf.Max(.25f,Strength-.25f);Refresh();},14);
-            ManagementWidgets.Button(body,"Rate +",new Vector2(400,120),new Vector2(110,36),()=>{Strength=Mathf.Min(4,Strength+.25f);Refresh();},14);
+            ManagementWidgets.Button(body,"Radius -",new Vector2(280,32),new Vector2(110,36),()=>{Radius=Mathf.Max(this.settings.minimumRadius,Radius-this.settings.radiusStep);Refresh();},14);
+            ManagementWidgets.Button(body,"Radius +",new Vector2(400,32),new Vector2(110,36),()=>{Radius=Mathf.Min(this.settings.maximumRadius,Radius+this.settings.radiusStep);Refresh();},14);
+            ManagementWidgets.Button(body,"Rate -",new Vector2(280,120),new Vector2(110,36),()=>{Strength=Mathf.Max(this.settings.minimumStrength,Strength-this.settings.strengthStep);Refresh();},14);
+            ManagementWidgets.Button(body,"Rate +",new Vector2(400,120),new Vector2(110,36),()=>{Strength=Mathf.Min(this.settings.maximumStrength,Strength+this.settings.strengthStep);Refresh();},14);
             ManagementWidgets.Button(body,"Done",new Vector2(280,184),new Vector2(230,38),close,19);
             Refresh();root.SetActive(false);
         }

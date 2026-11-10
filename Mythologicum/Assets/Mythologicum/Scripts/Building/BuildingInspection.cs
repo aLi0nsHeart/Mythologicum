@@ -99,7 +99,7 @@ namespace Mythologicum
                 + $"Income: {selected.Revenue:0.##} | Expenses: {selected.Expenses:0.##}\n"
                 + $"Operating profit: {selected.Profit:0.##}\n";
             if (definition.IsEmployeeBuilding)
-                accounts.text += $"Personnel: {selected.HiredCount}/{ParkBuildingRecord.EmployeeCapacity} | Each: {definition.staffSalaryPerSecond * 60f:0.##} / minute";
+                accounts.text += $"Personnel: {selected.HiredCount}/{selected.Capacity} | Each: {definition.staffSalaryPerSecond * 60f:0.##} / minute";
             else if (definition.kind == BuildingKind.GoatDispenser)
                 accounts.text += $"Feed stock: {selected.FeedStock}/{definition.feederCapacity}\nRestock delivery: {definition.restockCost:0.##}";
             else accounts.text += "Accounts cover this building's current session.";
@@ -114,7 +114,7 @@ namespace Mythologicum
             staffGroup.SetActive(definition.IsEmployeeBuilding);
             if (definition.IsEmployeeBuilding)
             {
-                hire.interactable = selected.IsOpen && selected.HiredCount < ParkBuildingRecord.EmployeeCapacity;
+                hire.interactable = selected.IsOpen && selected.HiredCount < selected.Capacity;
                 hire.GetComponentInChildren<Text>().text = $"Hire ({definition.hireCost:0.##})";
                 fire.interactable = selected.HiredCount > 0;
                 employees.text = "";
