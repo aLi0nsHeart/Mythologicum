@@ -1,6 +1,6 @@
 # Saving and loading
 
-Start a park as usual. The top-right **Pause** button (or Escape) freezes the simulation and opens:
+Start a park as usual. The bottom **Pause** icon (or Escape) freezes the simulation and opens:
 
 - Resume
 - Save game
@@ -8,7 +8,16 @@ Start a park as usual. The top-right **Pause** button (or Escape) freezes the si
 - Quit to main menu
 - Quit game
 
-There is one manual save slot. Overwriting it, loading during play, and quitting ask for confirmation. The main menu offers **Load game** beside Start; it is disabled until a save exists. Loading stays paused so you can inspect the restored park before resuming. In the Unity Editor, Quit game stops Play mode.
+Save game opens the named-slot browser, with separate manual saves and rotating
+autosaves. Overwriting, loading during play, and quitting ask for confirmation.
+The main menu's **Load Game** is disabled until a save exists. Loading stays
+paused so you can inspect the restored park before resuming. In the Unity Editor,
+Quit game stops Play mode. See [park operations](Park-Operations-Guide.md) for
+slots, backups and autosave settings.
+
+New games, save restoration and returning to the menu now use the
+[loading screen](Loading-Screen-Guide.md). It covers scene activation and park
+preparation, blocking input and simulation until the destination is ready.
 
 Saved data includes building footprints and rotation, prices and accounts, paths, fence types/gates/health, trees and gravestones, living creatures and their health/needs/sedation, visitors and their satisfaction/patience, hired staff and their home buildings, species research, finances, and camera framing. Creature assets are referenced by asset name; keep those names stable for this save format. Footprints are stored separately so later catalogue size adjustments do not resize existing saved buildings.
 
@@ -17,6 +26,12 @@ Staff and creatures choose fresh actions after loading. Carried creatures are pl
 Format 2 also saves expedition teams and permits, in-flight missions and their outcomes, acquired creature stock, technology unlocks and partial projects, plus inbox letters and read state. Version 1 parks remain loadable and adopt unlocks needed for their existing buildings and fences. See `ProgressionPrototype.md` for the acquisition and research controls.
 
 Format 3 adds terrain corner heights and movement limits, preserving hills and flattened building foundations exactly. Version 1 and 2 saves keep flat ground. Start a new park to use the generated landscape; see `TerrainPrototype.md` for terrain settings and testing.
+
+Optional format-3 fields also retain the recent financial window, visitor reputation,
+safety history and pricing feedback. Earlier saves start with an empty recent window
+and neutral customer reputation; their exhibition appeal is rebuilt from restored
+creatures and public paths. Loading does not create new sales or visitor reviews.
+See `ParkManagement.md` for the dashboard and rating rules.
 
 New saves also retain each tree's model, height and rotation. Border forest is generated for new parks and then saved as ordinary trees; clearing it remains permanent after loading. Earlier saves without tree appearance data still load.
 

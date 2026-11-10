@@ -11,6 +11,7 @@ namespace Mythologicum
         private readonly SquareBuildGrid grid;
         private readonly GameObject root, panel, overlay;
         private readonly Text information, warning;
+        private readonly UIFramedPanel frame;
         private readonly Material material;
         private Mesh mesh;
         private Vector2Int? selectedCell;
@@ -32,14 +33,14 @@ namespace Mythologicum
             panel.transform.SetParent(root.transform, false);
             var panelRect = (RectTransform)panel.transform;
             panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(0f, 1f);
-            panelRect.anchoredPosition = new Vector2(15f, -170f);
-            panelRect.sizeDelta = new Vector2(340f, 270f);
+            panelRect.anchoredPosition = new Vector2(24f, -180f);
             panel.GetComponent<Image>().color = new Color(0.04f, 0.07f, 0.09f, 0.95f);
-            information = Label(panel.transform, font, 20);
+            frame=UIFramedPanel.Attach(panel,false,640f);var body=frame.Content;
+            information = Label(body, font, 18);
             information.alignment = TextAnchor.UpperLeft;
             information.rectTransform.anchorMin = Vector2.zero; information.rectTransform.anchorMax = Vector2.one;
-            information.rectTransform.offsetMin = new Vector2(15f, 12f);
-            information.rectTransform.offsetMax = new Vector2(-15f, -12f);
+            information.rectTransform.offsetMin = Vector2.zero;
+            information.rectTransform.offsetMax = Vector2.zero;
             warning = Label(root.transform, font, 21);
             warning.color = new Color(1f, 0.35f, 0.22f);
             warning.rectTransform.anchorMin = warning.rectTransform.anchorMax = new Vector2(0.5f, 1f);
@@ -58,7 +59,7 @@ namespace Mythologicum
             var go = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             go.transform.SetParent(parent, false);
             Text text = go.GetComponent<Text>();
-            text.font = font; text.fontSize = size;
+            text.font = UITheme.BodyFont; text.fontSize = size;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(0.94f, 0.86f, 0.66f);
             text.raycastTarget = false;
@@ -79,7 +80,7 @@ namespace Mythologicum
             int unsecured = 0;
             foreach (EnclosureRecord record in map.Records) if (!record.IsSecured) unsecured++;
             warning.gameObject.SetActive(unsecured > 0);
-            warning.text = $"Warning: {unsecured} enclosure(s) unsecured. Repair the fence gaps.";
+            warning.text = Loc.Format("park.enclosure_presentation.warning_enclosure_s_unsecured_repair_the_fence_gaps", unsecured);
             EnclosureRecord current = selectedCell.HasValue ? map.At(selectedCell.Value) : null;
             if (current != selected || map.Revision != lastRevision || (grid.Terrain?.Revision??0)!=lastTerrainRevision)
             {
@@ -90,14 +91,9 @@ namespace Mythologicum
             }
             SetInspecting(inspecting);
             if (selected == null) return;
+            frame.Refresh();
             EnvironmentStats stats = selected.Environment;
-            information.text = $"Enclosure #{selected.Id}\n"
-                + (selected.IsSecured ? "Secured perimeter\n" : "UNSECURED: fence gap\n")
-                + $"Area: {stats.Area:0.#} m² ({stats.Tiles} tiles)\n"
-                + $"Forest coverage: {stats.ForestPercent:0.#}%\n"
-                + $"Gates: {selected.GateCount}\n"
-                + (selected.HasStaffAccess ? "Staff access: connected\n" : "Staff access: no park path\n")
-                + "\nClick elsewhere to change selection.";
+            information.text = Loc.Format("park.enclosure_presentation.enclosure_area_m_tiles_forest_coverage_gates_click_elsewhe", selected.Id, (selected.IsSecured ? Loc.Text("park.enclosure_presentation.secured_perimeter") : Loc.Text("park.enclosure_presentation.unsecured_fence_gap")), stats.Area, stats.Tiles, stats.ForestPercent, selected.GateCount, (selected.HasStaffAccess ? Loc.Text("park.enclosure_presentation.staff_access_connected") : Loc.Text("park.enclosure_presentation.staff_access_no_park_path")));
         }
 
         private void RebuildHighlight()

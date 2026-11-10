@@ -47,7 +47,7 @@ namespace Mythologicum
         public float MovementCost(Vector2Int from,Vector2Int to)
         {
             float rise=CellCenter(to).y-CellCenter(from).y;
-            return (float)Math.Sqrt(1f+rise*rise/(CellSize*CellSize))+Math.Max(0,rise)/CellSize*.25f;
+            return (float)Math.Sqrt(1f+rise*rise/(CellSize*CellSize))+Math.Max(0,rise)/CellSize*(Terrain?.UphillCostMultiplier ?? 0f);
         }
         public Vector3 ProjectToGround(Vector3 point,float bodyOffset=0f)
         {

@@ -6,8 +6,9 @@ namespace Mythologicum
     public static class CreatureEscape
     {
         public static float Chance(float hunger, float agitation, float crowding, float rareChance,
-            float hungerChance, float agitationChance, float crowdingChance) =>
-            Math.Min(.95f, Clamp(rareChance) + Clamp((hunger - 75f) / 25f) * Clamp(hungerChance)
+            float hungerChance, float agitationChance, float crowdingChance, float hungerStart = 75f,
+            float maximumChance = .95f) =>
+            Math.Min(Clamp(maximumChance), Clamp(rareChance) + HungerPressure(hunger, hungerStart) * Clamp(hungerChance)
                 + Clamp(agitation) * Clamp(agitationChance) + Clamp(crowding) * Clamp(crowdingChance));
         public static float Overcrowding(float area, float requiredArea) => requiredArea > 0f
             ? Clamp(1f - Math.Max(0f, area) / requiredArea) : 0f;
@@ -17,5 +18,10 @@ namespace Mythologicum
             return (float)(1d - Math.Pow(1d - Clamp(perMinute), seconds / 60d));
         }
         private static float Clamp(float value) => float.IsNaN(value) ? 0f : Math.Max(0f, Math.Min(1f, value));
+        private static float HungerPressure(float hunger, float start)
+        {
+            start = float.IsNaN(start) ? 100f : Math.Max(0f, Math.Min(100f, start));
+            return start >= 100f ? (hunger >= 100f ? 1f : 0f) : Clamp((hunger - start) / (100f - start));
+        }
     }
 }

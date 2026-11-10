@@ -51,3 +51,6 @@ MonoBehaviour:
   researchCentre: {fileID: 8051985769325472309, guid: 22b01b1920e109543b7a1ef76356924e, type: 3}
   mercenary: {fileID: 7861617570233870979, guid: 5154c08efe2be6a44bc4d1ff6a11317e, type: 3}
   zookeeper: {fileID: 2661994169556932180, guid: 0972cd229ac9d20489bbc3a57a51be46, type: 3}
+  researchCentreYaw: 180
+  mercenaryYaw: 180
+  zookeeperYaw: 180

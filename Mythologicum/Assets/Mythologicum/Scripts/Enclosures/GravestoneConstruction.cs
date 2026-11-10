@@ -21,6 +21,7 @@ namespace Mythologicum
         }
 
         public bool Occupies(Vector2Int cell) => stones.ContainsKey(cell);
+        internal bool TryRemove(Vector2Int cell) => stones.TryGetValue(cell, out var root) && root.GetComponent<DemolitionTarget>().Demolish();
         public void RefreshTerrain(){foreach(var pair in stones)pair.Value.transform.position=grid.CellCenter(pair.Key);}
         public bool CanPlace(Vector2Int cell)
         {

@@ -36,13 +36,13 @@ namespace Mythologicum
         private GridHeightField CreateTerrain(int width,int depth)
         {
             var asset=Resources.Load<TerrainDefinition>("Terrain/DefaultTerrain");var settings=asset!=null?asset.settings:new TerrainSettings();
-            var data=new GridHeightField(width,depth,cellSize,settings.maximumWalkSlope,settings.maximumPathSlope,settings.maximumFoundationEarthwork);
+            var data=new GridHeightField(width,depth,cellSize,settings.maximumWalkSlope,settings.maximumPathSlope,settings.maximumFoundationEarthwork,settings.uphillCostMultiplier);
             var saved=ParkSaveStore.Pending;
             if(saved!=null)
             {
                 return data; // Restore only after validation; earlier saves retain their flat ground.
             }
-            if(selectedMapOptions)return mapOptions.CreateHeightField(cellSize,settings.maximumWalkSlope,settings.maximumPathSlope,settings.maximumFoundationEarthwork);
+            if(selectedMapOptions)return mapOptions.CreateHeightField(cellSize,settings.maximumWalkSlope,settings.maximumPathSlope,settings.maximumFoundationEarthwork,settings.uphillCostMultiplier);
             if(settings.generateHills)
             {
                 if(settings.heightmap!=null)

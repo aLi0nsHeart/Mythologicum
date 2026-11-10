@@ -12,7 +12,7 @@ namespace Mythologicum
         private bool CanPhase(CreatureAgent agent) => agent.Definition.canPhaseFences
             && agent.Vitals.Hunger >= agent.Definition.phaseHungerThreshold;
         private bool CanAttackFences(CreatureAgent agent) => agent.Definition.damage > 0f
-            && (agent.Definition.canBreakFences || agent.EscapeIntent || agent.Vitals.Hunger >= 80f
+            && (agent.Definition.canBreakFences || agent.EscapeIntent || agent.Vitals.Hunger >= agent.Definition.Behaviour.urgentHunger
                 || agent.Activity == CreatureActivity.Fleeing);
         private int AbilityKey(CreatureAgent agent) => (CanClimbForNeeds(agent) ? 1 : 0)
             | (CanPhase(agent) ? 2 : 0) | (CanAttackFences(agent) ? 4 : 0);
@@ -75,7 +75,7 @@ namespace Mythologicum
                     if (agent.Route.Count > 0) { agent.Activity = CreatureActivity.Hunting; return true; }
                     agent.Activity = CreatureActivity.Scaring; agent.StateTimer = Mathf.Max(.1f, agent.Definition.scareSeconds);
                     // A scare is a non-damaging action. The victim remains free to run throughout it.
-                    guest.Vitals.Tick(.25f, 0f, 60f, 0f, true);
+                    guest.Vitals.Tick(1f, 0f, agent.Definition.Behaviour.scareFearImpulse, 0f, true);
                     agent.ScareSucceeded = guest.Vitals.Fear > 0f;
                     guest.LastDanger = agent.transform.position; guest.HasDanger = true; guest.DecisionTimer = 0f;
                     return true;
@@ -111,7 +111,7 @@ namespace Mythologicum
         {
             agent.TraversalFrom = agent.Cell; agent.TraversalTo = next;
             agent.Activity = CreatureActivity.PhasingFence;
-            agent.TraversalDuration = 1.5f; agent.StateTimer = agent.TraversalDuration;
+            agent.TraversalDuration = Mathf.Max(.1f, agent.Definition.Behaviour.phaseSeconds); agent.StateTimer = agent.TraversalDuration;
             agent.transform.rotation = Quaternion.LookRotation(GroundPosition(agent,next) - GroundPosition(agent,agent.Cell));
         }
 
@@ -131,12 +131,12 @@ namespace Mythologicum
                     return false; // Reconsider danger and exhaustion between strikes, just like other activities.
                 }
                 float damage = fences.TryDamage(edge.Value, agent.Definition.damage);
-                agent.FenceStrikes++; agent.Energy.Spend(1f);
-                if (damage <= 0f || agent.FenceStrikes >= 30 || (agent.EscapeIntent && time >= agent.EscapeUntil))
+                agent.FenceStrikes++; agent.Energy.Spend(agent.Definition.Behaviour.fenceStrikeEnergyCost);
+                if (damage <= 0f || agent.FenceStrikes >= agent.Definition.Behaviour.maximumFenceStrikes || (agent.EscapeIntent && time >= agent.EscapeUntil))
                 {
                     agent.AttackedFence = null; agent.AttemptAfter = time + agent.Definition.climbRetrySeconds;
                     agent.Route.Clear(); agent.Goal = null; agent.Activity = CreatureActivity.Resting;
-                    agent.EscapeStatus = damage <= 0f ? "Fence resists the attack" : "Pausing fence attacks";
+                    agent.EscapeStatus = damage <= 0f ? "creature.escape.fence_resists_the_attack" : "creature.escape.pausing_fence_attacks";
                     agent.StateTimer = PauseDuration(agent); agent.DecisionTimer = 0f;
                     if (agent.EscapeIntent) EndEscape(agent, agent.EscapeStatus);
                 }

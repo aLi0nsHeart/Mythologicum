@@ -20,8 +20,8 @@ namespace Mythologicum
                 actor.Alive = false; actor.IsSedated = false; actor.SedationRemaining = 0f;
                 actor.RetirementRequested = false; actor.SedationRequested = false; actor.MoveRequestedDestination = null;
                 actor.Route.Clear(); actor.Goal = null; actor.AttackedFence = null;
-                actor.Activity = CreatureActivity.Dying; actor.CorpseTimer = 3f;
-                actor.StaffStatus = "Deceased";
+                actor.Activity = CreatureActivity.Dying; actor.CorpseTimer = simulation.corpseSeconds;
+                actor.StaffStatus = "creature.staff.deceased";
                 Collider collider = actor.GetComponent<Collider>();
                 if (collider != null) collider.enabled = false;
             }
@@ -38,7 +38,7 @@ namespace Mythologicum
                 || float.IsInfinity(seconds) || seconds <= 0f) return false;
             ClearCombatLinks(actor);
             actor.IsSedated = true; actor.SedationRemaining = Mathf.Max(actor.SedationRemaining, seconds);
-            actor.SedationRequested = false; actor.StaffStatus = "Sedated";
+            actor.SedationRequested = false; actor.StaffStatus = "creature.staff.sedated";
             actor.Route.Clear(); actor.Goal = null; actor.AttackedFence = null; actor.AttemptFence = null;
             actor.EscapeIntent = false; actor.EscapeGoal = null; actor.EscapeBarrier = null;
             actor.HasDanger = false; actor.Threat = null; actor.SocialPartner = null;
@@ -56,7 +56,7 @@ namespace Mythologicum
             Vector3 point = grid.CellCenter(cell);
             foreach (CreatureAgent other in agents)
                 if (other != actor && other != ignore && other.Alive
-                    && HorizontalDistance(other.transform.position, point) < grid.CellSize * .7f) return false;
+                    && HorizontalDistance(other.transform.position, point) < grid.CellSize * simulation.placementSpacingTiles) return false;
             return true;
         }
 
@@ -64,11 +64,11 @@ namespace Mythologicum
         {
             if (!RegisteredLiving(actor) || !RegisteredLiving(carrier) || actor == carrier || !actor.IsSedated
                 || actor.CarriedBy != null || Mathf.Abs(actor.Elevation) > .01f
-                || HorizontalDistance(actor.transform.position, carrier.transform.position) > 2.5f
+                || HorizontalDistance(actor.transform.position, carrier.transform.position) > simulation.carryPickupRange
                 || actor.Cell != carrier.Cell && !navigation.CanCross(carrier.Cell, actor.Cell)) return false;
             ClearCombatLinks(actor);
             actor.CarriedBy = carrier; actor.Route.Clear(); actor.Goal = null;
-            actor.Activity = CreatureActivity.Carried; actor.StaffStatus = "Being carried by a zookeeper";
+            actor.Activity = CreatureActivity.Carried; actor.StaffStatus = "creature.staff.being_carried_by_a_zookeeper";
             FollowCarrier(actor, carrier);
             RefreshVisual(actor);
             return true;
@@ -82,7 +82,7 @@ namespace Mythologicum
             actor.CarriedBy = null; actor.Cell = cell; actor.Elevation = 0f;
             actor.transform.position = GroundPosition(actor, cell);
             actor.Activity = CreatureActivity.Sedated; actor.MoveRequestedDestination = null;
-            actor.StaffStatus = "Moved; remains sedated until the tranquilizer wears off";
+            actor.StaffStatus = "creature.staff.moved_remains_sedated_until_the_tranquilizer_wears_off";
             RefreshVisual(actor);
             return true;
         }
@@ -97,7 +97,7 @@ namespace Mythologicum
             if (actor.Alive)
             {
                 actor.Activity = actor.IsSedated ? CreatureActivity.Sedated : CreatureActivity.Resting;
-                actor.StaffStatus = "Transport interrupted; animal placed on the ground";
+                actor.StaffStatus = "creature.staff.transport_interrupted_animal_placed_on_the_ground";
             }
         }
 
@@ -147,7 +147,7 @@ namespace Mythologicum
             if (actor.SedationRemaining <= 0f)
             {
                 actor.IsSedated = false; actor.MoveRequestedDestination = null; actor.SedationRequested = false;
-                actor.StaffStatus = actor.RetirementRequested ? "Retirement requested" : "Awake";
+                actor.StaffStatus = actor.RetirementRequested ? "creature.staff.retirement_requested" : "creature.staff.awake";
                 actor.Activity = CreatureActivity.Resting; actor.DecisionTimer = 0f;
                 actor.StateTimer = PauseDuration(actor); actor.NeedsTimer = 0f;
             }

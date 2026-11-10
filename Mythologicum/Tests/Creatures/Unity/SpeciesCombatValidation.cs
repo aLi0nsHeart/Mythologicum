@@ -278,8 +278,8 @@ public static class SpeciesCombatValidation
         var edge = new FenceEdge(V(3,2), false);
         Check(construction.TryPlace(edge), "Damage display test creates an actual imported fence and solid barrier");
         construction.Layout.TryDamage(edge, 30f); construction.Refresh();
-        TextMesh health = root.GetComponentInChildren<TextMesh>();
-        Check(health != null && health.text.Contains("90/120"), "Partial fence damage appears as current and maximum health");
+        Check(construction.Layout.HealthAt(edge) == 90f && root.GetComponentInChildren<TextMesh>() == null,
+            "Partial fence damage retains its health without floating world text");
         construction.Layout.TryDamage(edge, 100f); construction.Refresh();
         bool enabledCollider = false;
         foreach (Collider collider in root.GetComponentsInChildren<Collider>(true))
