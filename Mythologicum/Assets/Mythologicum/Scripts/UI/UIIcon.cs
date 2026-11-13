@@ -20,6 +20,8 @@ namespace Mythologicum
         private Vector2 previousSize = new Vector2(-1, -1);
         private float labelPadding = 10f;
         private bool standalonePrepared;
+        private string inferredName;
+        private UIIconKind inferredKind;
 
         public UIIconKind Kind => kind;
         public Image IconImage => icon;
@@ -70,7 +72,18 @@ namespace Mythologicum
             if (button == null) return;
             if (label == null) label = DirectLabel(button);
             if (iconOnly && label != null) label.enabled = false;
-            if (automatic) kind = Infer(button, label);
+            if (automatic)
+            {
+                // Runtime labels are translated independently; only an actual hierarchy
+                // rename can change the automatically chosen symbol.
+                string name = button.name;
+                if (name != inferredName)
+                {
+                    inferredName = name;
+                    inferredKind = Infer(button, label);
+                }
+                kind = inferredKind;
+            }
             var theme = UITheme.Current;
             var symbols = theme != null ? theme.Icon(kind) : null;
             if (symbols == null || symbols.normal == null)

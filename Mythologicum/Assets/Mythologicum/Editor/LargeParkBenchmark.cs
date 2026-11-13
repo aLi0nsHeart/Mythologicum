@@ -38,12 +38,26 @@ namespace Mythologicum.Editor
         }
     }
     [Serializable]
+    public sealed class ParkBenchmarkAllocation
+    {
+        public int samples;
+        public double meanBytes, p50Bytes, p95Bytes, maximumBytes;
+        public static ParkBenchmarkAllocation From(List<double> values)
+        {
+            var sorted = values.OrderBy(value => value).ToArray();
+            return new ParkBenchmarkAllocation { samples = sorted.Length, meanBytes = sorted.Average(),
+                p50Bytes = sorted[(int)Math.Ceiling(sorted.Length * .5) - 1],
+                p95Bytes = sorted[(int)Math.Ceiling(sorted.Length * .95) - 1], maximumBytes = sorted[sorted.Length - 1] };
+        }
+    }
+    [Serializable]
     public sealed class ParkBenchmarkResult
     {
         public string name;
         public int creatures, visitors, staff, totalActors, connectedPathTiles, mapSize;
         public int endingCreatures, endingVisitors, endingStaff;
         public ParkBenchmarkTiming creatureTick, visitorTick, staffTick, totalTick;
+        public ParkBenchmarkAllocation creatureAllocatedBytes, visitorAllocatedBytes, staffAllocatedBytes, totalAllocatedBytes;
     }
     [Serializable]
     public sealed class ParkBenchmarkReport
@@ -52,7 +66,17 @@ namespace Mythologicum.Editor
         public string workload = "CPU simulation fixture with flat ground, connected paths and placeholder actors. Neutral species and held weapon cooldowns prevent deaths, departures and shot effects; original game assets and scenes are untouched. Rendering, UI, imported art, combat effects and mass construction invalidation are excluded. Timings measure this editor/hardware/run and are not a game FPS claim.";
         public int seed, warmupTicks, measuredTicks;
         public float simulationStep;
+        public bool allocationCounterAvailable;
         public List<ParkBenchmarkResult> profiles = new List<ParkBenchmarkResult>();
+        private static bool HasAllocationCounter()
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var probe = new byte[8192];
+            long after = GC.GetAllocatedBytesForCurrentThread();
+            GC.KeepAlive(probe);
+            return after - before >= probe.Length;
+        }
+        public ParkBenchmarkReport() { allocationCounterAvailable = HasAllocationCounter(); }
     }
 
     /// <summary>Repeatable real-world simulation timing, kept outside all authored park scenes.</summary>
@@ -166,14 +190,21 @@ namespace Mythologicum.Editor
             string stem = "ParkBenchmark-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             string json = Path.Combine(ReportDirectory, stem + ".json");
             File.WriteAllText(json, JsonUtility.ToJson(report, true));
-            var lines = new List<string> { "profile,creatures,visitors,staff,totalActors,pathTiles,subsystem,samples,meanMs,p50Ms,p95Ms,maxMs" };
+            var lines = new List<string> { "profile,creatures,visitors,staff,totalActors,pathTiles,subsystem,samples,meanMs,p50Ms,p95Ms,maxMs,meanAllocatedBytes,p95AllocatedBytes" };
             foreach (var profile in report.profiles)
                 foreach (var entry in new[] { ("Creatures", profile.creatureTick), ("Visitors", profile.visitorTick),
                     ("Staff", profile.staffTick), ("Total", profile.totalTick) })
+                {
+                    var allocation = entry.Item1 == "Creatures" ? profile.creatureAllocatedBytes
+                        : entry.Item1 == "Visitors" ? profile.visitorAllocatedBytes
+                        : entry.Item1 == "Staff" ? profile.staffAllocatedBytes : profile.totalAllocatedBytes;
                     lines.Add(string.Join(",", profile.name, profile.creatures, profile.visitors, profile.staff, profile.totalActors,
                         profile.connectedPathTiles, entry.Item1, entry.Item2.samples,
                         entry.Item2.meanMs.ToString("0.000", CultureInfo.InvariantCulture), entry.Item2.p50Ms.ToString("0.000", CultureInfo.InvariantCulture),
-                        entry.Item2.p95Ms.ToString("0.000", CultureInfo.InvariantCulture), entry.Item2.maximumMs.ToString("0.000", CultureInfo.InvariantCulture)));
+                        entry.Item2.p95Ms.ToString("0.000", CultureInfo.InvariantCulture), entry.Item2.maximumMs.ToString("0.000", CultureInfo.InvariantCulture),
+                        allocation != null ? allocation.meanBytes.ToString("0", CultureInfo.InvariantCulture) : "",
+                        allocation != null ? allocation.p95Bytes.ToString("0", CultureInfo.InvariantCulture) : ""));
+                }
             File.WriteAllLines(Path.ChangeExtension(json, ".csv"), lines);
             File.WriteAllText(Path.Combine(ReportDirectory, "LatestBenchmark.txt"), json);
             return json;
@@ -188,6 +219,7 @@ namespace Mythologicum.Editor
             private Fixture fixture;
             private readonly List<double> creatureTimes = new List<double>(), visitorTimes = new List<double>(),
                 staffTimes = new List<double>(), totalTimes = new List<double>();
+            private readonly List<double>[] allocations = { new List<double>(), new List<double>(), new List<double>(), new List<double>() };
             public ParkBenchmarkReport Report { get; }
             public string Status => index >= profiles.Length ? "Complete" : profiles[index].name + ": tick " + tick + " / " + (warmup + measured);
             public float Progress => (index + (float)tick / (warmup + measured)) / profiles.Length;
@@ -215,9 +247,10 @@ namespace Mythologicum.Editor
                 {
                     fixture = new Fixture(profiles[index], size, Report.seed);
                     creatureTimes.Clear(); visitorTimes.Clear(); staffTimes.Clear(); totalTimes.Clear(); tick = 0;
+                    foreach (var samples in allocations) samples.Clear();
                     return true;
                 }
-                fixture.Tick(dt, tick >= warmup ? creatureTimes : null, visitorTimes, staffTimes, totalTimes);
+                fixture.Tick(dt, tick >= warmup ? creatureTimes : null, visitorTimes, staffTimes, totalTimes, allocations);
                 tick++;
                 if (tick < warmup + measured) return true;
                 fixture.ValidateCounts();
@@ -227,7 +260,11 @@ namespace Mythologicum.Editor
                     endingCreatures = fixture.Creatures.Agents.Count(actor => actor.Alive && (actor.Definition.tags & (CreatureTags.Visitor | CreatureTags.Staff)) == 0),
                     endingVisitors = fixture.Visitors.Population, endingStaff = fixture.Staff.Staff.Count,
                     creatureTick = ParkBenchmarkTiming.From(creatureTimes), visitorTick = ParkBenchmarkTiming.From(visitorTimes),
-                    staffTick = ParkBenchmarkTiming.From(staffTimes), totalTick = ParkBenchmarkTiming.From(totalTimes) });
+                    staffTick = ParkBenchmarkTiming.From(staffTimes), totalTick = ParkBenchmarkTiming.From(totalTimes),
+                    creatureAllocatedBytes = Report.allocationCounterAvailable ? ParkBenchmarkAllocation.From(allocations[0]) : null,
+                    visitorAllocatedBytes = Report.allocationCounterAvailable ? ParkBenchmarkAllocation.From(allocations[1]) : null,
+                    staffAllocatedBytes = Report.allocationCounterAvailable ? ParkBenchmarkAllocation.From(allocations[2]) : null,
+                    totalAllocatedBytes = Report.allocationCounterAvailable ? ParkBenchmarkAllocation.From(allocations[3]) : null });
                 fixture.Dispose(); fixture = null; index++; return index < profiles.Length;
             }
             public void Dispose() { fixture?.Dispose(); fixture = null; }
@@ -325,20 +362,26 @@ namespace Mythologicum.Editor
                 if (record == null) throw new InvalidOperationException("Could not place benchmark workplace: " + kind);
                 return record;
             }
-            public void Tick(float dt, List<double> creatureTimes, List<double> visitorTimes, List<double> staffTimes, List<double> totalTimes)
+            public void Tick(float dt, List<double> creatureTimes, List<double> visitorTimes, List<double> staffTimes, List<double> totalTimes, List<double>[] allocations)
             {
                 var oldScene = SceneManager.GetActiveScene(); var oldRandom = Random.state;
                 try
                 {
                     SceneManager.SetActiveScene(scene); Random.state = randomState;
                     long totalStart = Stopwatch.GetTimestamp();
+                    long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
                     timer.Restart(); Creatures.Tick(dt); timer.Stop(); double creature = timer.Elapsed.TotalMilliseconds;
+                    long allocatedCreatures = GC.GetAllocatedBytesForCurrentThread();
                     timer.Restart(); Staff.Tick(dt); timer.Stop(); double staff = timer.Elapsed.TotalMilliseconds;
+                    long allocatedStaff = GC.GetAllocatedBytesForCurrentThread();
                     timer.Restart(); Visitors.Tick(dt); timer.Stop(); double visitor = timer.Elapsed.TotalMilliseconds;
+                    long allocatedVisitors = GC.GetAllocatedBytesForCurrentThread();
                     if (creatureTimes != null)
                     {
                         creatureTimes.Add(creature); visitorTimes.Add(visitor); staffTimes.Add(staff);
                         totalTimes.Add((Stopwatch.GetTimestamp() - totalStart) * 1000d / Stopwatch.Frequency);
+                        allocations[0].Add(allocatedCreatures - allocatedBefore); allocations[1].Add(allocatedVisitors - allocatedStaff);
+                        allocations[2].Add(allocatedStaff - allocatedCreatures); allocations[3].Add(allocatedVisitors - allocatedBefore);
                     }
                     randomState = Random.state;
                 }

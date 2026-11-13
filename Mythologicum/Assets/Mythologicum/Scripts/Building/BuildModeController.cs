@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -77,6 +78,10 @@ namespace Mythologicum
         private int visiblePreviews;
         private Vector2 previousPointer;
         private bool ready, preparationFailed;
+        private static readonly ProfilerMarker CreatureTickProfile = new ProfilerMarker("Mythologicum.Creatures");
+        private static readonly ProfilerMarker StaffTickProfile = new ProfilerMarker("Mythologicum.Staff");
+        private static readonly ProfilerMarker VisitorTickProfile = new ProfilerMarker("Mythologicum.Visitors");
+        private static readonly ProfilerMarker InterfaceProfile = new ProfilerMarker("Mythologicum.InterfaceReports");
         public bool IsReady => ready;
 
         private IEnumerator Start()
@@ -304,26 +309,29 @@ namespace Mythologicum
             economy.Advance(Time.deltaTime);
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
-            creatureWorld.Tick(Time.deltaTime);
-            staffWorld.Tick(Time.deltaTime);
+            using (CreatureTickProfile.Auto()) creatureWorld.Tick(Time.deltaTime);
+            using (StaffTickProfile.Auto()) staffWorld.Tick(Time.deltaTime);
             Progression.Tick(Time.deltaTime);
             fences.Refresh(view);
-            visitorWorld.Tick(Time.deltaTime);
+            using (VisitorTickProfile.Auto()) visitorWorld.Tick(Time.deltaTime);
             BuildingEconomy.Tick(buildingConstruction.Network,economy,Time.deltaTime);
-            parkStatus?.Refresh();
-            creatureInspection.Refresh();
-            buildingInspection.Refresh();
-            visitorPresentation.Refresh();
-            palette.Refresh(buildingConstruction.Network.HasEntrance);
-            enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
-            enclosurePresentation.Refresh();
-            alerts?.Tick(Time.deltaTime);
-            overlays?.Refresh();
-            management.Refresh();
-            parkManagement.Refresh();
-            notifications.Refresh();
-            encyclopedia?.Refresh();
-            UpdateConstructionHistoryUI();
+            using (InterfaceProfile.Auto())
+            {
+                parkStatus?.Refresh();
+                creatureInspection.Refresh();
+                buildingInspection.Refresh();
+                visitorPresentation.Refresh();
+                palette.Refresh(buildingConstruction.Network.HasEntrance);
+                enclosureMap.Refresh(buildingConstruction.Network.IsPathConnected);
+                enclosurePresentation.Refresh();
+                alerts?.Tick(Time.deltaTime);
+                overlays?.Refresh();
+                management.Refresh();
+                parkManagement.Refresh();
+                notifications.Refresh();
+                encyclopedia?.Refresh();
+                UpdateConstructionHistoryUI();
+            }
             if (terrainStroke && Mouse.current != null && !Mouse.current.leftButton.isPressed) ResetTerrainStroke();
             if (ManagementOpen || GameInput.BlocksGameplayInput) return;
             if(terrainCursor!=null)terrainCursor.gameObject.SetActive(false);

@@ -318,6 +318,9 @@ public static class SteampunkUIIntegrationValidation
         ValidateParkStatus(controller, true);
         ValidateCursor(false);
         ValidateFrameworkEdgeCases(canvas);
+        var maintenanceChecks = UIMaintenanceNativeChecks.Run(canvas, Check);
+        try { while (maintenanceChecks.MoveNext()) yield return null; }
+        finally { (maintenanceChecks as IDisposable)?.Dispose(); }
         ValidateButtonIcon(FindButton(palette.Root.transform, "Building"), UIIconKind.Building, true);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Park Management"), UIIconKind.ParkManagement);
         ValidateButtonIcon(FindButton(palette.Root.transform, "Encyclopedia"), UIIconKind.Encyclopedia);

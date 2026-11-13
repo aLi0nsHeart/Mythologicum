@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Mythologicum
@@ -16,7 +15,11 @@ namespace Mythologicum
         public int Revision { get; private set; }
         public GridHeightField Terrain { get; }
         public void NotifyPhysicalChange()=>Revision++;
-        private readonly Dictionary<Vector2Int, BuildCellContent> occupied = new Dictionary<Vector2Int, BuildCellContent>();
+        // Map bounds are fixed. Direct indexing avoids hashing coordinates on every
+        // movement, sight, construction and path-search occupancy lookup.
+        private readonly BuildCellContent[] occupied;
+        private readonly float[] centerHeights;
+        private readonly int[] centerHeightRevisions;
 
         public SquareBuildGrid(Vector3 origin, float cellSize, int width, int depth, GridHeightField terrain = null)
         {
@@ -26,8 +29,16 @@ namespace Mythologicum
             CellSize = cellSize;
             Width = width;
             Depth = depth;
+            occupied = new BuildCellContent[checked(width * depth)];
             Terrain=terrain;
-            if(terrain!=null)terrain.Changed+=()=>Revision++;
+            if(terrain!=null)
+            {
+                centerHeights = new float[occupied.Length];
+                centerHeightRevisions = new int[occupied.Length];
+                // Terrain starts at revision zero; reserve -1 for an unsampled cell.
+                for (int i = 0; i < centerHeightRevisions.Length; i++) centerHeightRevisions[i] = -1;
+                terrain.Changed+=()=>Revision++;
+            }
         }
 
         public Vector2Int WorldToCell(Vector3 position) => new Vector2Int(
@@ -37,7 +48,20 @@ namespace Mythologicum
         public Vector3 CellCenter(Vector2Int cell)
         {
             var point=Origin+new Vector3((cell.x+.5f)*CellSize,0,(cell.y+.5f)*CellSize);
-            point.y=GroundHeight(point);return point;
+            if (Terrain != null && Contains(cell))
+            {
+                // Sample lazily after edits, foundations, regeneration or save restore.
+                // Exact centre positions are fixed until the terrain revision changes.
+                int index = cell.y * Width + cell.x;
+                if (centerHeightRevisions[index] != Terrain.Revision)
+                {
+                    centerHeights[index] = GroundHeight(point);
+                    centerHeightRevisions[index] = Terrain.Revision;
+                }
+                point.y = centerHeights[index];
+            }
+            else point.y=GroundHeight(point);
+            return point;
         }
         public float GroundHeight(Vector3 point)=>Origin.y+(Terrain?.Sample((point.x-Origin.x)/CellSize,(point.z-Origin.z)/CellSize)??0f);
         public Vector3 NodePosition(Vector2Int node)
@@ -68,15 +92,15 @@ namespace Mythologicum
         public bool Contains(Vector2Int cell) => cell.x >= 0 && cell.x < Width
             && cell.y >= 0 && cell.y < Depth;
 
-        public BuildCellContent ContentAt(Vector2Int cell) => occupied.TryGetValue(cell, out var content)
-            ? content : BuildCellContent.Empty;
+        public BuildCellContent ContentAt(Vector2Int cell) => Contains(cell)
+            ? occupied[cell.y * Width + cell.x] : BuildCellContent.Empty;
 
-        public bool IsAvailable(Vector2Int cell) => Contains(cell) && !occupied.ContainsKey(cell);
+        public bool IsAvailable(Vector2Int cell) => Contains(cell) && occupied[cell.y * Width + cell.x] == BuildCellContent.Empty;
 
         public bool TryOccupy(Vector2Int cell, BuildCellContent content = BuildCellContent.Building)
         {
             if (content == BuildCellContent.Empty || !IsAvailable(cell)) return false;
-            occupied.Add(cell, content);
+            occupied[cell.y * Width + cell.x] = content;
             Revision++;
             return true;
         }
@@ -84,7 +108,7 @@ namespace Mythologicum
         public bool TryRemove(Vector2Int cell, BuildCellContent expectedContent)
         {
             if (expectedContent == BuildCellContent.Empty || ContentAt(cell) != expectedContent) return false;
-            if (!occupied.Remove(cell)) return false;
+            occupied[cell.y * Width + cell.x] = BuildCellContent.Empty;
             Revision++;
             return true;
         }

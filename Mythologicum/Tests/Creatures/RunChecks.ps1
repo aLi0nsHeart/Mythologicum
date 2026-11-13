@@ -52,6 +52,7 @@ try {
     $checks += @('..\Buildings\ConstructionUndoChecks')
     $checks += @('..\Localization\LocalizationChecks')
     $checks += @('CreatureLocalizationChecks')
+    $checks += @('..\Performance\RouteSearchPerformanceChecks', '..\Visitors\VisitorViewingCacheChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force

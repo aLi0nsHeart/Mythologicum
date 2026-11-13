@@ -37,6 +37,7 @@ Copy these test sources into **the disposable project's `Assets/Editor`**:
 - `Tests/Buildings/Unity/ConstructionUndoNativeChecks.cs`
 - `Tests/Saving/Unity/SaveSlotNativeChecks.cs`
 - `Tests/Localization/Unity/LocalizationNativeChecks.cs`
+- `Tests/UI/Unity/UIMaintenanceNativeChecks.cs`
 
 The UI harness calls the other helpers; they are not standalone entry
 points. The normal editor/runtime code under `Assets/Mythologicum` must also be
@@ -118,3 +119,25 @@ for the player controls, balancing settings and a manual test checklist.
 The [10 November 2026 baseline](Performance/Baselines/README.md) records the first
 validated park-operations run, including raw timing data and the visitor-update
 outlier that needs further profiling.
+
+The [13 November 2026 comparison](Performance/Baselines/2026-11-13/README.md)
+contains three before/after simulation runs, calibrated UI measurements and their
+limits. Unsupported native allocation counters must not be read as zero garbage.
+
+For the separate UI maintenance benchmark, copy
+`Tests/Performance/Unity/UIPerformanceValidation.cs` to the disposable project's
+`Assets/Editor` and use `-executeMethod UIPerformanceValidation.Start` with the
+same graphics and self-exit flags. Results are `UIPerformanceResults.txt` and
+`LocalCache/Performance/UIBenchmark-*.json`; `LatestUIBenchmark.txt` points to the
+newest report. It uses the isolated `MythologicumValidation/UIPerformanceValidation`
+application identity.
+
+For visitor choice equivalence against the previous exhaustive implementation,
+copy `Tests/Performance/Unity/VisitorPerformanceNativeChecks.cs` and use
+`-executeMethod VisitorPerformanceNativeChecks.Run`. This Edit-mode fixture writes
+`VisitorPerformanceValidationResults.txt`, checks exact animal/point selection,
+and verifies scene/actor cleanup.
+
+The default model runner includes `RouteSearchPerformanceChecks` and
+`VisitorViewingCacheChecks`. Their timing output is informational; assertions
+check equivalent behavior and reduced allocations rather than wall-clock limits.

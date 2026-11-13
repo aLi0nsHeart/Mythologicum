@@ -12,6 +12,8 @@ namespace Mythologicum
         private RectTransform rect;
         private bool positioned, sized;
         private Vector2 originalPosition, originalSize, appliedPosition, appliedSize;
+        // Runtime ownership deliberately does not survive cloning/serialization.
+        internal UIThemeApplicator Maintainer { get; set; }
         public System.Action RefreshLayout { get; set; }
 
         public static UILayoutElement Attach(RectTransform target)
@@ -102,7 +104,10 @@ namespace Mythologicum
             return name == "Panel artwork" || name == "Panel lining" || name == "Panel content" || name == "Panel heading";
         }
 
-        private void LateUpdate() => Refresh();
+        private void LateUpdate()
+        {
+            if (Maintainer == null || !Maintainer.isActiveAndEnabled) Refresh();
+        }
     }
 
     public enum UILayoutBinding { None, BuildingIcon, ManagementIcon, EncyclopediaIcon, MailIcon, PauseIcon, FundsPanel, FundsText, Stars }

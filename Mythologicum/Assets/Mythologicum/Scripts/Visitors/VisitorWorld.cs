@@ -14,6 +14,8 @@ namespace Mythologicum
         private readonly ParkEconomy economy;
         private readonly VisitorNavigation navigation;
         private readonly CreatureNavigation sight;
+        private readonly VisitorViewingCache viewing;
+        private readonly Dictionary<Vector2Int, int> viewingOrder = new Dictionary<Vector2Int, int>();
         private readonly CreatureDefinition actorProfile;
         private readonly List<VisitorAgent> visitors = new List<VisitorAgent>();
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> groundRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
@@ -50,6 +52,7 @@ namespace Mythologicum
             Reputation = reputation ?? new ParkReputation();
             navigation = new VisitorNavigation(grid, fences, creatures.IsClear);
             sight = new CreatureNavigation(grid, fences, creatures.IsClear);
+            viewing = new VisitorViewingCache(grid, sight.HasLineOfSight);
             actorProfile = ScriptableObject.CreateInstance<CreatureDefinition>();
             actorProfile.name = "Visitor actor"; actorProfile.displayName = "visitor.name";
             actorProfile.diet = CreatureDiet.None; actorProfile.tags = CreatureTags.Visitor;
@@ -107,6 +110,7 @@ namespace Mythologicum
             float dt = deltaTime; time += dt;
             buildings.Refresh();
             RefreshNavigation();
+            viewing.BeginTick(Definition.viewRange);
             Reputation.Tick(dt);
             reputationTimer -= dt;
             if (reputationTimer <= 0f || reputationGridRevision != grid.Revision || reputationFenceRevision != fences.Revision)
@@ -300,9 +304,9 @@ namespace Mythologicum
                 && guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange)) return;
             if (guest.Activity == VisitorActivity.Walking && actor.Route.Count > 0 && guest.Watching != null
                 && guest.Watching.Alive) return;
-            if (TryViewingSpot(guest)) return;
-            if (actor.Route.Count > 0) return;
             List<Vector2Int> paths = navigation.Reachable(actor.Cell);
+            if (TryViewingSpot(guest, paths)) return;
+            if (actor.Route.Count > 0) return;
             if (paths.Count > 1 && SetRoute(guest, paths[UnityEngine.Random.Range(0, paths.Count)]))
                 SetActivity(guest, VisitorActivity.Walking, "visitor.status.exploring_the_paths");
             else SetActivity(guest, VisitorActivity.Arriving, "visitor.status.looking_for_creatures_to_watch");
@@ -354,23 +358,29 @@ namespace Mythologicum
 
         private static void ReleaseService(VisitorAgent guest) { guest.Service = null; }
 
-        private bool TryViewingSpot(VisitorAgent guest)
+        private bool TryViewingSpot(VisitorAgent guest, List<Vector2Int> paths)
         {
+            if (paths.Count == 0) return false;
             CreatureAgent animal = null; Vector2Int point = guest.Actor.Cell;
             float best = float.MinValue;
-            List<Vector2Int> paths = navigation.Reachable(guest.Actor.Cell);
+            int bestOrder = int.MaxValue;
+            viewingOrder.Clear();
+            for (int i = 0; i < paths.Count; i++) viewingOrder.Add(paths[i], i);
             foreach (CreatureAgent candidate in creatures.Agents)
             {
                 if (!candidate.Alive || candidate.ExternallyControlled
                     || candidate.Definition.requiresGravestoneForSleep && candidate.Activity == CreatureActivity.Sleeping) continue;
                 if (guest.ViewedAt.TryGetValue(candidate, out float last) && time - last < Definition.exhibitRevisitSeconds) continue;
-                foreach (Vector2Int path in paths)
+                var points = viewing.ForAnimal(candidate.Cell, candidate.transform.position);
+                for (int i = 0; i < points.Count; i++)
                 {
-                    float distance = Distance(grid.CellCenter(path), candidate.transform.position);
-                    if (distance > Definition.viewRange || !sight.HasLineOfSight(path, candidate.Cell)) continue;
-                    float score = -ConstructionRouteGraph.CellDistance(guest.Actor.Cell, path) * Definition.viewingTravelPenalty
-                        - Mathf.Abs(distance - Definition.preferredViewingDistance) * Definition.viewingDistancePenalty;
-                    if (score > best) { best = score; animal = candidate; point = path; }
+                    var spot = points[i];
+                    if (!viewingOrder.TryGetValue(spot.Cell, out int order)) continue;
+                    float score = -ConstructionRouteGraph.CellDistance(guest.Actor.Cell, spot.Cell) * Definition.viewingTravelPenalty
+                        - Mathf.Abs(spot.Distance - Definition.preferredViewingDistance) * Definition.viewingDistancePenalty;
+                    // Preserve the original creature order, then this guest's BFS path order on ties.
+                    if (score > best || score == best && animal == candidate && order < bestOrder)
+                    { best = score; animal = candidate; point = spot.Cell; bestOrder = order; }
                 }
             }
             if (animal == null || !SetRoute(guest, point)) return false;

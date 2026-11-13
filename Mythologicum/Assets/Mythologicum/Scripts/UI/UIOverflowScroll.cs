@@ -13,6 +13,8 @@ namespace Mythologicum
         private bool ownsGutter;
         private RectTransform gutterViewport;
         private float originalViewportRight;
+        // Standalone scroll views retain their own update if no active canvas manages them.
+        internal UIThemeApplicator Maintainer { get; set; }
         public bool HasOverflow { get; private set; }
 
         public static UIOverflowScroll Attach(ScrollRect target)
@@ -125,6 +127,9 @@ namespace Mythologicum
             return Mathf.Max(0f, height);
         }
 
-        private void LateUpdate() => Refresh();
+        private void LateUpdate()
+        {
+            if (Maintainer == null || !Maintainer.isActiveAndEnabled) Refresh();
+        }
     }
 }

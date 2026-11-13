@@ -76,8 +76,10 @@ namespace Mythologicum
                 Vector2Int cell = frontier.Dequeue();
                 result.Add(cell);
                 if (depth[cell] >= maxSteps) continue;
-                foreach (Vector2Int next in Neighbors(cell))
+                foreach (Vector2Int direction in Directions)
                 {
+                    Vector2Int next = cell + direction;
+                    if (!CanCross(cell, next)) continue;
                     if (depth.ContainsKey(next)) continue;
                     depth.Add(next, depth[cell] + 1);
                     frontier.Enqueue(next);

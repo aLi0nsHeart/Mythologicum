@@ -21,6 +21,9 @@ namespace Mythologicum
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> reachableRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
         private readonly Dictionary<Vector2Int, HashSet<Vector2Int>> climbingRegions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
         private readonly Dictionary<ParkBuildingRecord, float> dispenserTimers = new Dictionary<ParkBuildingRecord, float>();
+        private readonly HashSet<ParkBuildingRecord> activeDispensers = new HashSet<ParkBuildingRecord>();
+        private readonly List<ParkBuildingRecord> obsoleteDispensers = new List<ParkBuildingRecord>();
+        private readonly MaterialPropertyBlock bodyProperties = new MaterialPropertyBlock();
         private readonly CreatureDefinition defaultGoat;
         private readonly CreatureSimulationDefinition simulation;
         private int gridRevision = -1, fenceRevision = -1;
@@ -942,9 +945,10 @@ namespace Mythologicum
             if (!agent.Alive) offset = Vector3.down * agent.Definition.bodyScale.y * 0.5f;
             agent.Body.localPosition = offset; agent.Body.localRotation = rotation;
             Color color = Color.Lerp(agent.Definition.color, new Color(0.9f, 0.15f, 0.1f), agent.Wellbeing.Agitation * 0.7f);
-            var properties = new MaterialPropertyBlock();
-            properties.SetColor("_BaseColor", color); properties.SetColor("_Color", color);
-            agent.BodyRenderer.SetPropertyBlock(properties);
+            // Unity copies the block into the renderer. Reuse its scratch storage for
+            // every actor rather than allocating a native block on every animation tick.
+            bodyProperties.SetColor("_BaseColor", color); bodyProperties.SetColor("_Color", color);
+            agent.BodyRenderer.SetPropertyBlock(bodyProperties);
         }
 
         private static void AnimateModel(CreatureAgent agent)
@@ -994,12 +998,12 @@ namespace Mythologicum
 
         private void TickDispensers(float dt)
         {
-            var active = new HashSet<ParkBuildingRecord>();
+            activeDispensers.Clear();
             foreach (ParkBuildingRecord building in buildings.Records)
             {
                 BuildingDefinition definition = building.Footprint.Definition;
                 if (definition.kind != BuildingKind.GoatDispenser) continue;
-                active.Add(building);
+                activeDispensers.Add(building);
                 if (!dispenserTimers.TryGetValue(building, out float remaining)) remaining = definition.dispenseInterval;
                 // Respect each building's operating state; dispensers do not require park paths.
                 if (building.IsOpen && building.FeedStock > 0) remaining -= dt;
@@ -1015,9 +1019,9 @@ namespace Mythologicum
                 }
                 dispenserTimers[building] = remaining;
             }
-            var obsolete = new List<ParkBuildingRecord>();
-            foreach (ParkBuildingRecord record in dispenserTimers.Keys) if (!active.Contains(record)) obsolete.Add(record);
-            foreach (ParkBuildingRecord record in obsolete) dispenserTimers.Remove(record);
+            obsoleteDispensers.Clear();
+            foreach (ParkBuildingRecord record in dispenserTimers.Keys) if (!activeDispensers.Contains(record)) obsoleteDispensers.Add(record);
+            foreach (ParkBuildingRecord record in obsoleteDispensers) dispenserTimers.Remove(record);
         }
 
         private Vector3 GroundPosition(CreatureAgent agent, Vector2Int cell) =>

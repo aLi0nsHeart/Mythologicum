@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -28,8 +29,11 @@ namespace Mythologicum
         [SerializeField, HideInInspector] private bool originalBestFit;
         [SerializeField, HideInInspector] private int originalMinimumSize;
         private Shadow themeShadow;
+        private readonly List<Shadow> shadows = new List<Shadow>();
+        private readonly List<Outline> outlines = new List<Outline>();
         private bool hovered, pressed, focused;
         private Image hintBacking;
+        internal bool HasVisibleGraphic => graphic != null && graphic.isActiveAndEnabled;
         public bool FitToCanvas { get; set; }
         public UIThemeRole Role { get => role; set { role = value; applied = false; } }
         public bool LocalAppearanceEnabled { get => localAppearanceEnabled; set => localAppearanceEnabled = value; }
@@ -136,7 +140,8 @@ namespace Mythologicum
             }
             if (themeShadow == null)
             {
-                foreach (var effect in text.GetComponents<Shadow>())
+                text.GetComponents(shadows);
+                foreach (var effect in shadows)
                     if (!(effect is Outline)) { themeShadow = effect; break; }
                 if (themeShadow == null && theme.textShadows)
                     themeShadow = text.gameObject.AddComponent<Shadow>();
@@ -147,8 +152,9 @@ namespace Mythologicum
                 themeShadow.effectDistance = theme.shadowOffset; themeShadow.useGraphicAlpha = true;
             }
             bool useOutline = category == UITextCategory.Hud ? theme.hudOutlines : theme.textOutlines;
-            if (useOutline && text.GetComponent<Outline>() == null) text.gameObject.AddComponent<Outline>();
-            foreach (var outline in text.GetComponents<Outline>())
+            text.GetComponents(outlines);
+            if (useOutline && outlines.Count == 0) outlines.Add(text.gameObject.AddComponent<Outline>());
+            foreach (var outline in outlines)
             {
                 bool hud = category == UITextCategory.Hud;
                 outline.enabled = hud ? theme.hudOutlines : theme.textOutlines;

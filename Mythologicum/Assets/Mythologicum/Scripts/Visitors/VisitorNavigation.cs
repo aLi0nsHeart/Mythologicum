@@ -49,8 +49,12 @@ namespace Mythologicum
             while (pending.Count > 0)
             {
                 Vector2Int cell = pending.Dequeue(); result.Add(cell);
-                foreach (Vector2Int next in Neighbors(cell, allowGround))
+                foreach (Vector2Int direction in Directions)
+                {
+                    Vector2Int next = cell + direction;
+                    if (!CanCross(cell, next, allowGround)) continue;
                     if (visited.Add(next)) pending.Enqueue(next);
+                }
             }
             return result;
         }
