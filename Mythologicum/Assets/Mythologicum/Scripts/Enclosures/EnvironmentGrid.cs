@@ -22,6 +22,8 @@ namespace Mythologicum
         private readonly Dictionary<Vector2Int, float> forest = new Dictionary<Vector2Int, float>();
         private readonly HashSet<Vector2Int> trees = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> gravestones = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> scarecrows = new HashSet<Vector2Int>();
+        public IReadOnlyCollection<Vector2Int> ScarecrowCells => scarecrows;
         public int Revision { get; private set; }
         public EnvironmentGrid(SquareBuildGrid grid, float forestCoveragePerTree = .5f)
         {
@@ -32,10 +34,25 @@ namespace Mythologicum
 
         public int TreesAt(Vector2Int cell) => trees.Contains(cell) ? 1 : 0;
         public int GravestonesAt(Vector2Int cell) => gravestones.Contains(cell) ? 1 : 0;
+        public int ScarecrowsAt(Vector2Int cell) => scarecrows.Contains(cell) ? 1 : 0;
+
+        public bool AddScarecrow(Vector2Int cell)
+        {
+            if (!grid.Contains(cell) || trees.Contains(cell) || gravestones.Contains(cell) || !scarecrows.Add(cell)) return false;
+            Revision++;
+            return true;
+        }
+
+        public bool RemoveScarecrow(Vector2Int cell)
+        {
+            if (!scarecrows.Remove(cell)) return false;
+            Revision++;
+            return true;
+        }
 
         public bool AddGravestone(Vector2Int cell)
         {
-            if (!grid.Contains(cell) || trees.Contains(cell) || !gravestones.Add(cell)) return false;
+            if (!grid.Contains(cell) || trees.Contains(cell) || scarecrows.Contains(cell) || !gravestones.Add(cell)) return false;
             Revision++;
             return true;
         }
@@ -58,7 +75,7 @@ namespace Mythologicum
 
         public bool AddTree(Vector2Int cell)
         {
-            if (!grid.Contains(cell) || gravestones.Contains(cell) || !trees.Add(cell)) return false;
+            if (!grid.Contains(cell) || gravestones.Contains(cell) || scarecrows.Contains(cell) || !trees.Add(cell)) return false;
             Revision++;
             return true;
         }

@@ -73,7 +73,7 @@ namespace Mythologicum
         {
             if(grid.Terrain==null||attachmentRevision==grid.Terrain.Revision)return;attachmentRevision=grid.Terrain.Revision;
             if(gridMesh!=null)Destroy(gridMesh);gridMesh=BuildGridVisual.CreateMesh(grid);gridObject.GetComponent<MeshFilter>().sharedMesh=gridMesh;
-            paths.RefreshTerrain();fences.RefreshTerrain();trees.RefreshTerrain();graves.RefreshTerrain();rocks?.RefreshTerrain();creatureWorld.RefreshGroundPositions();
+            paths.RefreshTerrain();fences.RefreshTerrain();trees.RefreshTerrain();graves.RefreshTerrain();scarecrows?.RefreshTerrain();rocks?.RefreshTerrain();creatureWorld.RefreshGroundPositions();
             pathSelection.Invalidate();fenceSelection.Invalidate();
         }
         private void DisposeTerrain()

@@ -22,6 +22,7 @@ namespace Mythologicum
         public Vector3 focus;
         public float yaw, zoom;
         public List<Vector2Int> paths = new List<Vector2Int>(), trees = new List<Vector2Int>(), graves = new List<Vector2Int>();
+        public List<Vector2Int> scarecrows = new List<Vector2Int>();
         public List<SavedBuilding> buildings = new List<SavedBuilding>();
         public List<SavedFence> fences = new List<SavedFence>();
         public List<SavedActor> creatures = new List<SavedActor>(), visitors = new List<SavedActor>(), staff = new List<SavedActor>();
@@ -42,6 +43,7 @@ namespace Mythologicum
         public string species;
         public Vector2Int cell;
         public float hunger, fear, energy, health, happiness, agitation, sedation, age, satisfaction, patience, explored;
+        public float escapeCooldown, fenceRetryCooldown, scareCooldown;
         public int building = -1;
         public bool retire, sedate, leaving;
     }
@@ -108,6 +110,8 @@ namespace Mythologicum
                 throw new InvalidDataException(Loc.Text("ui.save.invalid_save"));
             if(data.version>=2 && data.progression==null)throw new InvalidDataException(Loc.Text("ui.save.missing_progression"));
             if(data.version>=3 && data.terrain==null)throw new InvalidDataException(Loc.Text("ui.save.missing_terrain"));
+            // Additive enrichment data was absent in older version-three saves.
+            data.scarecrows ??= new List<Vector2Int>();
             return data;
         }
     }

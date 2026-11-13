@@ -42,10 +42,24 @@ namespace Mythologicum
         [Min(0.1f)] public float scareRange = 3f;
         [Min(0.1f)] public float scareSeconds = 1.5f;
         [Min(0.1f)] public float scareCooldownSeconds = 8f;
+        [Tooltip("Maximum distance to approach a person or scarecrow before starting the scare jump, capped by Scare Range.")]
+        [Min(0.1f)] public float scareApproachDistance = 1.5f;
+        [Tooltip("Can satisfy fear feeding by practising on reachable scarecrows.")]
+        public bool canUseScarecrows = true;
+        [Min(0f), Tooltip("Height of the visible scare jump. The creature's collider stays on the ground.")]
+        public float scareJumpHeight = 1.4f;
+        [Min(0f), Tooltip("Visual forward reach during the jump, limited to the current grid cell.")]
+        public float scareJumpForward = .65f;
+        [Range(0f, .8f), Tooltip("Squash and stretch exaggeration while preparing and landing the scare jump.")]
+        public float scareJumpSquash = .25f;
 
         [Header("Hunger (0 = full; 100 = starving)")]
+        [Tooltip("Food-free creatures remain full and do not accumulate hunger.")]
+        public bool needsFood = true;
         [Range(0f, 100f)] public float initialHunger = 35f;
         [Min(0f)] public float hungerPerSecond = 2f;
+        public float StartingHunger => needsFood ? initialHunger : 0f;
+        public float HungerRate => needsFood ? hungerPerSecond : 0f;
         [Range(0f, 100f)] public float huntThreshold = 50f;
         [Tooltip("Hunger relieved by one successful meal.")]
         [Range(0f, 100f)] public float foodRelief = 60f;
@@ -70,10 +84,10 @@ namespace Mythologicum
         public bool requiresTreeForSleep;
         [Tooltip("Can cross ordinary wooden fences by climbing. Spiked fences resist climbing.")]
         public bool canClimbWoodenFences;
-        [Tooltip("Can phase through ordinary barriers while very hungry. Sanctified barriers still stop phasing.")]
+        [Tooltip("Can phase through ordinary barriers while very hungry, or without a hunger gate for food-free species. Sanctified barriers still stop phasing.")]
         public bool canPhaseFences;
         [Range(0f, 100f)] public float phaseHungerThreshold = 80f;
-        [Tooltip("Actively seeks to break vulnerable fences when a barrier obstructs its goal.")]
+        [Tooltip("Its normal escape method is to try breaking a fence. Damage still requires agitation and is limited to one strike per escape intention.")]
         public bool canBreakFences;
         [Tooltip("Must reach a gravestone before sleeping.")]
         public bool requiresGravestoneForSleep;
@@ -155,6 +169,9 @@ namespace Mythologicum
         {
             maximumHealth = Mathf.Max(1f, maximumHealth);
             damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
+            scareApproachDistance = Mathf.Max(.1f, scareApproachDistance);
+            scareJumpHeight = Mathf.Max(0f, scareJumpHeight); scareJumpForward = Mathf.Max(0f, scareJumpForward);
+            scareJumpSquash = Mathf.Clamp(scareJumpSquash, 0f, .8f);
             pauseMinSeconds = Mathf.Max(0f, pauseMinSeconds);
             pauseMaxSeconds = Mathf.Max(pauseMinSeconds, pauseMaxSeconds);
             sleepThreshold = Mathf.Clamp(sleepThreshold, 0f, 99.9f);
@@ -194,7 +211,7 @@ namespace Mythologicum
         public float needsCheckSeconds = .5f;
 
         [Header("Urgency and escape attempts")]
-        [Range(0f, 100f), Tooltip("Hunger that overrides initial settling caution and permits fence attacks.")]
+        [Range(0f, 100f), Tooltip("Hunger that overrides initial settling caution when seeking food or shelter.")]
         public float urgentHunger = 80f;
         [Range(0f, 100f), Tooltip("Energy low enough to override settling caution when seeking a sleeping site.")]
         public float urgentEnergy = 8f;
@@ -218,8 +235,9 @@ namespace Mythologicum
         [Min(0f), Tooltip("Immediate fear after surviving a hit, expressed as seconds of the victim's normal fear gain.")]
         public float attackFearSeconds = .25f;
         [Range(0f, 100f)] public float fenceStrikeEnergyCost = 1f;
-        [Min(1), Tooltip("Maximum fence strikes in one attack before pausing and reconsidering.")]
-        public int maximumFenceStrikes = 30;
+        // Retained for compatibility with earlier profile assets. Escape intentions
+        // now always allow a single strike, independently of this legacy value.
+        [HideInInspector] public int maximumFenceStrikes = 1;
 
         public void Validate()
         {

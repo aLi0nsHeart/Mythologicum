@@ -12,7 +12,7 @@ namespace Mythologicum
     {
         private sealed class ConstructionSnapshot
         {
-            public readonly HashSet<Vector2Int> paths = new HashSet<Vector2Int>(), trees = new HashSet<Vector2Int>(), graves = new HashSet<Vector2Int>(), rocks = new HashSet<Vector2Int>();
+            public readonly HashSet<Vector2Int> paths = new HashSet<Vector2Int>(), trees = new HashSet<Vector2Int>(), graves = new HashSet<Vector2Int>(), rocks = new HashSet<Vector2Int>(), scarecrows = new HashSet<Vector2Int>();
             public readonly Dictionary<FenceEdge, SavedFence> fences = new Dictionary<FenceEdge, SavedFence>();
             public readonly HashSet<ParkBuildingRecord> buildings = new HashSet<ParkBuildingRecord>();
             public SavedTerrain terrain;
@@ -23,14 +23,14 @@ namespace Mythologicum
             public override string ToString() => label?.Value??"";
             public ConstructionSnapshot before, after;
             public TerrainUndoPatch terrain;
-            public List<Vector2Int> paths, trees, graves, rocks;
+            public List<Vector2Int> paths, trees, graves, rocks, scarecrows;
             public List<FenceEdge> fences;
             public List<ParkBuildingRecord> buildings;
             public float cost;
             public bool charged;
             public double purchasedAt;
             public FinanceWindowBucket receipt;
-            public bool Changed => terrain.Count > 0 || paths.Count + trees.Count + graves.Count + rocks.Count + fences.Count + buildings.Count > 0;
+            public bool Changed => terrain.Count > 0 || paths.Count + trees.Count + graves.Count + rocks.Count + scarecrows.Count + fences.Count + buildings.Count > 0;
         }
         private readonly List<ConstructionUndo> constructionHistory = new List<ConstructionUndo>();
         private ConstructionSnapshot pendingConstruction;
@@ -72,7 +72,8 @@ namespace Mythologicum
             // This journal reverses placements, not destructive demolition or simulation damage.
             if (before.buildings.Any(item => !after.buildings.Contains(item)) || before.paths.Any(cell => !after.paths.Contains(cell))
                 || before.trees.Any(cell => !after.trees.Contains(cell)) || before.graves.Any(cell => !after.graves.Contains(cell))
-                || before.rocks.Any(cell => !after.rocks.Contains(cell)) || before.fences.Keys.Any(edge => !after.fences.ContainsKey(edge)))
+                || before.rocks.Any(cell => !after.rocks.Contains(cell)) || before.scarecrows.Any(cell => !after.scarecrows.Contains(cell))
+                || before.fences.Keys.Any(edge => !after.fences.ContainsKey(edge)))
             { ResetConstructionHistory("park.build_mode_controller__history.destructive_changes_clear_construction_undo_history"); return; }
             var action = new ConstructionUndo
             {
@@ -80,6 +81,7 @@ namespace Mythologicum
                 terrain = new TerrainUndoPatch(before.terrain?.heights, after.terrain?.heights),
                 paths = after.paths.Except(before.paths).ToList(), trees = after.trees.Except(before.trees).ToList(),
                 graves = after.graves.Except(before.graves).ToList(), rocks = after.rocks.Except(before.rocks).ToList(),
+                scarecrows = after.scarecrows.Except(before.scarecrows).ToList(),
                 buildings = after.buildings.Except(before.buildings).ToList(),
                 // Combat damage during a multi-frame terrain stroke is simulation state, not construction.
                 fences = after.fences.Keys.Where(edge => !before.fences.TryGetValue(edge, out var previous)
@@ -106,6 +108,7 @@ namespace Mythologicum
                 if (grid.ContentAt(cell) == BuildCellContent.Path) result.paths.Add(cell);
                 if (trees.Occupies(cell)) result.trees.Add(cell);
                 if (graves.Occupies(cell)) result.graves.Add(cell);
+                if (scarecrows != null && scarecrows.Occupies(cell)) result.scarecrows.Add(cell);
             }
             if (rocks != null) result.rocks.UnionWith(rocks.Capture());
             foreach (var record in buildingConstruction.Network.Records) result.buildings.Add(record);
@@ -136,6 +139,7 @@ namespace Mythologicum
             { reason = "park.build_mode_controller__history.a_path_in_this_action_has_changed_undo_cannot_replace_newe"; return false; }
             foreach (var cell in action.trees) if (!trees.Occupies(cell)) { reason = "park.build_mode_controller__history.a_tree_in_this_action_was_removed"; return false; }
             foreach (var cell in action.graves) if (!graves.Occupies(cell)) { reason = "park.build_mode_controller__history.a_gravestone_in_this_action_was_removed"; return false; }
+            foreach (var cell in action.scarecrows) if (!scarecrows.Occupies(cell)) { reason = "enclosure.scarecrow.undo_removed"; return false; }
             foreach (var cell in action.rocks) if (!rocks.Occupies(cell)) { reason = "park.build_mode_controller__history.a_rock_in_this_action_was_removed"; return false; }
             foreach (var edge in action.fences)
             {
@@ -154,12 +158,13 @@ namespace Mythologicum
                 { reason = "park.build_mode_controller__history.remove_later_construction_before_undoing_the_park_entrance"; return false; }
             }
             if (action.cost > economy.Expenses) { reason = "park.build_mode_controller__history.the_original_construction_transaction_is_no_longer_availab"; return false; }
-            var protectedCells = new HashSet<Vector2Int>(action.trees.Concat(action.graves).Concat(action.paths).Concat(action.rocks));
+            var protectedCells = new HashSet<Vector2Int>(action.trees.Concat(action.graves).Concat(action.paths).Concat(action.rocks).Concat(action.scarecrows));
             foreach (var edge in action.fences) { protectedCells.Add(edge.CellA); protectedCells.Add(edge.CellB); }
             foreach (var building in action.buildings) protectedCells.UnionWith(building.Footprint.Cells());
             foreach (var actor in creatureWorld.Agents)
                 if (actor.Alive && (protectedCells.Contains(actor.Cell)
-                    || actor.SleepTree.HasValue && protectedCells.Contains(actor.SleepTree.Value)))
+                    || actor.SleepTree.HasValue && protectedCells.Contains(actor.SleepTree.Value)
+                    || actor.ScarecrowTarget.HasValue && protectedCells.Contains(actor.ScarecrowTarget.Value)))
                 { reason = "park.build_mode_controller__history.a_creature_or_person_is_using_this_construction_wait_until"; return false; }
             if (action.terrain.Count > 0)
             {
@@ -201,6 +206,7 @@ namespace Mythologicum
                 foreach (var cell in action.paths) paths.TryRemove(cell);
                 foreach (var cell in action.trees) trees.TryRemove(cell);
                 foreach (var cell in action.graves) graves.TryRemove(cell);
+                foreach (var cell in action.scarecrows) scarecrows.TryRemove(cell);
                 foreach (var cell in action.rocks) rocks.TryRemove(cell);
                 foreach (var edge in action.fences) fences.Layout.TryRemove(edge);
                 fences.Refresh(view);

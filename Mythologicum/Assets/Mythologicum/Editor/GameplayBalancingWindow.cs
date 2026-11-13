@@ -55,6 +55,8 @@ namespace Mythologicum.Editor
                 "Generation defaults, movement/path slopes, uphill travel cost, foundation earthwork and terrain brush ranges. Existing saves retain their terrain; test map generation with a new park.");
             Add("Vegetation & habitat", "Environment/Vegetation",
                 "Tree contribution to forest coverage, available plants, scattering and tree height. Habitat coverage changes apply when a park starts; trees remain physical enrichment.");
+            Add("Scarecrows", "Environment/Scarecrow",
+                "Purchase cost, height and placeholder colours for reusable fear-feeding enclosure enrichment. Fear relief and scare timing belong to each creature species.");
             string[] creatures = AssetDatabase.FindAssets("t:CreatureDefinition", new[] { "Assets/Mythologicum/Resources/Creatures" });
             Array.Sort(creatures, (a, b) => string.CompareOrdinal(AssetDatabase.GUIDToAssetPath(a), AssetDatabase.GUIDToAssetPath(b)));
             foreach (string guid in creatures)

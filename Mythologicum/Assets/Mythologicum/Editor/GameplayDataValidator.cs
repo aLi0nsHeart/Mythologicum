@@ -24,7 +24,7 @@ namespace Mythologicum.Editor
             results.AddRange(LocalizationValidation.Validate());
             string[] paths = { "Management/DefaultParkBalance", "Management/DefaultOperations", "Management/DefaultAlerts",
                 "Saving/DefaultSaveSettings", "Interface/DefaultPlayControls", "Interface/DefaultLoadingScreen", "Buildings/DefaultBuildings", "Fences/DefaultFences", "Visitors/DefaultVisitors",
-                "Staff/DefaultStaff", "Progression/DefaultProgression", "Terrain/DefaultTerrain", "Creatures/SimulationSettings", "Environment/Vegetation" };
+                "Staff/DefaultStaff", "Progression/DefaultProgression", "Terrain/DefaultTerrain", "Creatures/SimulationSettings", "Environment/Vegetation", "Environment/Scarecrow" };
             foreach (string path in paths)
                 if (AssetDatabase.LoadAssetAtPath<ScriptableObject>("Assets/Mythologicum/Resources/" + path + ".asset") == null)
                     results.Add(new GameplayDataIssue(MessageType.Error, "Missing settings asset: " + path, null));

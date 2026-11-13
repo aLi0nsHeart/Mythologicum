@@ -141,3 +141,29 @@ and verifies scene/actor cleanup.
 The default model runner includes `RouteSearchPerformanceChecks` and
 `VisitorViewingCacheChecks`. Their timing output is informational; assertions
 check equivalent behavior and reduced allocations rather than wall-clock limits.
+
+## Creature behaviour rework
+
+The default model runner also includes `ScarecrowEnvironmentChecks` and
+`CreatureScareChecks` for enrichment, overlap/revisions and jump motion.
+
+Copy these helpers from `Tests/Creatures/Unity` to the disposable project's
+`Assets/Editor`:
+
+- `CreatureEscapeNativeChecks.cs`
+- `CreatureScareNativeChecks.cs`
+- `ScarecrowConstructionNativeChecks.cs`
+- `CreatureReworkSaveValidation.cs`
+
+Run separate editors sequentially with the usual real-graphics flags and one of:
+
+- `-executeMethod CreatureEscapeNativeChecks.Run`
+- `-executeMethod CreatureScareNativeChecks.Run`
+- `-executeMethod CreatureReworkSaveValidation.Start`
+
+All three self-exit and write `CreatureEscapeValidationResults.txt`,
+`CreatureScareValidationResults.txt`, or `CreatureReworkSaveResults.txt`. The save
+harness also runs the scarecrow construction/Undo helper in a real prepared park.
+It uses the isolated `MythologicumValidation/CreatureReworkSaveValidation` identity
+and cleans only its own unique manual slot. Other fixture scenes/assets are
+temporary and must not be copied back to the authored project.

@@ -25,6 +25,7 @@ namespace Mythologicum
                 if (grid.ContentAt(cell) == BuildCellContent.Path) data.paths.Add(cell);
                 if (Environment.TreesAt(cell) > 0) data.trees.Add(cell);
                 if (Environment.GravestonesAt(cell) > 0) data.graves.Add(cell);
+                if (Environment.ScarecrowsAt(cell) > 0) data.scarecrows.Add(cell);
             }
             var records = buildingConstruction.Network.Records;
             data.progression = Progression.Capture(records);
@@ -63,15 +64,29 @@ namespace Mythologicum
             cell = actor.CarriedBy != null ? grid.WorldToCell(actor.transform.position) : actor.Cell,
             hunger = actor.Vitals.Hunger, fear = actor.Vitals.Fear, energy = actor.Energy.Energy, health = actor.Health.Current,
             happiness = actor.Wellbeing.Happiness, agitation = actor.Wellbeing.Agitation,
-            sedation = actor.SedationRemaining, explored = actor.Exploration.AwakeSeconds };
+            sedation = actor.SedationRemaining, explored = actor.Exploration.AwakeSeconds,
+            // In-flight attempts are consumed on load, so saving cannot grant another
+            // immediate fence strike. Ordinary cooldowns keep their remaining duration.
+            escapeCooldown = actor.EscapeIntent || actor.Activity == CreatureActivity.AttackingFence
+                || actor.Activity == CreatureActivity.ClimbingFence || actor.Activity == CreatureActivity.PhasingFence
+                || actor.Activity == CreatureActivity.FailedClimb || actor.Activity == CreatureActivity.FailedPhase
+                ? Mathf.Max(actor.Definition.escapeRetrySeconds, actor.EscapeAfter - creatureWorld.SimulationTime)
+                : Mathf.Max(0f, actor.EscapeAfter - creatureWorld.SimulationTime),
+            fenceRetryCooldown = Mathf.Max(0f, actor.AttemptAfter - creatureWorld.SimulationTime),
+            scareCooldown = Mathf.Max(actor.Activity == CreatureActivity.Scaring ? actor.Definition.scareCooldownSeconds : 0f,
+                actor.ScareAfter - creatureWorld.SimulationTime) };
         private void RestoreActor(CreatureAgent actor, SavedActor saved)
         {
             actor.Cell = saved.cell;
             actor.transform.position = grid.ActorPosition(saved.cell,actor.Definition.bodyScale.y);
-            actor.Vitals.Restore(saved.hunger, saved.fear); actor.Energy = new CreatureEnergy(saved.energy);
+            actor.Vitals.Restore(actor.Definition.needsFood ? saved.hunger : actor.Definition.StartingHunger, saved.fear);
+            actor.Energy = new CreatureEnergy(saved.energy);
             actor.Health.Damage(Mathf.Max(0f, actor.Health.Maximum - Mathf.Max(1f, saved.health)));
             actor.Wellbeing.Restore(saved.happiness, saved.agitation); actor.Exploration.Tick(saved.explored);
             if (!actor.ExternallyControlled && saved.sedation > 0f) creatureWorld.Sedate(actor, saved.sedation);
+            actor.EscapeAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.escapeCooldown);
+            actor.AttemptAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.fenceRetryCooldown);
+            actor.ScareAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.scareCooldown);
         }
         public void ValidateSave(ParkSaveData data)
         {
@@ -106,6 +121,12 @@ namespace Mythologicum
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_tree"));
             foreach (var cell in data.graves)
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_gravestone"));
+            if (data.scarecrows != null) foreach (var cell in data.scarecrows)
+            {
+                if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.save.invalid_scarecrow"));
+                foreach (var record in network.Records)
+                    if (record.Footprint.AccessCell == cell) throw new InvalidDataException(Loc.Text("park.save.scarecrow_blocks_entrance"));
+            }
             var rockCells=new HashSet<Vector2Int>();
             if(data.rocks!=null)foreach(var cell in data.rocks)
             {
@@ -140,7 +161,10 @@ namespace Mythologicum
         private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid) => saved != null && checkGrid.Contains(saved.cell)
             && checkGrid.ContentAt(saved.cell) != BuildCellContent.Building && Finite(saved.health) && saved.health > 0f
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
-            && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored);
+            && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored)
+            && Finite(saved.escapeCooldown) && saved.escapeCooldown >= 0f
+            && Finite(saved.fenceRetryCooldown) && saved.fenceRetryCooldown >= 0f
+            && Finite(saved.scareCooldown) && saved.scareCooldown >= 0f;
         private CreatureDefinition Species(string name) => Array.Find(creatureCatalog, d => d.name == name);
         private BuildingDefinition SavedDefinition(SavedBuilding saved,int mapWidth=-1,int mapDepth=-1)
         {
@@ -181,6 +205,8 @@ namespace Mythologicum
                 }
                 foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_tree"));
                 foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_gravestone"));
+                if (data.scarecrows != null) foreach (var cell in data.scarecrows)
+                    if (!scarecrows.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.save.restore_scarecrow_failed"));
                 if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_rock"));
                 buildingConstruction.Network.Refresh();
                 // Restore all saved actors even if the designer has since lowered the shared population cap.

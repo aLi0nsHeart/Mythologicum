@@ -133,7 +133,7 @@ namespace Mythologicum
                 {
                     FollowCarrier(actor, actor.CarriedBy);
                     actor.Activity = CreatureActivity.Carried;
-                    actor.Vitals.Tick(dt, actor.Definition.hungerPerSecond, 0f, actor.Definition.fearRecoveryPerSecond, false);
+                    actor.Vitals.Tick(dt, actor.Definition.HungerRate, 0f, actor.Definition.fearRecoveryPerSecond, false);
                     actor.Energy.Tick(dt, 0f, 1f, true, actor.Definition.sleepRecoveryPerSecond);
                     RefreshVisual(actor); return true;
                 }
@@ -141,7 +141,7 @@ namespace Mythologicum
             }
             if (!actor.IsSedated) return false;
             actor.Activity = CreatureActivity.Sedated;
-            actor.Vitals.Tick(dt, actor.Definition.hungerPerSecond, 0f, actor.Definition.fearRecoveryPerSecond, false);
+            actor.Vitals.Tick(dt, actor.Definition.HungerRate, 0f, actor.Definition.fearRecoveryPerSecond, false);
             actor.Energy.Tick(dt, 0f, 1f, true, actor.Definition.sleepRecoveryPerSecond);
             actor.SedationRemaining = Mathf.Max(0f, actor.SedationRemaining - dt);
             if (actor.SedationRemaining <= 0f)

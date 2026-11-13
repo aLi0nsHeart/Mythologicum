@@ -19,8 +19,9 @@ MonoBehaviour:
   fearedTags: 0
   manuallyPlaceable: 1
   rating: 3
-  initialHunger: 20
-  hungerPerSecond: 0.15
+  needsFood: 0
+  initialHunger: 0
+  hungerPerSecond: 0
   huntThreshold: 50
   foodRelief: 60
   grazeSeconds: 3

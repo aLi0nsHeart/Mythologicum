@@ -10,10 +10,10 @@ namespace Mythologicum
         private readonly Dictionary<int, Dictionary<Vector2Int, HashSet<Vector2Int>>> abilityRegions = new Dictionary<int, Dictionary<Vector2Int, HashSet<Vector2Int>>>();
 
         private bool CanPhase(CreatureAgent agent) => agent.Definition.canPhaseFences
-            && agent.Vitals.Hunger >= agent.Definition.phaseHungerThreshold;
+            && (!agent.Definition.needsFood || agent.Vitals.Hunger >= agent.Definition.phaseHungerThreshold)
+            && time >= agent.AttemptAfter;
         private bool CanAttackFences(CreatureAgent agent) => agent.Definition.damage > 0f
-            && (agent.Definition.canBreakFences || agent.EscapeIntent || agent.Vitals.Hunger >= agent.Definition.Behaviour.urgentHunger
-                || agent.Activity == CreatureActivity.Fleeing);
+            && agent.Wellbeing.Agitation > 0f && agent.EscapeIntent && time < agent.EscapeUntil;
         private int AbilityKey(CreatureAgent agent) => (CanClimbForNeeds(agent) ? 1 : 0)
             | (CanPhase(agent) ? 2 : 0) | (CanAttackFences(agent) ? 4 : 0);
         private CreatureNavigation AbilityNavigation(CreatureAgent agent)
@@ -57,54 +57,44 @@ namespace Mythologicum
             return closest;
         }
 
-        private bool SeekScare(CreatureAgent agent)
-        {
-            if (time < agent.ScareAfter) return false;
-            var guests = Visible(agent, CreatureTags.Visitor, agent.Definition.visionRange);
-            guests.Sort((a,b) => (a.transform.position - agent.transform.position).sqrMagnitude
-                .CompareTo((b.transform.position - agent.transform.position).sqrMagnitude));
-            foreach (CreatureAgent guest in guests)
-            {
-                if (guest.CapturedBy != null || guest.Definition.threat >= agent.Definition.threat
-                    || !AbilityRegion(agent).Contains(guest.Cell)) continue;
-                agent.Prey = guest;
-                if (HorizontalDistance(agent.transform.position, guest.transform.position) <= agent.Definition.scareRange
-                    && ReachableRegion(agent.Cell).Contains(guest.Cell))
-                {
-                    FinishSegment(agent);
-                    if (agent.Route.Count > 0) { agent.Activity = CreatureActivity.Hunting; return true; }
-                    agent.Activity = CreatureActivity.Scaring; agent.StateTimer = Mathf.Max(.1f, agent.Definition.scareSeconds);
-                    // A scare is a non-damaging action. The victim remains free to run throughout it.
-                    guest.Vitals.Tick(1f, 0f, agent.Definition.Behaviour.scareFearImpulse, 0f, true);
-                    agent.ScareSucceeded = guest.Vitals.Fear > 0f;
-                    guest.LastDanger = agent.transform.position; guest.HasDanger = true; guest.DecisionTimer = 0f;
-                    return true;
-                }
-                if (SetGoal(agent, guest.Cell)) { agent.Activity = CreatureActivity.Hunting; return true; }
-            }
-            ReleaseClaim(agent);
-            return false;
-        }
-
-        private bool TickScare(CreatureAgent agent)
-        {
-            if (agent.StateTimer > 0f) return true;
-            // The visitor fleeing after being frightened is a successful scare, not a failed capture.
-            if (agent.ScareSucceeded)
-                agent.Vitals.Eat(agent.Definition.foodRelief);
-            agent.ScareSucceeded = false;
-            ReleaseClaim(agent); agent.ScareAfter = time + Mathf.Max(.1f, agent.Definition.scareCooldownSeconds);
-            agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent);
-            return false;
-        }
-
         private void BeginFenceAttack(CreatureAgent agent, FenceEdge edge)
         {
+            if (!CanAttackFences(agent))
+            { FinishFenceAttempt(agent, "creature.escape.blocked_by_a_fence"); return; }
             agent.AttackedFence = edge; agent.FenceStrikes = 0;
             agent.Activity = CreatureActivity.AttackingFence;
             agent.StateTimer = Mathf.Max(.2f, agent.Definition.attackSeconds);
             Vector3 direction = fences.Center(edge) - grid.CellCenter(agent.Cell); direction.y = 0f;
             if (direction.sqrMagnitude > .001f) agent.transform.rotation = Quaternion.LookRotation(direction);
+        }
+
+        /// <summary>The species tries its usual crossing before an optional agitated strike.</summary>
+        private void BeginBarrierAttempt(CreatureAgent agent, FenceEdge edge, Vector2Int next)
+        {
+            agent.AttemptFence = edge;
+            if (CanPhase(agent))
+            {
+                if (fences.CanPhase(edge)) BeginPhase(agent, next);
+                else BeginFailedClimb(agent);
+            }
+            else if (CanClimbForNeeds(agent))
+            {
+                if (fences.CanClimb(edge)) BeginFenceClimb(agent, next);
+                else BeginFailedClimb(agent);
+            }
+            else if (CanAttackFences(agent)) BeginFenceAttack(agent, edge);
+            else FinishFenceAttempt(agent, "creature.escape.blocked_by_a_fence");
+        }
+
+        private void FinishFenceAttempt(CreatureAgent agent, string reason)
+        {
+            agent.AttackedFence = null; agent.AttemptFence = null;
+            agent.Route.Clear(); agent.Goal = null;
+            agent.Activity = CreatureActivity.Resting;
+            agent.StateTimer = PauseDuration(agent); agent.DecisionTimer = 0f;
+            // A needs-driven failure also waits before another desire or pursuit can
+            // immediately re-arm the same barrier interaction.
+            EndEscape(agent, reason);
         }
 
         private void BeginPhase(CreatureAgent agent, Vector2Int next)
@@ -121,26 +111,19 @@ namespace Mythologicum
             {
                 FenceEdge? edge = agent.AttackedFence;
                 if (!edge.HasValue || !fences.HasFence(edge.Value))
-                { agent.AttackedFence = null; agent.Activity = CreatureActivity.Wandering; agent.DecisionTimer = 0f; return true; }
+                { FinishFenceAttempt(agent, "creature.escape.reached_new_ground"); return true; }
                 if (agent.StateTimer > 0f) return true;
-                if (agent.Energy.Energy <= agent.Definition.sleepThreshold || FindThreat(agent,
+                if (!CanAttackFences(agent) || agent.FenceStrikes > 0
+                    || agent.Energy.Energy <= agent.Definition.sleepThreshold || FindThreat(agent,
                     Mathf.Min(agent.Definition.visionRange, agent.Definition.fearRange)) != null)
                 {
-                    agent.AttackedFence = null; agent.Route.Clear(); agent.Goal = null;
-                    agent.Activity = CreatureActivity.Resting; agent.DecisionTimer = 0f;
-                    return false; // Reconsider danger and exhaustion between strikes, just like other activities.
+                    FinishFenceAttempt(agent, "creature.escape.attempt_ended_resting_before_retry");
+                    return true;
                 }
                 float damage = fences.TryDamage(edge.Value, agent.Definition.damage);
                 agent.FenceStrikes++; agent.Energy.Spend(agent.Definition.Behaviour.fenceStrikeEnergyCost);
-                if (damage <= 0f || agent.FenceStrikes >= agent.Definition.Behaviour.maximumFenceStrikes || (agent.EscapeIntent && time >= agent.EscapeUntil))
-                {
-                    agent.AttackedFence = null; agent.AttemptAfter = time + agent.Definition.climbRetrySeconds;
-                    agent.Route.Clear(); agent.Goal = null; agent.Activity = CreatureActivity.Resting;
-                    agent.EscapeStatus = damage <= 0f ? "creature.escape.fence_resists_the_attack" : "creature.escape.pausing_fence_attacks";
-                    agent.StateTimer = PauseDuration(agent); agent.DecisionTimer = 0f;
-                    if (agent.EscapeIntent) EndEscape(agent, agent.EscapeStatus);
-                }
-                else agent.StateTimer = Mathf.Max(.2f, agent.Definition.attackSeconds);
+                FinishFenceAttempt(agent, damage <= 0f ? "creature.escape.fence_resists_the_attack"
+                    : "creature.escape.pausing_fence_attacks");
                 return true;
             }
             bool phase = agent.Activity == CreatureActivity.PhasingFence;
@@ -164,6 +147,7 @@ namespace Mythologicum
                     agent.Cell = agent.TraversalTo; agent.transform.position = GroundPosition(agent, agent.Cell);
                     if (agent.Route.Count > 0 && agent.Route[0] == agent.Cell) agent.Route.RemoveAt(0);
                     agent.Activity = CreatureActivity.Wandering; agent.DecisionTimer = 0f;
+                    if (agent.EscapeIntent) EndEscape(agent, "creature.escape.reached_new_ground");
                 }
                 return true;
             }

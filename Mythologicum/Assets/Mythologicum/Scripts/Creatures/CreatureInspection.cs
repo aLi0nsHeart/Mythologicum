@@ -116,6 +116,7 @@ namespace Mythologicum
                 selected.Health.Current, selected.Health.Maximum, definition.damage, definition.threat,
                 selected.Wellbeing.Happiness, selected.Wellbeing.Agitation > 0f ? Loc.Text("creature.info.agitated") : "",
                 selected.Vitals.Hunger, selected.Vitals.Fear, selected.Energy.Energy, selected.Energy.Exhaustion)
+                + (!definition.needsFood ? Loc.Text("creature.info.no_food_needed") : "")
                 + Loc.Text(definition.requiresGravestoneForSleep ? "creature.info.sleep.grave"
                     : definition.requiresTreeForSleep ? "creature.info.sleep.tree" : "creature.info.sleep.ground")
                 + Loc.Format("creature.info.environment", needs.Environment, selected.NearbyTrees, definition.requiredTrees)
@@ -125,6 +126,8 @@ namespace Mythologicum
                     needs.Herd, selected.Companions + 1, herd, selected.Crowding * 100f,
                     selected.EscapeChancePerMinute * 100f, reasons, selected.EscapeStatus);
             if (selected.IsSedated) text.text += Loc.Format("creature.info.sedation", selected.SedationRemaining);
+            if (selected.ScarecrowTarget.HasValue && (selected.Activity == CreatureActivity.Hunting || selected.Activity == CreatureActivity.Scaring))
+                text.text += Loc.Text("creature.scare.practice");
             if (!string.IsNullOrEmpty(selected.StaffStatus)) text.text += Loc.Format("creature.info.staff", selected.StaffStatus);
             if (researchNotes != null) text.text += Loc.Format("creature.info.research_notes", researchNotes(definition));
             text.rectTransform.sizeDelta = new Vector2(0f, Mathf.Ceil(text.preferredHeight));

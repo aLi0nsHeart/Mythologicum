@@ -72,6 +72,11 @@ MonoBehaviour:
   damage: 0
   origin: creature.origin.yokai
   feedsOnFear: 1
+  canUseScarecrows: 1
+  scareApproachDistance: 1.5
+  scareJumpHeight: 1.4
+  scareJumpForward: 0.65
+  scareJumpSquash: 0.25
   threat: 20
   requiredGravestones: 0
   scareSeconds: 1.5

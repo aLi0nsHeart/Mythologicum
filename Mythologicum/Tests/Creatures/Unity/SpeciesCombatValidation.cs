@@ -187,19 +187,30 @@ public static class SpeciesCombatValidation
 
     private static void BarrierDamage()
     {
+        void Desire(Fixture fixture, CreatureAgent actor)
+        {
+            fixture.Hunter.happinessChangePerSecond = 0f;
+            actor.Wellbeing.Restore(0f, 1f);
+            typeof(CreatureAgent).GetField("EscapeIntent", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(actor, true);
+            typeof(CreatureAgent).GetField("EscapeUntil", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(actor, fixture.World.SimulationTime + 30f);
+            typeof(CreatureAgent).GetField("DecisionTimer", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(actor, 0f);
+        }
         foreach (FenceKind kind in new[] { FenceKind.Wooden, FenceKind.Spiked, FenceKind.Sanctified })
         {
             var f = new Fixture(); f.Wall(kind); f.Hunter.damage = 90f; f.Hunter.canBreakFences = true;
             var oni = f.Spawn(f.Hunter, V(1,2)); f.Spawn(f.Goat, V(5,2));
             var edge = new FenceEdge(V(3,2), false);
+            Desire(f, oni);
             Check(f.Until(() => f.Fences.HealthAt(edge) < f.Fences.MaximumHealthAt(edge) || !f.Fences.HasFence(edge), 7f),
                 "Oni attacks and damages " + kind + " rather than teleporting through it");
-            Check(f.Until(() => !f.Fences.HasFence(edge), 7f), "Enough physical damage destroys " + kind);
-            Check(f.Until(() => oni.Cell.x >= 3, 4f), "Oni crosses the gap only after " + kind + " breaks");
+            f.Tick(7f);
+            Check(f.Fences.HasFence(edge) && f.Fences.HealthAt(edge) == f.Fences.MaximumHealthAt(edge) - 90f,
+                "One escape desire applies exactly one damage increment to " + kind);
+            Check(oni.Cell.x < 3, "One nonlethal fence strike does not permit crossing " + kind);
         }
         {
             var f = new Fixture(); f.Wall(FenceKind.Heavy, true); f.Hunter.damage = 90f; f.Hunter.canBreakFences = true;
-            var oni = f.Spawn(f.Hunter, V(1,2)); f.Spawn(f.Goat, V(5,2)); f.Tick(8f);
+            var oni = f.Spawn(f.Hunter, V(1,2)); f.Spawn(f.Goat, V(5,2)); Desire(f, oni); f.Tick(8f);
             var edge = new FenceEdge(V(3,2), false);
             Check(f.Fences.HealthAt(edge) == 800f && f.Fences.IsGate(edge) && oni.Cell.x < 3,
                 "Reinforced fence and gate resist Oni damage and contain it");
@@ -207,6 +218,7 @@ public static class SpeciesCombatValidation
         {
             var f = new Fixture(); f.Wall(FenceKind.Wooden); f.Hunter.canBreakFences = true;
             var oni = f.Spawn(f.Hunter, V(1,2)); f.Spawn(f.Goat, V(5,2));
+            Desire(f, oni);
             Check(f.Until(() => oni.Activity == CreatureActivity.AttackingFence, 5f), "Exhaustion interruption scenario begins attacking a fence");
             oni.Energy.Spend(100f);
             Check(f.Until(() => oni.Activity == CreatureActivity.Sleeping, 3f), "Exhaustion interrupts fence attacks so the creature can sleep");
@@ -215,6 +227,7 @@ public static class SpeciesCombatValidation
         {
             var f = new Fixture(); f.Wall(FenceKind.Wooden); f.Hunter.canBreakFences = true;
             var oni = f.Spawn(f.Hunter, V(1,2)); f.Spawn(f.Goat, V(5,2));
+            Desire(f, oni);
             Check(f.Until(() => oni.Activity == CreatureActivity.AttackingFence, 5f), "Threat interruption scenario begins attacking a fence");
             var danger = Fixture.Profile("Higher threat"); danger.threat = 200f; danger.initialHunger = 0f;
             danger.diet = CreatureDiet.None; danger.walkSpeed = danger.runSpeed = 0f;
@@ -298,16 +311,16 @@ public static class SpeciesCombatValidation
         CreatureDefinition yurei = Resources.Load<CreatureDefinition>("Creatures/Yurei");
         CreatureDefinition oni = Resources.Load<CreatureDefinition>("Creatures/Oni");
         Check(chupa != null && goat != null && hitotsume != null && yurei != null && oni != null, "All five authored creature profiles load");
-        Check(chupa.visualPrefab == null && chupa.origin == "Southern New World", "Chupacabra returns to the capsule and retains its origin");
+        Check(chupa.visualPrefab == null && chupa.origin == "creature.origin.southern_new_world", "Chupacabra returns to the capsule and retains its origin");
         Check(chupa.damage >= goat.maximumHealth && chupa.minimumCompanions == 1 && chupa.maximumCompanions == 2,
             "Chupacabra can kill goats in one hit and prefers two to three total animals");
         Check(hitotsume.visualPrefab != null && hitotsume.damage == 0f && hitotsume.feedsOnFear
             && hitotsume.minimumCompanions == 0 && hitotsume.maximumCompanions == 0, "Hitotsume has its own visual, fear feeding and solitary profile");
-        Check(yurei.visualPrefab != null && yurei.origin == "Yokai" && yurei.canPhaseFences
+        Check(yurei.visualPrefab != null && yurei.origin == "creature.origin.yokai" && yurei.canPhaseFences
             && yurei.requiresGravestoneForSleep && yurei.requiredGravestones > 0 && yurei.maximumCompanions == 19,
             "Yurei has grave needs, phasing and a maximum total group of twenty");
-        Check(yurei.hungerPerSecond < chupa.hungerPerSecond, "Yurei accumulates hunger much more slowly");
-        Check(oni.visualPrefab != null && oni.origin == "Yokai" && oni.canBreakFences
+        Check(!yurei.needsFood && yurei.StartingHunger == 0f && yurei.HungerRate == 0f, "Undead Yurei have no food need");
+        Check(oni.visualPrefab != null && oni.origin == "creature.origin.yokai" && oni.canBreakFences
             && oni.maximumCompanions == 2 && oni.minimumSpace > chupa.minimumSpace && oni.hungerPerSecond > chupa.hungerPerSecond,
             "Oni has a large habitat, high appetite, fence breaking and a group limit of three");
         Check(Resources.Load<CreatureDefinition>("Creatures/Kuchisakeonna") == null, "Old creature identity does not remain as a duplicate profile");

@@ -18,7 +18,7 @@ namespace Mythologicum
         private readonly List<KeyValuePair<BuildingDefinition, Button>> buildingButtons = new List<KeyValuePair<BuildingDefinition, Button>>();
         private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
         private readonly Button creaturesCategory;
-        private readonly Button enclosuresCategory, treeChoice, gravestoneChoice;
+        private readonly Button enclosuresCategory, treeChoice, gravestoneChoice, scarecrowChoice;
         private readonly List<KeyValuePair<CreatureDefinition,Button>> creatureButtons = new List<KeyValuePair<CreatureDefinition,Button>>();
         private ParkProgression progression;
         public void ConfigureProgression(ParkProgression value) { progression=value; Refresh(hasEntrance); }
@@ -32,7 +32,7 @@ namespace Mythologicum
         public ConstructionPalette(Canvas canvas, Button template, BuildingDefinition[] definitions,
             Action<BuildingDefinition> selectBuilding, Action selectPath, Action<FenceKind> selectFence, Action selectGate, Action demolish, Action categoryOpened,
             CreatureDefinition[] creatures, Action<CreatureDefinition> selectCreature, Action selectTree, Action selectGravestone = null,Action<TerrainBrushMode> selectTerrain=null,Action openParkManagement=null,
-            Action openEncyclopedia=null,Action openPause=null)
+            Action openEncyclopedia=null,Action openPause=null,Action selectScarecrow=null)
         {
             this.categoryOpened = categoryOpened;
             Root = new GameObject("Construction Palette", typeof(RectTransform));
@@ -84,6 +84,8 @@ namespace Mythologicum
                 () => { Close(); selectTree(); }, true);
             gravestoneChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "park.construction_palette.place_gravestones",Vector2.zero,
                 () => { Close(); selectGravestone?.Invoke(); }, true);
+            scarecrowChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "enclosure.scarecrow.place", Vector2.zero,
+                () => { Close(); selectScarecrow?.Invoke(); }, true);
             for (int i = 0; i < definitions.Length; i++)
             {
                 BuildingDefinition definition = definitions[i];
@@ -243,7 +245,8 @@ namespace Mythologicum
             pathsCategory.interactable = fencesCategory.interactable = pathChoice.interactable = fenceChoice.interactable
                 = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
-            enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = hasEntrance;
+            enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = scarecrowChoice.interactable = hasEntrance;
+            Loc.Set(scarecrowChoice.GetComponentInChildren<Text>(), "enclosure.scarecrow.place_cost", ScarecrowDefinition.Current.constructionCost);
             spikedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Spiked) ?? true;
             heavyFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Heavy) ?? true;
             sanctifiedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Sanctified) ?? true;
@@ -269,7 +272,7 @@ namespace Mythologicum
                     : pair.Key.kind == BuildingKind.ParkEntrance && hasEntrance ? Loc.Text("park.construction_palette.the_park_already_has_its_main_entrance")
                     : !hasEntrance && pair.Key.kind != BuildingKind.ParkEntrance ? Loc.Text("park.construction_palette.place_the_park_entrance_first") : pair.Key.DisplayName);
             }
-            foreach (var button in new[] { pathsCategory, fencesCategory, creaturesCategory, enclosuresCategory, pathChoice, fenceChoice, gateChoice, treeChoice, gravestoneChoice })
+            foreach (var button in new[] { pathsCategory, fencesCategory, creaturesCategory, enclosuresCategory, pathChoice, fenceChoice, gateChoice, treeChoice, gravestoneChoice, scarecrowChoice })
                 UIHoverTooltip.Attach(button, !hasEntrance ? Loc.Text("park.construction_palette.place_the_park_entrance_first") : button.GetComponentInChildren<Text>().text);
         }
         private void SetFenceLabel(Button button,string title,FenceKind kind)

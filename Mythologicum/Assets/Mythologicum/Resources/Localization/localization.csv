@@ -951,8 +951,8 @@ Cost: {1:0} | Work: {2:0} researcher-seconds{3}","","","","","","","","","","","
 "park.terrain_editing_presentation.rate_m_sec","Rate: {0:0.##} m / sec","","","","","","","","","","",""
 "quality.Mobile","Mobile","","","","","","","","","","",""
 "quality.PC","PC","","","","","","","","","","",""
-"research.creature.containment.break","Containment: may attack fences; barriers with damage resistance stop these attacks.
-","","","","","","","","","","",""
+"research.creature.containment.break","
+When agitated, may strike a fence once per escape attempt. Reinforced fences resist this ability.","","","","","","","","","","",""
 "research.creature.containment.climb","Containment: can cross barriers that permit climbing. Use a fence with climbing protection.
 ","","","","","","","","","","",""
 "research.creature.containment.phase","Containment: phasing begins at hunger {0:0}. Fences with phasing protection block it.
@@ -960,8 +960,8 @@ Cost: {1:0} | Work: {2:0} researcher-seconds{3}","","","","","","","","","","","
 "research.creature.escape_pressure","Escape pressure rises with hunger, agitation and overcrowding. Keep food, rest and space available.","","","","","","","","","","",""
 "research.creature.food.carnivore","Food: Carnivore: provide suitable prey.
 ","","","","","","","","","","",""
-"research.creature.food.fear","Food: Feeds by frightening people without harming them.
-","","","","","","","","","","",""
+"research.creature.food.fear","
+Feeds by frightening visitors or civilian staff, or by practising on reachable scarecrows.","","","","","","","","","","",""
 "research.creature.food.herbivore","Food: Herbivore: needs natural grazing ground.
 ","","","","","","","","","","",""
 "research.creature.food.none","Food: No ordinary food requirement.
@@ -1386,3 +1386,20 @@ Willingness to stay: {10:0}%
 "visitor.status.walking_to_a_viewing_spot","Walking to a viewing spot","","","","","","","","","","",""
 "visitor.status.watching","Watching {0}","","","","","","","","","","",""
 "visitor.status.with_satisfaction","{0} | Satisfaction {1:0}","","","","","","","","","","",""
+"enclosure.scarecrow.place","Place scarecrows","","","","","","","","","","",""
+"enclosure.scarecrow.place_cost","Scarecrow
+Cost: {0:0}","","","","","","","","","","",""
+"enclosure.scarecrow.controls","Click: place scarecrow | {0}: remove | Esc: finish","","","","","","","","","","",""
+"enclosure.scarecrow.blocked","Choose clear ground without a tree, gravestone, scarecrow, path or building.","","","","","","","","","","",""
+"enclosure.scarecrow.place_action","Place scarecrow","","","","","","","","","","",""
+"enclosure.scarecrow.undo_removed","A scarecrow in this action was removed.","","","","","","","","","","",""
+"park.save.invalid_scarecrow","Invalid saved scarecrow.","","","","","","","","","","",""
+"park.save.scarecrow_blocks_entrance","A saved scarecrow blocks a building entrance.","","","","","","","","","","",""
+"park.save.restore_scarecrow_failed","Could not restore a scarecrow.","","","","","","","","","","",""
+"creature.info.no_food_needed","
+Food: not required.","","","","","","","","","","",""
+"creature.scare.practice","
+Practising scares on a scarecrow.","","","","","","","","","","",""
+"research.creature.containment.phase_no_hunger","
+Can phase through fences. Sanctified fences block phasing.","","","","","","","","","","",""
+"enum.CreatureActivity.FailedPhase","Phase blocked","","","","","","","","","","",""

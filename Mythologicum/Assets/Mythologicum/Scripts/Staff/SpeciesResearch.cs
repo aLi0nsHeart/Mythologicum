@@ -80,7 +80,8 @@ namespace Mythologicum
             int stages = UnlockedStages(species);
             text.Append(Loc.Format("research.creature.knowledge", species.DisplayName, Progress(species)));
             if (stages < 1) text.Append(Loc.Text("research.creature.observe"));
-            else text.Append(Loc.Text(species.feedsOnFear || species.diet == CreatureDiet.Fear ? "research.creature.food.fear"
+            else text.Append(Loc.Text(!species.needsFood ? "research.creature.food.none"
+                : species.feedsOnFear || species.diet == CreatureDiet.Fear ? "research.creature.food.fear"
                 : species.diet == CreatureDiet.Carnivore ? "research.creature.food.carnivore"
                 : species.diet == CreatureDiet.Herbivore ? "research.creature.food.herbivore" : "research.creature.food.none"));
             if (stages >= 2)
@@ -101,7 +102,9 @@ namespace Mythologicum
             }
             if (stages >= 4)
             {
-                if (species.canPhaseFences) text.Append(Loc.Format("research.creature.containment.phase", species.phaseHungerThreshold));
+                if (species.canPhaseFences) text.Append(species.needsFood
+                    ? Loc.Format("research.creature.containment.phase", species.phaseHungerThreshold)
+                    : Loc.Text("research.creature.containment.phase_no_hunger"));
                 if (species.canBreakFences) text.Append(Loc.Text("research.creature.containment.break"));
                 if (species.canClimbWoodenFences) text.Append(Loc.Text("research.creature.containment.climb"));
                 text.Append(Loc.Text("research.creature.escape_pressure"));
