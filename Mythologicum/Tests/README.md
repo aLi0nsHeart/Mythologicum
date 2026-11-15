@@ -167,3 +167,74 @@ harness also runs the scarecrow construction/Undo helper in a real prepared park
 It uses the isolated `MythologicumValidation/CreatureReworkSaveValidation` identity
 and cleans only its own unique manual slot. Other fixture scenes/assets are
 temporary and must not be copied back to the authored project.
+
+## Central European creatures
+
+The model runner includes `CreatureMeadowChecks`, `CreatureBurrowingChecks` and
+`CentralEuropeProgressionChecks` for habitat scoring, dig-ground rules and complete
+expedition/specimen-stock round-trips.
+
+Copy these helpers from `Tests/Creatures/Unity` into the disposable editor project:
+
+- `CentralEuropeSpeciesNativeChecks.cs`, entry `CentralEuropeSpeciesNativeChecks.Run`
+- `CreatureHabitatNativeChecks.cs`, entry `CreatureHabitatNativeChecks.Run`
+- `CreatureBurrowingNativeChecks.cs`, entry `CreatureBurrowingNativeChecks.Run`
+
+Use the same sequential, real-graphics batch-editor setup. Each exits itself and
+writes its own `CentralEuropeSpeciesResults.txt`,
+`CreatureHabitatValidationResults.txt`, or `CreatureBurrowingValidationResults.txt`.
+They check actual species assets, procedural bodies, meadow measurements, shaded
+rest, safe underground sleeping/emergence, resisted/interrupted tunnels and hidden
+prey. `CreatureReworkSaveValidation.Start` also restores all three new species and
+surfaces a saved underground sleeper without losing its energy.
+
+## Visitor differentiation
+
+The model runner includes `CreatureAppealChecks` and `VisitorTypeChecks`. To run
+only these suites from the project root:
+
+```powershell
+& .\Tests\Creatures\RunChecks.ps1 -CheckNames @(
+    '..\Visitors\CreatureAppealChecks'
+    '..\Visitors\VisitorTypeChecks'
+)
+```
+
+These cover audience-appeal ranges, weighted arrival selection, interest and
+novelty scoring, type multipliers and neutral General visitor compatibility.
+They do not replace real model, UI or save checks.
+
+Copy these sources from `Tests/Visitors/Unity` into the disposable project's
+`Assets/Editor`, alongside current game sources and data:
+
+- `CreatureAppealNativeChecks.cs`
+- `VisitorTypesNativeChecks.cs`
+- `VisitorPeopleUINativeChecks.cs`
+- `VisitorDifferentiationValidation.cs`
+- `VisitorTypeSaveValidation.cs`
+
+Use the same sequential, real-graphics batch-editor setup described above.
+`-executeMethod VisitorDifferentiationValidation.Run` combines the creature appeal,
+visitor type, and people/UI checks. It verifies actual species assets, arrival
+mix, exhibit choices, completed discovery history, needs, fence danger, strict
+adult/child model pools, selected-visitor details and management type counts.
+It self-exits, writes `VisitorDifferentiationResults.txt`, and uses the isolated
+`MythologicumValidation/VisitorDifferentiationValidation` identity.
+
+For separate diagnosis, run `-executeMethod VisitorTypesNativeChecks.Run` or
+`-executeMethod VisitorPeopleUINativeChecks.Run`. These write
+`VisitorTypesValidationResults.txt` or `VisitorPeopleUIResults.txt` respectively.
+`CreatureAppealNativeChecks.RunChecks` is a helper called by the combined fixture,
+not a standalone batch entry point.
+
+Run `-executeMethod VisitorTypeSaveValidation.Start` separately to check a real
+park save/load round-trip for all four types, needs, completed species/origin
+discoveries and older-save General visitors. This Play-mode harness self-exits,
+writes `VisitorTypeSaveResults.txt`, uses the isolated
+`MythologicumValidation/VisitorTypeSaveValidation` identity, and cleans only its
+own unique test slot. Omit `-quit` so its scene transitions can complete.
+
+Treat the current run's result files, logs and process exit code as the evidence;
+this documentation does not record a validation outcome. Designer settings and
+manual checks are explained in the
+[visitor types guide](../Assets/Mythologicum/Documentation/Visitor-Types-Guide.md).

@@ -117,9 +117,13 @@ namespace Mythologicum
                 selected.Wellbeing.Happiness, selected.Wellbeing.Agitation > 0f ? Loc.Text("creature.info.agitated") : "",
                 selected.Vitals.Hunger, selected.Vitals.Fear, selected.Energy.Energy, selected.Energy.Exhaustion)
                 + (!definition.needsFood ? Loc.Text("creature.info.no_food_needed") : "")
-                + Loc.Text(definition.requiresGravestoneForSleep ? "creature.info.sleep.grave"
-                    : definition.requiresTreeForSleep ? "creature.info.sleep.tree" : "creature.info.sleep.ground")
+                + Loc.Text(definition.requiresBurrowForSleep ? "creature.info.sleep.burrow"
+                    : definition.requiresGravestoneForSleep ? "creature.info.sleep.grave"
+                    : definition.requiresTreeForSleep ? "creature.info.sleep.tree"
+                    : definition.prefersTreeShadeForSleep ? "creature.info.sleep.shade" : "creature.info.sleep.ground")
                 + Loc.Format("creature.info.environment", needs.Environment, selected.NearbyTrees, definition.requiredTrees)
+                + (definition.minimumOpenGroundFraction > 0f
+                    ? Loc.Format("creature.info.meadow", selected.NearbyOpenGroundFraction * 100f, definition.minimumOpenGroundFraction * 100f) : "")
                 + (definition.requiredGravestones > 0 || definition.requiresGravestoneForSleep
                     ? Loc.Format("creature.info.gravestones", selected.NearbyGravestones, definition.requiredGravestones) : "")
                 + Loc.Format("creature.info.space_herd_escape", needs.Space, selected.AccessibleArea, definition.minimumSpace,

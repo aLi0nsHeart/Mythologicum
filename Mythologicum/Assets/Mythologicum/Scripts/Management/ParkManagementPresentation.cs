@@ -26,6 +26,7 @@ namespace Mythologicum
         private readonly Button fundsMode;
         private readonly List<KeyValuePair<ParkBuildingRecord, InputField>> prices = new List<KeyValuePair<ParkBuildingRecord, InputField>>();
         private string buildingSignature;
+        private readonly int[] visitorTypes = new int[Enum.GetValues(typeof(VisitorType)).Length];
         public bool IsOpen => root != null && root.activeSelf;
 
         public ParkManagementPresentation(Canvas canvas, ParkBuildingNetwork buildings, VisitorWorld visitors,
@@ -96,6 +97,17 @@ namespace Mythologicum
             foreach (var creature in creatures.Agents) if (creature.Alive && !creature.ExternallyControlled) living++;
             summary.text = Loc.Format("park.park_management_presentation.funds_park_rating_5_stars_visitors", economy.Balance, reputation.Stars, visitors.Population);
             statistics.text = Loc.Format("park.park_management_presentation.visitors_in_the_park_current_satisfaction_100_departed_vis", visitors.Population, visitors.Definition.maximumVisitors, visitors.AverageSatisfaction, visitors.DepartedCount, visitors.LostCount, visitors.StrandedCount, visitors.RejectedAdmissions, visitors.ExpensiveServiceRefusals);
+            Array.Clear(visitorTypes, 0, visitorTypes.Length);
+            foreach (var visitor in visitors.Visitors)
+                if (visitor != null && visitor.Actor != null && visitor.Actor.Alive && (int)visitor.Type >= 0 && (int)visitor.Type < visitorTypes.Length)
+                    visitorTypes[(int)visitor.Type]++;
+            statistics.text += Loc.Format("park.visitor_types.summary",
+                visitors.Definition.SettingsFor(VisitorType.ThrillSeekers).DisplayName, visitorTypes[(int)VisitorType.ThrillSeekers],
+                visitors.Definition.SettingsFor(VisitorType.Wonderlust).DisplayName, visitorTypes[(int)VisitorType.Wonderlust],
+                visitors.Definition.SettingsFor(VisitorType.Adventurers).DisplayName, visitorTypes[(int)VisitorType.Adventurers],
+                visitors.Definition.SettingsFor(VisitorType.Children).DisplayName, visitorTypes[(int)VisitorType.Children]);
+            if (visitorTypes[(int)VisitorType.Legacy] > 0)
+                statistics.text += Loc.Format("park.visitor_types.general", visitorTypes[(int)VisitorType.Legacy]);
             parkStatistics.text=Loc.Format("park.park_management_presentation.park_buildings_employees_living_creatures_viewable_exhibit", buildings.Records.Count, employees, living, reputation.DisplayedSpecies, reputation.DisplayedCreatures, visitors.ExpectedArrivalsPerMinute, upkeep);
             finances.text = Loc.Format("park.park_management_presentation.cash_flow_minute_income_expenses_net_cash_flow_operations", economy.IncomePerMinute, economy.ExpensesPerMinute, economy.ProfitPerMinute, economy.OperatingExpensesPerMinute, economy.OperatingProfitPerMinute, economy.InvestmentExpensesPerMinute, economy.Income, economy.Expenses);
             financeNotes.text=Loc.Format("park.park_management_presentation.actual_totals_from_the_last_60_simulation_seconds_recorded", economy.TrackedSeconds);

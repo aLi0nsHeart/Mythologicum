@@ -10,7 +10,7 @@ namespace Mythologicum
         /// <summary>Applies an external strike through the shared health/death pipeline.</summary>
         public float ApplyDamage(CreatureAgent actor, float amount)
         {
-            if (!RegisteredLiving(actor) || actor.CarriedBy != null) return 0f;
+            if (!RegisteredLiving(actor) || actor.CarriedBy != null || actor.IsUnderground || actor.Elevation < -.01f) return 0f;
             float dealt = actor.Health.Damage(amount);
             if (dealt <= 0f) return 0f;
             if (!actor.Health.Alive)
@@ -18,6 +18,8 @@ namespace Mythologicum
                 CancelCarry(actor);
                 ClearCombatLinks(actor);
                 actor.Alive = false; actor.IsSedated = false; actor.SedationRemaining = 0f;
+                actor.InBurrow = false; actor.Elevation = 0f;
+                actor.transform.position = GroundPosition(actor, actor.Cell);
                 actor.RetirementRequested = false; actor.SedationRequested = false; actor.MoveRequestedDestination = null;
                 actor.Route.Clear(); actor.Goal = null; actor.AttackedFence = null;
                 actor.Activity = CreatureActivity.Dying; actor.CorpseTimer = simulation.corpseSeconds;
@@ -35,6 +37,7 @@ namespace Mythologicum
             if (!RegisteredLiving(actor) || actor.ExternallyControlled || actor.CarriedBy != null
                 || Mathf.Abs(actor.Elevation) > .01f || actor.Activity == CreatureActivity.ClimbingFence
                 || actor.Activity == CreatureActivity.PhasingFence || float.IsNaN(seconds)
+                || actor.InBurrow || BurrowTraversal(actor.Activity)
                 || float.IsInfinity(seconds) || seconds <= 0f) return false;
             ClearCombatLinks(actor);
             actor.IsSedated = true; actor.SedationRemaining = Mathf.Max(actor.SedationRemaining, seconds);

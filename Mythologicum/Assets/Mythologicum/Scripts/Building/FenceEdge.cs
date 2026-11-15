@@ -74,6 +74,7 @@ namespace Mythologicum
         public bool CanClimb(FenceEdge edge) => HasFence(edge) && !IsGate(edge) && Rules.For(KindAt(edge)).allowsClimbing;
         public bool CanPhase(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).blocksPhasing;
         public bool CanBreak(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).resistsCreatureDamage;
+        public bool CanBurrow(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).blocksBurrowing;
         public float HealthAt(FenceEdge edge) => health.TryGetValue(edge, out float remaining) ? remaining : 0f;
         public float MaximumHealthAt(FenceEdge edge) => HasFence(edge) ? Rules.For(KindAt(edge)).maximumHealth : 0f;
         // Compatibility helper for callers without a live layout; live fences use their injected Rules.

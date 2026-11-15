@@ -31,7 +31,8 @@ namespace Mythologicum
         public static CreatureNeedScores Evaluate(float hunger, float fear, float accessibleArea,
             int nearbyTrees, int companions, float minimumSpace, int requiredTrees,
             int minCompanions, int maxCompanions, CreatureBehaviourSettings settings = null,
-            int nearbyGravestones = 0, int requiredGravestones = 0)
+            int nearbyGravestones = 0, int requiredGravestones = 0,
+            float nearbyOpenGroundFraction = 1f, float minimumOpenGroundFraction = 0f)
         {
             // Each configured habitat feature contributes equally. Extra trees cannot compensate for missing graves, or vice versa.
             float environmentTotal = 0f;
@@ -40,6 +41,14 @@ namespace Mythologicum
             { environmentTotal += ClampScore(100f * Math.Max(0, nearbyTrees) / requiredTrees); environmentNeeds++; }
             if (requiredGravestones > 0)
             { environmentTotal += ClampScore(100f * Math.Max(0, nearbyGravestones) / requiredGravestones); environmentNeeds++; }
+            if (!float.IsNaN(minimumOpenGroundFraction) && minimumOpenGroundFraction > 0f)
+            {
+                // Open meadow is a separate requirement; excess grass cannot make up
+                // for missing shade trees, and a forest cannot satisfy meadow need.
+                float required = Math.Min(1f, minimumOpenGroundFraction);
+                float available = ClampScore(nearbyOpenGroundFraction * 100f) / 100f;
+                environmentTotal += ClampScore(100f * available / required); environmentNeeds++;
+            }
             float environment = environmentNeeds > 0 ? environmentTotal / environmentNeeds : 100f;
             float space = minimumSpace <= 0f ? 100f : ClampScore(100f * Math.Max(0f, accessibleArea) / minimumSpace);
             companions = Math.Max(0, companions);

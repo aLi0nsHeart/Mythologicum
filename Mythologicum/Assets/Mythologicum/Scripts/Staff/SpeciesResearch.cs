@@ -89,8 +89,12 @@ namespace Mythologicum
                 if (species.requiredTrees > 0) text.Append(Loc.Format("research.creature.habitat.trees", species.requiredTrees));
                 else if (species.requiredGravestones > 0) text.Append(Loc.Format("research.creature.habitat.graves", species.requiredGravestones));
                 else text.Append(Loc.Text("research.creature.habitat.none"));
-                text.Append(Loc.Text(species.requiresGravestoneForSleep ? "research.creature.sleep.grave"
-                    : species.requiresTreeForSleep ? "research.creature.sleep.tree" : "research.creature.sleep.ground"));
+                if (species.minimumOpenGroundFraction > 0f)
+                    text.Append(Loc.Format("research.creature.habitat.meadow", species.minimumOpenGroundFraction * 100f));
+                text.Append(Loc.Text(species.requiresBurrowForSleep ? "research.creature.sleep.burrow"
+                    : species.requiresGravestoneForSleep ? "research.creature.sleep.grave"
+                    : species.requiresTreeForSleep ? "research.creature.sleep.tree"
+                    : species.prefersTreeShadeForSleep ? "research.creature.sleep.shade" : "research.creature.sleep.ground"));
             }
             if (stages >= 3)
             {
@@ -107,6 +111,7 @@ namespace Mythologicum
                     : Loc.Text("research.creature.containment.phase_no_hunger"));
                 if (species.canBreakFences) text.Append(Loc.Text("research.creature.containment.break"));
                 if (species.canClimbWoodenFences) text.Append(Loc.Text("research.creature.containment.climb"));
+                if (species.canBurrowFences) text.Append(Loc.Text("research.creature.containment.burrow"));
                 text.Append(Loc.Text("research.creature.escape_pressure"));
             }
             else text.Append(Loc.Format("research.creature.next", NextDiscovery(species)));

@@ -54,6 +54,9 @@ try {
     $checks += @('CreatureLocalizationChecks')
     $checks += @('..\Performance\RouteSearchPerformanceChecks', '..\Visitors\VisitorViewingCacheChecks')
     $checks += @('ScarecrowEnvironmentChecks', 'CreatureScareChecks')
+    $checks += @('CreatureMeadowChecks')
+    $checks += @('CreatureBurrowingChecks', '..\Progression\CentralEuropeProgressionChecks')
+    $checks += @('..\Visitors\CreatureAppealChecks', '..\Visitors\VisitorTypeChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force

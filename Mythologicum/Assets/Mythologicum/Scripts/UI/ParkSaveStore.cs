@@ -46,6 +46,9 @@ namespace Mythologicum
         public float escapeCooldown, fenceRetryCooldown, scareCooldown;
         public int building = -1;
         public bool retire, sedate, leaving;
+        // Optional visitor-only data. Missing fields in older saves remain general visitors.
+        public VisitorType visitorType;
+        public List<string> observedSpecies, observedOrigins;
     }
     public static class ParkSaveStore
     {

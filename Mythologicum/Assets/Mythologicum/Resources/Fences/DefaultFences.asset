@@ -28,6 +28,7 @@ MonoBehaviour:
       allowsClimbing: 0
       blocksPhasing: 0
       resistsCreatureDamage: 1
+      blocksBurrowing: 1
     sanctified:
       maximumHealth: 300
       allowsClimbing: 0

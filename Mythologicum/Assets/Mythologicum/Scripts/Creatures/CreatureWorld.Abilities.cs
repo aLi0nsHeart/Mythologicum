@@ -15,14 +15,14 @@ namespace Mythologicum
         private bool CanAttackFences(CreatureAgent agent) => agent.Definition.damage > 0f
             && agent.Wellbeing.Agitation > 0f && agent.EscapeIntent && time < agent.EscapeUntil;
         private int AbilityKey(CreatureAgent agent) => (CanClimbForNeeds(agent) ? 1 : 0)
-            | (CanPhase(agent) ? 2 : 0) | (CanAttackFences(agent) ? 4 : 0);
+            | (CanPhase(agent) ? 2 : 0) | (CanAttackFences(agent) ? 4 : 0) | (CanBurrow(agent) ? 8 : 0);
         private CreatureNavigation AbilityNavigation(CreatureAgent agent)
         {
             int key = AbilityKey(agent);
             if (key == 0) return navigation;
             if (!abilityNavigation.TryGetValue(key, out var nav))
                 abilityNavigation[key] = nav = new CreatureNavigation(grid, fences, IsPhysicallyClear,
-                    (key & 1) != 0, (key & 2) != 0, (key & 4) != 0);
+                    (key & 1) != 0, (key & 2) != 0, (key & 4) != 0, (key & 8) != 0);
             return nav;
         }
         private HashSet<Vector2Int> AbilityRegion(CreatureAgent agent)
@@ -39,8 +39,10 @@ namespace Mythologicum
 
         private int SleepSitesAt(CreatureAgent agent, Vector2Int cell) => agent.Definition.requiresGravestoneForSleep
             ? environment.GravestonesAt(cell) : environment.TreesAt(cell);
-        private bool HasSleepSite(CreatureAgent agent) => !agent.Definition.requiresTreeForSleep
-            && !agent.Definition.requiresGravestoneForSleep || agent.SleepTree.HasValue && SleepSitesAt(agent, agent.SleepTree.Value) > 0;
+        private bool HasSleepSite(CreatureAgent agent) => agent.Definition.requiresBurrowForSleep
+            ? agent.InBurrow && CanDigAt(agent.Cell)
+            : !agent.Definition.requiresTreeForSleep && !agent.Definition.requiresGravestoneForSleep
+                || agent.SleepTree.HasValue && SleepSitesAt(agent, agent.SleepTree.Value) > 0;
 
         /// <summary>Threat is independent of damage; physical containment still makes exhibits safe to observe.</summary>
         public CreatureAgent FindThreat(CreatureAgent observer, float range)
@@ -72,7 +74,13 @@ namespace Mythologicum
         private void BeginBarrierAttempt(CreatureAgent agent, FenceEdge edge, Vector2Int next)
         {
             agent.AttemptFence = edge;
-            if (CanPhase(agent))
+            if (CanBurrow(agent))
+            {
+                if (fences.CanBurrow(edge) && CanDigAt(agent.Cell) && CanDigAt(next)
+                    && grid.CanTraverse(agent.Cell, next)) BeginFenceBurrow(agent, next);
+                else BeginFailedBurrow(agent);
+            }
+            else if (CanPhase(agent))
             {
                 if (fences.CanPhase(edge)) BeginPhase(agent, next);
                 else BeginFailedClimb(agent);
@@ -107,6 +115,7 @@ namespace Mythologicum
 
         private bool TickSpecialTraversal(CreatureAgent agent)
         {
+            if (TickBurrowTraversal(agent)) return true;
             if (agent.Activity == CreatureActivity.AttackingFence)
             {
                 FenceEdge? edge = agent.AttackedFence;

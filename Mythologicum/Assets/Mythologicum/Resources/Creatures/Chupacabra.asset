@@ -13,9 +13,14 @@ MonoBehaviour:
   m_Name: Chupacabra
   m_EditorClassIdentifier: 
   displayName: creature.name.chupacabra
+  visitorAppeal:
+    thrill: 0.9
+    wonder: 0.35
+    adventure: 0.8
+    children: 0.1
   diet: 0
   tags: 2
-  preyTags: 5
+  preyTags: 21
   fearedTags: 0
   manuallyPlaceable: 1
   rating: 2

@@ -6,7 +6,7 @@ namespace Mythologicum
     public enum CreatureDiet { Carnivore, Herbivore, None, Fear }
 
     [Flags]
-    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8 }
+    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8, Herbivore = 16 }
 
     /// <summary>Editable species rules. Individual needs live in CreatureVitals and CreatureEnergy.</summary>
     [CreateAssetMenu(menuName = "Mythologicum/Creature species", fileName = "NewCreature")]
@@ -35,6 +35,11 @@ namespace Mythologicum
         [Min(0f)] public float damage = 40f;
         [Tooltip("Visible creatures with a higher threat cause fear, subject to perception and safe barriers.")]
         [Min(0f)] public float threat = 30f;
+
+        [Header("Exhibit appeal")]
+        [Tooltip("How interesting this species is to different visitors, from 0 to 1. Independent of real threat, damage and fear.")]
+        public CreatureVisitorAppeal visitorAppeal = new CreatureVisitorAppeal();
+        public CreatureVisitorAppeal VisitorAppeal => visitorAppeal ?? (visitorAppeal = new CreatureVisitorAppeal());
 
         [Header("Fear feeding")]
         [Tooltip("Relieves hunger by successfully frightening people rather than dealing damage.")]
@@ -91,6 +96,15 @@ namespace Mythologicum
         public bool canBreakFences;
         [Tooltip("Must reach a gravestone before sleeping.")]
         public bool requiresGravestoneForSleep;
+        [Tooltip("Must dig into clear natural ground to sleep. Paved, occupied or steep ground cannot host a burrow.")]
+        public bool requiresBurrowForSleep;
+        [Tooltip("Can dig under fences during an escape intention. Buried fence foundations can block this method.")]
+        public bool canBurrowFences;
+        [Min(.1f), Tooltip("Seconds to enter or leave a sleeping burrow, or cross underneath one fence.")]
+        public float burrowSeconds = 2f;
+        [Min(.1f), Tooltip("Visible depth below the ground while burrowing or sleeping.")]
+        public float burrowDepth = 1f;
+        [Range(0f, 100f)] public float burrowEnergyCost = 5f;
         [Min(0.1f)] public float treeClimbSeconds = 1.5f;
         [Min(0.1f)] public float fenceClimbSeconds = 2f;
         [Min(0.1f)] public float failedClimbSeconds = 1.2f;
@@ -120,6 +134,10 @@ namespace Mythologicum
         [Min(0)] public int requiredTrees;
         [Min(0)] public int requiredGravestones;
         [Min(0.1f)] public float environmentRadius = 12f;
+        [Range(0f, 1f), Tooltip("Minimum fraction of nearby accessible natural ground needed as open meadow. Zero disables this need.")]
+        public float minimumOpenGroundFraction;
+        [Tooltip("Prefers to rest on the ground in tree shade when a nearby tree is reachable; never climbs into the tree.")]
+        public bool prefersTreeShadeForSleep;
 
         [Header("Social needs")]
         [Tooltip("Desired nearby companions of the same species, excluding this animal.")]
@@ -163,12 +181,16 @@ namespace Mythologicum
 
         [Header("Placeholder appearance and simulation bounds")]
         public Color color = new Color(0.85f, 0.8f, 0.65f);
+        public CreaturePlaceholderKind placeholderKind;
+        public Color placeholderAccentColor = new Color(.65f, .52f, .3f);
+        public Color placeholderDetailColor = new Color(.12f, .1f, .08f);
         public Vector3 bodyScale = new Vector3(0.8f, 0.8f, 1.1f);
 
         private void OnValidate()
         {
             maximumHealth = Mathf.Max(1f, maximumHealth);
             damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
+            VisitorAppeal.Validate();
             scareApproachDistance = Mathf.Max(.1f, scareApproachDistance);
             scareJumpHeight = Mathf.Max(0f, scareJumpHeight); scareJumpForward = Mathf.Max(0f, scareJumpForward);
             scareJumpSquash = Mathf.Clamp(scareJumpSquash, 0f, .8f);
@@ -181,7 +203,33 @@ namespace Mythologicum
             decisionInterval = Mathf.Max(.05f, decisionInterval);
             minimumSpace = Mathf.Max(0f, minimumSpace);
             requiredTrees = Mathf.Max(0, requiredTrees); requiredGravestones = Mathf.Max(0, requiredGravestones);
+            burrowSeconds = Mathf.Max(.1f, burrowSeconds); burrowDepth = Mathf.Max(.1f, burrowDepth);
+            burrowEnergyCost = Mathf.Clamp(burrowEnergyCost, 0f, 100f);
+            minimumOpenGroundFraction = Mathf.Clamp01(minimumOpenGroundFraction);
             Behaviour.Validate();
+        }
+    }
+
+    /// <summary>Visitor interest is separate from an animal's ability to harm or frighten someone.</summary>
+    [Serializable]
+    public sealed class CreatureVisitorAppeal
+    {
+        [Range(0f, 1f), Tooltip("Interest for visitors seeking spectacular or dangerous exhibits. Does not change actual danger.")]
+        public float thrill = .5f;
+        [Range(0f, 1f), Tooltip("Interest for Wonderlust visitors seeking magical, beautiful or mysterious creatures.")]
+        public float wonder = .5f;
+        [Range(0f, 1f), Tooltip("Interest for adventurous visitors, in addition to their separate rarity and discovery preferences.")]
+        public float adventure = .5f;
+        [Range(0f, 1f), Tooltip("Interest for children seeking approachable, playful or charming creatures. Does not make an animal safe.")]
+        public float children = .5f;
+
+        public static float Normalize(float value) => float.IsNaN(value) || float.IsInfinity(value)
+            ? .5f : Math.Max(0f, Math.Min(1f, value));
+
+        public void Validate()
+        {
+            thrill = Normalize(thrill); wonder = Normalize(wonder);
+            adventure = Normalize(adventure); children = Normalize(children);
         }
     }
 

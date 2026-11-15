@@ -68,7 +68,10 @@ MonoBehaviour:
       name: park.progression_definition.central_europe
       accessCost: 350
       mapPosition: {x: 0.49, y: 0.73}
-      species: []
+      species:
+      - Wolpertinger
+      - Unicorn
+      - Waldschrat
     - id: northern-europe
       name: park.progression_definition.northern_europe
       accessCost: 350

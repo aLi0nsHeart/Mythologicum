@@ -13,6 +13,11 @@ MonoBehaviour:
   m_Name: Yurei
   m_EditorClassIdentifier: 
   displayName: creature.name.yurei
+  visitorAppeal:
+    thrill: 0.7
+    wonder: 0.95
+    adventure: 0.85
+    children: 0.15
   diet: 0
   tags: 2
   preyTags: 5

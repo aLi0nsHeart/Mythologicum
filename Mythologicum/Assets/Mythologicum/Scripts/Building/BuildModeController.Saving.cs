@@ -53,6 +53,10 @@ namespace Mythologicum
                 {
                     var saved = CaptureActor(guest.Actor); saved.age = guest.Mood.Age; saved.satisfaction = guest.Mood.Satisfaction;
                     saved.patience = guest.Mood.VisitProgress; saved.leaving = guest.LeavingPark || guest.Mood.ShouldLeave;
+                    saved.visitorType = guest.Type;
+                    saved.observedSpecies = new List<string>(guest.ObservedSpecies);
+                    saved.observedOrigins = new List<string>(guest.ObservedOrigins);
+                    saved.observedSpecies.Sort(StringComparer.Ordinal); saved.observedOrigins.Sort(StringComparer.Ordinal);
                     data.visitors.Add(saved);
                 }
             foreach (var species in creatureCatalog) data.research.Add(new SavedResearch { species = species.name, progress = staffWorld.Research.Progress(species) });
@@ -70,6 +74,7 @@ namespace Mythologicum
             escapeCooldown = actor.EscapeIntent || actor.Activity == CreatureActivity.AttackingFence
                 || actor.Activity == CreatureActivity.ClimbingFence || actor.Activity == CreatureActivity.PhasingFence
                 || actor.Activity == CreatureActivity.FailedClimb || actor.Activity == CreatureActivity.FailedPhase
+                || actor.Activity == CreatureActivity.BurrowingFence || actor.Activity == CreatureActivity.FailedBurrow
                 ? Mathf.Max(actor.Definition.escapeRetrySeconds, actor.EscapeAfter - creatureWorld.SimulationTime)
                 : Mathf.Max(0f, actor.EscapeAfter - creatureWorld.SimulationTime),
             fenceRetryCooldown = Mathf.Max(0f, actor.AttemptAfter - creatureWorld.SimulationTime),
@@ -77,6 +82,9 @@ namespace Mythologicum
                 actor.ScareAfter - creatureWorld.SimulationTime) };
         private void RestoreActor(CreatureAgent actor, SavedActor saved)
         {
+            // Burrows are temporary creature actions. Restore at the saved logical
+            // safe-side cell; energy and retry timers survive, and tired animals can
+            // choose to dig a fresh sleeping burrow after loading.
             actor.Cell = saved.cell;
             actor.transform.position = grid.ActorPosition(saved.cell,actor.Definition.bodyScale.y);
             actor.Vitals.Restore(actor.Definition.needsFood ? saved.hunger : actor.Definition.StartingHunger, saved.fear);
@@ -151,13 +159,29 @@ namespace Mythologicum
                 // This is a corrupt-file guard, not the live hiring limit.
                 if (count >= 1000000) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.too_many_saved_employees"));
             }
-            foreach (var saved in data.visitors) if (!ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
+            foreach (var saved in data.visitors)
+                if (!ValidActor(saved, checkGrid) || rockCells.Contains(saved.cell)
+                    || !Enum.IsDefined(typeof(VisitorType), saved.visitorType)
+                    || !ValidInterestHistory(saved.observedSpecies) || !ValidInterestHistory(saved.observedOrigins))
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_species_research"));
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
                 || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_finances_or_camera"));
             if(data.version>=2)Progression.Validate(data.progression,network.Records);
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+        private static bool ValidInterestHistory(List<string> values)
+        {
+            if (values == null) return true; // Older saves have no observation history.
+            if (values.Count > 10000) return false;
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string value in values)
+            {
+                if (string.IsNullOrWhiteSpace(value) || value.Length > 256 || !unique.Add(value)) return false;
+                foreach (char c in value) if (char.IsControl(c)) return false;
+            }
+            return true;
+        }
         private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid) => saved != null && checkGrid.Contains(saved.cell)
             && checkGrid.ContentAt(saved.cell) != BuildCellContent.Building && Finite(saved.health) && saved.health > 0f
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
@@ -230,10 +254,11 @@ namespace Mythologicum
                 }
                 foreach (var saved in data.visitors)
                 {
-                    var guest = visitorWorld.RestoreGuest(saved.cell);
+                    var guest = visitorWorld.RestoreGuestWithType(saved.cell, saved.visitorType);
                     if (guest == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_visitor"));
                     RestoreActor(guest.Actor, saved); guest.Mood.Restore(saved.satisfaction, saved.age, saved.patience, saved.leaving);
                     guest.LeavingPark = saved.leaving;
+                    guest.RestoreInterests(saved.observedSpecies, saved.observedOrigins);
                 }
                 foreach (var saved in data.research) staffWorld.Research.Study(Species(saved.species), saved.progress);
                 for (int i = 0; i < restored.Count; i++)

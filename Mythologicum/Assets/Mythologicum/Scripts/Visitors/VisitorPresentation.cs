@@ -49,12 +49,21 @@ namespace Mythologicum
             frame.Refresh();
             CreatureAgent actor = selected.Actor;
             int seconds = Mathf.Max(0, Mathf.FloorToInt(selected.TimeInPark));
-            details.text = Loc.Format("visitor.info.needs", Loc.Enum(selected.Activity), selected.Mood.Satisfaction,
+            var profile = selected.TypeSettings;
+            string type = profile != null ? profile.DisplayName : Loc.Text("visitor.info.general_type");
+            string interests = profile != null ? profile.Description : Loc.Text("visitor.info.general_interests");
+            details.text = Loc.Format("visitor.info.type", type, interests)
+                + Loc.Format("visitor.info.needs", Loc.Enum(selected.Activity), selected.Mood.Satisfaction,
                 actor.Health.Current, actor.Health.Maximum, actor.Vitals.Hunger, actor.Vitals.Fear,
                 actor.Energy.Energy, seconds / 60, seconds % 60, 100f * (1f - selected.Mood.VisitProgress),
                 100f * selected.Mood.Willingness)
-                + selected.Status + (string.IsNullOrEmpty(selected.PriceComplaint) ? "" : "\n" + selected.PriceComplaint)
-                + Loc.Text("visitor.info.deselect");
+                + selected.Status + (string.IsNullOrEmpty(selected.PriceComplaint) ? "" : "\n" + selected.PriceComplaint);
+            if (selected.Activity == VisitorActivity.Watching && selected.Watching != null && selected.Watching.Alive)
+                details.text += Loc.Format("visitor.info.exhibit_interest", selected.Watching.Definition.DisplayName,
+                    Mathf.Clamp01(selected.LastExhibitInterest) * 100f);
+            if (selected.Type == VisitorType.Adventurers)
+                details.text += Loc.Format("visitor.info.discoveries", selected.ObservedSpecies.Count, selected.ObservedOrigins.Count);
+            details.text += Loc.Text("visitor.info.deselect");
             float height=Mathf.Ceil(details.preferredHeight);
             details.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
             detailsScroll.content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);

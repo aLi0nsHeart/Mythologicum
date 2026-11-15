@@ -12,6 +12,17 @@ namespace Mythologicum
         public CreatureAgent Actor { get; internal set; }
         public VisitorMood Mood { get; internal set; } = new VisitorMood();
         public VisitorActivity Activity { get; internal set; }
+        public VisitorType Type { get; internal set; }
+        public VisitorTypeSettings TypeSettings { get; internal set; } = VisitorTypeSettings.DefaultFor(VisitorType.Legacy);
+        public float LastExhibitInterest { get; internal set; }
+        public readonly HashSet<string> ObservedSpecies = new HashSet<string>(System.StringComparer.Ordinal);
+        public readonly HashSet<string> ObservedOrigins = new HashSet<string>(System.StringComparer.Ordinal);
+        public void RestoreInterests(IEnumerable<string> species, IEnumerable<string> origins)
+        {
+            ObservedSpecies.Clear(); ObservedOrigins.Clear();
+            if (species != null) foreach (var id in species) if (!string.IsNullOrWhiteSpace(id)) ObservedSpecies.Add(id);
+            if (origins != null) foreach (var id in origins) if (!string.IsNullOrWhiteSpace(id)) ObservedOrigins.Add(id);
+        }
         private readonly StatusMessage status = new StatusMessage("visitor.status.arriving");
         public string Status { get => status.Value; internal set => status.Set(value); }
         internal void SetLocalizedStatus(string id, params object[] arguments) => status.Set(id, arguments);

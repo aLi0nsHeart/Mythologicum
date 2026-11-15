@@ -131,6 +131,47 @@ public static class CreatureReworkSaveValidation
             && Field<float>(ghost, "ScareAfter") - world.SimulationTime > 0, "Remaining fence and scare cooldowns survive loading");
         world.Tick(2f);
         Check(ghost.Vitals.Hunger == 0, "Undead hunger remains full during subsequent simulation");
+
+        // New species use the same real save/restore path as the original roster.
+        grid = Field<SquareBuildGrid>(park, "grid");
+        CreatureAgent burrower = null;
+        foreach (string id in new[] { "Wolpertinger", "Unicorn", "Waldschrat" })
+        {
+            var species = Resources.Load<CreatureDefinition>("Creatures/" + id);
+            Check(species != null, "Central European species is available to saving: " + id);
+            Vector2Int? spot = null;
+            for (int y = grid.Depth - 2; y > 0 && !spot.HasValue; y--)
+            for (int x = grid.Width - 2; x > 0 && !spot.HasValue; x--)
+            {
+                var candidate = new Vector2Int(x, y);
+                if (grid.IsAvailable(candidate) && park.Environment.TreesAt(candidate) == 0
+                    && park.Environment.GravestonesAt(candidate) == 0 && park.Environment.ScarecrowsAt(candidate) == 0
+                    && world.CanSpawn(candidate)) spot = candidate;
+            }
+            Check(spot.HasValue && world.TrySpawn(species, spot.Value), "Actual new species can join the saved park: " + id);
+            if (id == "Wolpertinger") burrower = world.Agents.Last();
+        }
+        typeof(CreatureAgent).GetProperty("Energy").SetValue(burrower, new CreatureEnergy(0));
+        Set(burrower, "DecisionTimer", 0f);
+        for (int tick = 0; tick < 160 && !(burrower.InBurrow && burrower.Activity == CreatureActivity.Sleeping); tick++) world.Tick(.05f);
+        Check(burrower.InBurrow && burrower.Activity == CreatureActivity.Sleeping,
+            "A tired Wolpertinger actually digs its sleeping burrow before saving");
+        var undergroundCell = burrower.Cell;
+        var savedNewSpecies = park.CapturePark(); park.ValidateSave(savedNewSpecies);
+        float savedEnergy = savedNewSpecies.creatures.Single(actor => actor.species == "Wolpertinger").energy;
+        Check(savedNewSpecies.creatures.Count == 4, "Save captures the original ghost and all three new species");
+        ParkSaveStore.WriteSlot(savedNewSpecies, slot, "Central European creature save validation");
+        ParkSaveStore.Pending = ParkSaveStore.ReadSlot(slot);
+        Check(SceneTransition.Load("GameScene"), "Central European save uses the normal scene-loading path");
+        while (SceneTransition.IsLoading) yield return null;
+        park = Object.FindFirstObjectByType<BuildModeController>(); park.enabled = false; Time.timeScale = 0;
+        world = Field<CreatureWorld>(park, "creatureWorld");
+        foreach (string id in new[] { "Wolpertinger", "Unicorn", "Waldschrat" })
+            Check(world.Agents.Count(actor => actor.Definition.name == id) == 1, "New species restores without loss or duplication: " + id);
+        burrower = world.Agents.Single(actor => actor.Definition.name == "Wolpertinger");
+        Check(burrower.Cell == undergroundCell && !burrower.InBurrow && !burrower.IsUnderground,
+            "An underground sleeper restores safely on the surface at its logical cell");
+        Check(Mathf.Approximately(savedEnergy, burrower.Energy.Energy), "Surfacing on load preserves the creature's saved energy");
     }
 
     private static T Field<T>(object owner, string name)

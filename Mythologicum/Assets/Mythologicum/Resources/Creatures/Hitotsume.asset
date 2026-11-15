@@ -13,6 +13,11 @@ MonoBehaviour:
   m_Name: Hitotsume
   m_EditorClassIdentifier: 
   displayName: creature.name.hitotsume
+  visitorAppeal:
+    thrill: 0.45
+    wonder: 0.8
+    adventure: 0.7
+    children: 0.9
   diet: 3
   tags: 2
   preyTags: 4

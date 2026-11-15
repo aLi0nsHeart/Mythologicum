@@ -37,6 +37,15 @@ namespace Mythologicum
         [Min(.1f)] public float spawnInterval = 8f;
         [Min(0)] public int maximumVisitors = 30;
         [HideInInspector] public float ticketPrice = 15f; // Legacy data; the entrance now owns its editable price.
+        [Header("Visitor types")]
+        [Tooltip("Weighted arrival mix, interests and multipliers. Old saved visitors retain neutral Legacy behaviour.")]
+        public VisitorTypeSettings[] typeSettings = VisitorTypeSettings.Defaults();
+        public VisitorTypeSettings SettingsFor(VisitorType type)
+        {
+            if (typeSettings != null && VisitorInterests.IsRequestedType(type))
+                foreach (var settings in typeSettings) if (settings != null && settings.type == type) return settings;
+            return VisitorTypeSettings.DefaultFor(type);
+        }
 
         [Header("Needs")]
         [Min(1)] public float maximumHealth = 60f;
@@ -95,6 +104,7 @@ namespace Mythologicum
             mood ??= new VisitorMoodRules();
             mood.patienceSeconds = Mathf.Max(.1f, mood.patienceSeconds);
             mood.tiredDiscomfortThreshold = Mathf.Max(.1f, mood.tiredDiscomfortThreshold);
+            if (typeSettings != null) foreach (var settings in typeSettings) settings?.Validate();
         }
     }
 }

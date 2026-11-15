@@ -77,7 +77,8 @@ namespace Mythologicum
                 if (agent.ExternallyControlled) continue;
                 agent.DecisionTimer = 0f;
                 // Preserve valid movement when unrelated construction changes elsewhere.
-                if (agent.Activity != CreatureActivity.ClimbingFence && agent.Activity != CreatureActivity.PhasingFence && agent.Route.Count > 0
+                if (agent.Activity != CreatureActivity.ClimbingFence && agent.Activity != CreatureActivity.PhasingFence
+                    && agent.Activity != CreatureActivity.BurrowingFence && agent.Route.Count > 0
                     && !Navigation(agent).CanCross(agent.Cell, agent.Route[0]))
                 {
                     agent.Route.Clear(); agent.Goal = null;
@@ -106,6 +107,7 @@ namespace Mythologicum
         {
             if (observer == null || target == null || !observer.Alive || !target.Alive || range < 0f) return false;
             if (observer.CarriedBy != null || target.CarriedBy != null) return false;
+            if (observer.IsUnderground || target.IsUnderground) return false;
             if (target.Definition.requiresGravestoneForSleep && target.Activity == CreatureActivity.Sleeping) return false;
             RefreshNavigation();
             return HorizontalDistance(observer.transform.position, target.transform.position) <= range
@@ -198,6 +200,7 @@ namespace Mythologicum
         {
             GameObject body;
             renderer = null;
+            if (model == null && CreaturePlaceholderVisual.TryCreate(parent, definition, material, out body, out renderer)) return body;
 
             if (model != null)
             {
@@ -266,6 +269,7 @@ namespace Mythologicum
                         || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.ClimbingFence
                         || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.FailedClimb
                         || agent.Activity == CreatureActivity.FailedPhase
+                        || BurrowTraversal(agent.Activity)
                         || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
                         ? definition.strenuousEnergyMultiplier : 1f;
                 agent.Energy.Tick(dt, definition.energyDrainPerSecond, energyMultiplier, sleeping, definition.sleepRecoveryPerSecond);
@@ -371,6 +375,7 @@ namespace Mythologicum
                 || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
                 || agent.Activity == CreatureActivity.ClimbingFence || agent.Activity == CreatureActivity.FailedClimb
                 || agent.Activity == CreatureActivity.FailedPhase
+                || BurrowTraversal(agent.Activity)
                 || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
                 || agent.Activity == CreatureActivity.EnteringGrave || agent.Activity == CreatureActivity.LeavingGrave
                 || agent.Activity == CreatureActivity.Scaring
@@ -466,18 +471,20 @@ namespace Mythologicum
         private void SeekSleep(CreatureAgent agent)
         {
             ReleaseClaim(agent);
+            if (agent.Definition.requiresBurrowForSleep) { SeekBurrowSleep(agent); return; }
             if (agent.Activity == CreatureActivity.Sleeping)
             {
                 if (agent.Energy.Energy >= agent.Definition.wakeThreshold)
                 {
                     agent.WantsSleep = false;
                     if (Mathf.Abs(agent.Elevation) > 0.01f) BeginTreeTraversal(agent, false);
-                    else { agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent); }
+                    else { agent.SleepTree = null; agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent); }
                 }
                 else if (!HasSleepSite(agent))
                     BeginTreeTraversal(agent, false);
                 return;
             }
+            if (TrySeekShadeSleep(agent)) return;
             if (!agent.Definition.requiresTreeForSleep && !agent.Definition.requiresGravestoneForSleep)
             {
                 FinishSegment(agent);
@@ -613,7 +620,7 @@ namespace Mythologicum
 
         private bool TryBlockedFence(CreatureAgent agent, List<CreatureAgent> candidates)
         {
-            if ((!CanClimbForNeeds(agent) && !CanAttackFences(agent) && !CanPhase(agent)) || candidates.Count == 0 || time < agent.AttemptAfter) return false;
+            if ((!CanClimbForNeeds(agent) && !CanAttackFences(agent) && !CanPhase(agent) && !CanBurrow(agent)) || candidates.Count == 0 || time < agent.AttemptAfter) return false;
             HashSet<Vector2Int> region = AbilityRegion(agent);
             FenceEdge? best = null;
             Vector2Int approach = agent.Cell;
@@ -677,8 +684,7 @@ namespace Mythologicum
             if (prey != null && prey.CarriedBy != null) { ReleaseClaim(agent); prey = null; }
             if (prey != null && prey.Alive && (prey.CapturedBy == null || prey.CapturedBy == agent))
             {
-                bool visible = HorizontalDistance(agent.transform.position, prey.transform.position) <= agent.Definition.visionRange
-                    && navigation.HasLineOfSight(agent.Cell, prey.Cell);
+                bool visible = CanSee(agent, prey, agent.Definition.visionRange);
                 if (visible) { agent.PreyLastSeen = time; agent.LastSeenPreyCell = PursuitCell(prey); }
                 if (time - agent.PreyLastSeen <= agent.Definition.preyMemorySeconds && agent.LastSeenPreyCell.HasValue
                     && AbilityRegion(agent).Contains(agent.LastSeenPreyCell.Value)
@@ -733,6 +739,7 @@ namespace Mythologicum
                     if (HorizontalDistance(grid.CellCenter(cell), agent.transform.position) <= definition.environmentRadius)
                         graves += environment.GravestonesAt(cell);
                 agent.NearbyGravestones = graves;
+                if (definition.minimumOpenGroundFraction > 0f) agent.NearbyOpenGroundFraction = MeasureOpenGround(agent, accessible);
                 int companions = 0;
                 foreach (CreatureAgent other in agents)
                     if (other != agent && other.Alive && other.Definition == definition && accessible.Contains(other.Cell)
@@ -742,7 +749,7 @@ namespace Mythologicum
             agent.Wellbeing.Update(CreatureWellbeing.Evaluate(agent.Vitals.Hunger, agent.Vitals.Fear,
                 agent.AccessibleArea, agent.NearbyTrees, agent.Companions, definition.minimumSpace, definition.requiredTrees,
                 definition.minimumCompanions, definition.maximumCompanions, definition.Behaviour,
-                agent.NearbyGravestones, definition.requiredGravestones), dt,
+                agent.NearbyGravestones, definition.requiredGravestones, agent.NearbyOpenGroundFraction, definition.minimumOpenGroundFraction), dt,
                 definition.happinessChangePerSecond, definition.happinessThreshold);
         }
 
@@ -751,9 +758,8 @@ namespace Mythologicum
             var result = new List<CreatureAgent>();
             if (tags == CreatureTags.None) return result;
             foreach (CreatureAgent other in agents)
-                if (other != observer && other.Alive && other.CarriedBy == null && (other.Definition.tags & tags) != 0
-                    && HorizontalDistance(observer.transform.position, other.transform.position) <= range
-                    && navigation.HasLineOfSight(observer.Cell, other.Cell)) result.Add(other);
+                if (other != observer && (other.Definition.tags & tags) != 0
+                    && CanSee(observer, other, range)) result.Add(other);
             return result;
         }
 
@@ -799,6 +805,7 @@ namespace Mythologicum
                 || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
                 || agent.Activity == CreatureActivity.ClimbingFence || agent.Activity == CreatureActivity.FailedClimb
                 || agent.Activity == CreatureActivity.FailedPhase
+                || BurrowTraversal(agent.Activity)
                 || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
                 || agent.Activity == CreatureActivity.EnteringGrave || agent.Activity == CreatureActivity.LeavingGrave
                 || agent.Activity == CreatureActivity.Scaring
@@ -893,16 +900,19 @@ namespace Mythologicum
             && Mathf.Abs(target.Elevation) <= 0.01f && Mathf.Abs(agent.Elevation) <= 0.01f
             && target.Activity != CreatureActivity.ClimbingFence && agent.Activity != CreatureActivity.ClimbingFence
             && target.Activity != CreatureActivity.PhasingFence && agent.Activity != CreatureActivity.PhasingFence
+            && !target.IsUnderground && !agent.IsUnderground
             && (agent.Cell == target.Cell || navigation.CanCross(agent.Cell, target.Cell));
 
         private void RefreshVisual(CreatureAgent agent) => Animate(agent);
 
         private void Animate(CreatureAgent agent)
         {
-            bool hiddenInGrave = agent.Alive && agent.Definition.requiresGravestoneForSleep && agent.Activity == CreatureActivity.Sleeping;
+            bool hiddenInGrave = agent.Alive && (agent.InBurrow
+                || agent.Definition.requiresGravestoneForSleep && agent.Activity == CreatureActivity.Sleeping);
             if (agent.Body.gameObject.activeSelf == hiddenInGrave) agent.Body.gameObject.SetActive(!hiddenInGrave);
             if (hiddenInGrave) return;
             if (AnimateScare(agent)) return;
+            if (AnimateBurrow(agent)) return;
             if (agent.HasVisualModel)
             {
                 AnimateModel(agent);
@@ -1058,7 +1068,8 @@ namespace Mythologicum
             grid.ActorPosition(cell,agent.Definition.bodyScale.y);
         private void GroundActor(CreatureAgent actor)
         {
-            if(grid.Terrain==null||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence)return;
+            if(grid.Terrain==null||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence
+                || actor.Activity == CreatureActivity.BurrowingFence)return;
             actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y+actor.Elevation);
         }
         public void RefreshGroundPositions(){foreach(var actor in agents)GroundActor(actor);}

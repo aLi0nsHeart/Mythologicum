@@ -44,7 +44,9 @@ namespace Mythologicum.Editor
             Add("Fences", "Fences/DefaultFences",
                 "Health, climbing, phasing and resistance to creature attacks, separately for each fence type. New segments use the configured health; repairs and containment use the current rules.");
             Add("Visitors", "Visitors/DefaultVisitors",
-                "Arrival rate, visitor capacity, hunger, rest, fear, patience, satisfaction rewards/penalties, viewing and departure behaviour. Initial values apply to newly arriving visitors.");
+                "Arrival rate, capacity and base needs, plus visitor-type arrival weights, exhibit interests, hunger/rest/fear multipliers, patience and satisfaction. Initial values apply to newly arriving visitors.");
+            Add("People models", "People/People",
+                "Separate adult and child visitor model pools, the mixed pool for general visitors in existing parks, and staff models. Empty age-specific pools use the corresponding visitor placeholder rather than another age group's model.");
             Add("Staff & creature research", "Staff/DefaultStaff",
                 "Travel, perception, shooting, healing, repairs, sedation, creature observation and discovery milestones. Hiring costs, capacity and salaries belong to each building.");
             Add("Expeditions & technology", "Progression/DefaultProgression",

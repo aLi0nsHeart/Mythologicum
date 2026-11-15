@@ -84,7 +84,7 @@ namespace Mythologicum
             new ExpeditionRegion {id="china",name="park.progression_definition.china",mapPosition=new Vector2(.77f,.65f)},
             new ExpeditionRegion {id="middle-east",name="park.progression_definition.middle_east",mapPosition=new Vector2(.62f,.52f)},
             new ExpeditionRegion {id="japan",name="park.progression_definition.japan",mapPosition=new Vector2(.92f,.57f),species=new[]{"Hitotsume","Yurei","Oni"}},
-            new ExpeditionRegion {id="central-europe",name="park.progression_definition.central_europe",mapPosition=new Vector2(.49f,.73f)},
+            new ExpeditionRegion {id="central-europe",name="park.progression_definition.central_europe",mapPosition=new Vector2(.49f,.73f),species=new[]{"Wolpertinger","Unicorn","Waldschrat"}},
             new ExpeditionRegion {id="northern-europe",name="park.progression_definition.northern_europe",mapPosition=new Vector2(.56f,.9f)}
         };
     }
