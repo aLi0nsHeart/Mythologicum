@@ -403,6 +403,9 @@ public static class SteampunkUIIntegrationValidation
         creatures.RefreshExternal(guest.Actor);
         CheckNoWorldLabels("Buildings, staff, visitors and creatures");
         checks += ParkOperationsNativeChecks.Run(controller);
+        var undoInputChecks = ConstructionUndoInputNativeChecks.Run(controller, Check);
+        try { while (undoInputChecks.MoveNext()) yield return undoInputChecks.Current; }
+        finally { (undoInputChecks as IDisposable)?.Dispose(); }
         var overlayChecks = Field<ParkOverlayPresentation>(controller, "overlays");
         overlayChecks.SetMode(ParkOverlayMode.PathConnections);
         yield return null;

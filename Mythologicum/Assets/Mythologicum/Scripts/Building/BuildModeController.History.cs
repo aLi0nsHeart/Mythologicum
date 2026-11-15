@@ -228,8 +228,12 @@ namespace Mythologicum
         {
             var keyboard = Keyboard.current;
             if (keyboard == null || GameInput.BlocksGameplayInput || GameSaveMenu.IsOpen || SettingsPresentation.IsOpen) return false;
-            if (EventSystem.current?.currentSelectedGameObject?.GetComponent<InputField>()?.isFocused == true) return false;
             if (!(keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed) || !keyboard.zKey.wasPressedThisFrame) return false;
+            var events = EventSystem.current;
+            var selected = events != null ? events.currentSelectedGameObject : null;
+            // A rebuilt menu can leave a destroyed object selected. Unity's null check
+            // detects that stale reference; C#'s ?. operator does not.
+            if (selected != null && selected.TryGetComponent<InputField>(out var input) && input.isFocused) return false;
             UndoLastConstruction(); return true;
         }
         private void UpdateConstructionHistoryUI()

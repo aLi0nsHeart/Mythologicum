@@ -35,6 +35,7 @@ Copy these test sources into **the disposable project's `Assets/Editor`**:
 - `Tests/UI/Unity/SteampunkUIIntegrationValidation.cs`
 - `Tests/UI/Unity/ParkOperationsNativeChecks.cs`
 - `Tests/Buildings/Unity/ConstructionUndoNativeChecks.cs`
+- `Tests/Buildings/Unity/ConstructionUndoInputNativeChecks.cs`
 - `Tests/Saving/Unity/SaveSlotNativeChecks.cs`
 - `Tests/Localization/Unity/LocalizationNativeChecks.cs`
 - `Tests/UI/Unity/UIMaintenanceNativeChecks.cs`
@@ -72,6 +73,19 @@ Read these files inside `LocalCache/SaveValidation`:
 
 A stale result from an earlier run is not evidence for the current source. Check
 the process exit code and the result/log modification times together.
+
+## Native construction shortcut checks
+
+For a focused construction-shortcut regression, also copy
+`Tests/Buildings/Unity/ConstructionUndoInputValidation.cs` and
+`Tests/Buildings/Unity/ConstructionUndoInputNativeChecks.cs` into the disposable
+project's `Assets/Editor`. Run `-executeMethod ConstructionUndoInputValidation.Start`
+with the same graphics and self-exit flags. It uses the isolated
+`MythologicumValidation/ConstructionUndoInputValidation` identity and writes
+`ConstructionUndoInputResults.txt`. It destroys a selected UI button across real
+frames, checks repeated idle updates, and verifies Ctrl+Z with both a destroyed
+selection and a genuinely focused text field. The ordinary UI harness runs the
+same regression before its save/load checks.
 
 ## Native loading-screen checks
 
