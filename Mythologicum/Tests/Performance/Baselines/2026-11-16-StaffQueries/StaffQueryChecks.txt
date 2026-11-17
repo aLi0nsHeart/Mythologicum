@@ -1,0 +1,3 @@
+PASS: 686 staff approach, tie order, containment, danger and cleanup checks.
+Informational ranged-query totals: reference 1132,088 ms, optimized 433,794 ms.
+Informational contained-danger totals: reference 65,850 ms, optimized 0,620 ms; no timing thresholds.

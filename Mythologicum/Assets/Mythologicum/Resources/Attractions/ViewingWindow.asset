@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43d1361caaae414489efbe5e607f5652, type: 3}
+  m_Name: ViewingWindow
+  m_EditorClassIdentifier:
+  constructionCost: 120
+  ticketPrice: 5
+  serviceSeconds: 10
+  serviceCapacity: 2
+  buildingHeight: 2.8
+  operatingCostPerSecond: 0.015
+  attraction:
+    kind: 9
+    appeal: {thrill: 0.9, wonder: 0.7, adventure: 0.6, children: 0.45}
+    satisfactionReward: 14
+    revisitSeconds: 75
+    exhibitRadius: 8
+    exhibitBonus: 1
+    requiresCreatures: 1
+    requiresPettableCreatures: 0
+    requiresDangerousCreatures: 0
+    requiresFearFeeder: 0
+    maximumCreatureThreat: 10
+    minimumInterest: 0.15
+    decisionWeight: 18
+    maximumPrice: 18
+    rideHeight: 0
+    rideRadius: 0
+    scareFoodRelief: 0
+    scareCooldownSeconds: 10
+  frameColor: {r: 0.31, g: 0.22, b: 0.1, a: 1}
+  glassColor: {r: 0.35, g: 0.8, b: 0.93, a: 0.22}

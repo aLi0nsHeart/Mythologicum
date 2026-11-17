@@ -23,7 +23,11 @@ namespace Mythologicum
         private readonly SpeciesResearch research;
         private readonly CreatureDefinition[] species;
         private ParkBuildingRecord selected;
+        private FenceWindowRecord selectedWindow;
+        private FenceLayout windowLayout;
         private bool inspecting = true;
+        private Func<ParkBuildingRecord, int> attractionOccupancy;
+        private Func<ParkBuildingRecord, string> attractionAvailability;
         private int languageRevision=-1;
         public RectTransform PanelRect => (RectTransform)panel.transform;
 
@@ -71,7 +75,7 @@ namespace Mythologicum
         public void Select(ParkBuildingRecord building)
         {
             bool changed=selected!=building;
-            selected = building; message.text = "";
+            selected = building; selectedWindow = null; message.text = "";
             if(changed){detailsScroll.StopMovement();detailsScroll.verticalNormalizedPosition=1f;}
             if (selected != null) price.text = selected.Price.ToString("0.##", Loc.Culture);
             if (selected != null && selected.Footprint.Definition.kind == BuildingKind.ResearchCentre
@@ -80,11 +84,31 @@ namespace Mythologicum
             Refresh();
         }
         public void SetInspecting(bool value) { inspecting = value; Refresh(); }
+        public void ConfigureAttractions(Func<ParkBuildingRecord, int> occupancy, Func<ParkBuildingRecord, string> availability)
+        { attractionOccupancy = occupancy; attractionAvailability = availability; }
+        public void SelectWindow(FenceWindowRecord window, FenceLayout layout)
+        {
+            selected = null; selectedWindow = window; windowLayout = layout;
+            message.text = ""; detailsScroll.StopMovement(); detailsScroll.verticalNormalizedPosition = 1f; Refresh();
+        }
         public void ConfigureManagement(Action<ParkBuildingRecord> expeditions,Action<ParkBuildingRecord> technology)
         {openExpeditions=expeditions;openTechnology=technology;}
         public void Refresh()
         {
             if (panel == null) return;
+            if (selectedWindow != null)
+            {
+                bool valid = inspecting && windowLayout?.WindowAt(selectedWindow.Edge) == selectedWindow;
+                panel.SetActive(valid); if (!valid) return;
+                frame.Refresh(); management.gameObject.SetActive(false); staffGroup.SetActive(false); researchGroup.SetActive(false);
+                priceGroup.SetActive(true); title.text = Loc.Text("attraction.viewing_window.name");
+                bool open = staff.Buildings.IsPathConnected(selectedWindow.Edge.CellA) || staff.Buildings.IsPathConnected(selectedWindow.Edge.CellB);
+                accounts.text = Loc.Format("attraction.window.accounts", open ? Loc.Text("park.building_inspection.open") : Loc.Text("park.building_inspection.closed_reconnect_its_entrance_path"),
+                    ViewingWindowDefinition.Current.operatingCostPerSecond * 60, selectedWindow.Revenue, selectedWindow.Expenses, selectedWindow.Profit);
+                priceCaption.text = Loc.Text("attraction.ticket_price");
+                if (!price.isFocused) price.text = selectedWindow.Price.ToString("0.##", Loc.Culture);
+                LayoutContents(); return;
+            }
             bool show = inspecting && selected != null && staff.Buildings.Contains(selected);
             panel.SetActive(show);
             if (!show) return;
@@ -106,12 +130,22 @@ namespace Mythologicum
             else if (definition.kind == BuildingKind.GoatDispenser)
                 accounts.text += Loc.Format("park.building_inspection.feed_stock_restock_delivery", selected.FeedStock, definition.feederCapacity, definition.restockCost);
             else accounts.text += Loc.Text("park.building_inspection.accounts_cover_this_building_s_current_session");
+            if (definition.IsAttraction) accounts.text += Loc.Format("attraction.building.info", definition.serviceCapacity,
+                definition.serviceSeconds, definition.attraction.appeal.thrill * 100, definition.attraction.appeal.wonder * 100,
+                definition.attraction.appeal.adventure * 100, definition.attraction.appeal.children * 100);
+            if (definition.IsAttraction)
+            {
+                accounts.text += Loc.Format("attraction.building.occupancy", attractionOccupancy?.Invoke(selected) ?? 0, definition.serviceCapacity);
+                var unavailable = attractionAvailability?.Invoke(selected);
+                if (!string.IsNullOrEmpty(unavailable)) accounts.text += "\n" + unavailable;
+            }
 
             priceGroup.SetActive(definition.CanSetPrice);
             if (definition.CanSetPrice)
             {
                 priceCaption.text = definition.kind == BuildingKind.ParkEntrance ? Loc.Text("park.building_inspection.entry_ticket")
-                    : definition.kind == BuildingKind.Kiosk ? Loc.Text("park.building_inspection.price_per_meal") : Loc.Text("park.building_inspection.price_per_rest");
+                    : definition.kind == BuildingKind.Kiosk ? Loc.Text("park.building_inspection.price_per_meal")
+                    : definition.IsAttraction ? Loc.Text("attraction.ticket_price") : Loc.Text("park.building_inspection.price_per_rest");
                 if (!price.isFocused) price.text = selected.Price.ToString("0.##", Loc.Culture);
             }
             staffGroup.SetActive(definition.IsEmployeeBuilding);
@@ -199,10 +233,11 @@ namespace Mythologicum
 
         private void ApplyPrice()
         {
-            if (selected == null || !staff.Buildings.Contains(selected)) return;
+            if (selectedWindow == null && (selected == null || !staff.Buildings.Contains(selected))) return;
             bool parsed = float.TryParse(price.text,NumberStyles.Float,Loc.Culture,out float value)
                 ||float.TryParse(price.text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-            message.text = parsed && selected.SetPrice(value) ? Loc.Text("park.building_inspection.price_updated_for_new_customers") : Loc.Text("park.building_inspection.enter_a_price_of_zero_or_higher");
+            message.text = parsed && (selectedWindow != null ? selectedWindow.SetPrice(value) : selected.SetPrice(value))
+                ? Loc.Text("park.building_inspection.price_updated_for_new_customers") : Loc.Text("park.building_inspection.enter_a_price_of_zero_or_higher");
             Refresh();
         }
         private void Hire()

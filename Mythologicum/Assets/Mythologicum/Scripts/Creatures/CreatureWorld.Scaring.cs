@@ -76,12 +76,27 @@ namespace Mythologicum
             return false;
         }
 
+        public bool TryAttractionScare(CreatureAgent agent, Vector3 stagePoint, float foodRelief, float cooldownSeconds = 10f)
+        {
+            if (agent == null || !agent.Alive || !agent.Definition.feedsOnFear || agent.IsSedated
+                || agent.CarriedBy != null || agent.CapturedBy != null || agent.IsUnderground
+                || agent.Route.Count > 0 || Mathf.Abs(agent.Elevation) > .001f || agent.WantsSleep
+                || agent.Activity != CreatureActivity.Resting && agent.Activity != CreatureActivity.Wandering
+                || time < agent.ScareAfter) return false;
+            ReleaseClaim(agent); BeginScare(agent, stagePoint);
+            agent.ScarecrowTarget = null; agent.ScareSucceeded = true;
+            agent.AttractionScareRelief = Mathf.Clamp(foodRelief, 0, 100);
+            agent.AttractionScareCooldown = Mathf.Max(0, cooldownSeconds);
+            return true;
+        }
+
         private void BeginScare(CreatureAgent agent, Vector3 target)
         {
             agent.Route.Clear(); agent.Goal = null;
             agent.Activity = CreatureActivity.Scaring;
             agent.StateTimer = Mathf.Max(.1f, agent.Definition.scareSeconds);
             agent.ScareSucceeded = false;
+            agent.AttractionScareRelief = -1f;
             Vector3 direction = target - agent.transform.position; direction.y = 0f;
             if (direction.sqrMagnitude > .001f) agent.transform.rotation = Quaternion.LookRotation(direction);
         }
@@ -92,10 +107,11 @@ namespace Mythologicum
             // A frightened person remains free to run. Credit the completed scare,
             // while demolished practice dummies cannot provide food afterwards.
             bool valid = !agent.ScarecrowTarget.HasValue || environment.ScarecrowsAt(agent.ScarecrowTarget.Value) > 0;
-            if (agent.ScareSucceeded && valid) agent.Vitals.Eat(agent.Definition.foodRelief);
+            if (agent.ScareSucceeded && valid) agent.Vitals.Eat(agent.AttractionScareRelief >= 0f ? agent.AttractionScareRelief : agent.Definition.foodRelief);
             agent.ScareSucceeded = false; agent.ScarecrowTarget = null;
             ReleaseClaim(agent);
-            agent.ScareAfter = time + Mathf.Max(.1f, agent.Definition.scareCooldownSeconds);
+            agent.ScareAfter = time + Mathf.Max(.1f, agent.AttractionScareRelief >= 0f ? agent.AttractionScareCooldown : agent.Definition.scareCooldownSeconds);
+            agent.AttractionScareRelief = -1f;
             agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent);
             RestoreScarePose(agent);
             return false;

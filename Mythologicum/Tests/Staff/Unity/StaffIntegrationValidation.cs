@@ -21,6 +21,8 @@ public static class StaffIntegrationValidation
     }
     public static void Start()
     {
+        PlayerSettings.companyName = "MythologicumValidation";
+        PlayerSettings.productName = "StaffIntegrationValidation";
         SessionState.SetBool(Running,true);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene(),"Assets/StaffValidation.unity");
@@ -138,7 +140,13 @@ public static class StaffIntegrationValidation
         definition.hungerPerSecond=definition.energyDrainPerSecond=0;
         definition.minimumStaySeconds=1000; definition.maximumStaySeconds=10000;
         definition.maximumVisitors=1; definition.spawnInterval=10000; definition.walkSpeed=8;
-        f.Visitors=new VisitorWorld(f.Grid,f.Fences,f.Buildings,f.Creatures,definition,f.Economy);
+        // These older accounting/staff fixtures predate demand pricing and visitor
+        // archetypes. Keep admission and services affordable, with neutral needs;
+        // real price acceptance and archetypes have their own dedicated suites.
+        definition.typeSettings=Array.Empty<VisitorTypeSettings>();
+        var rules=new ParkReputationRules { baseAdmissionPrice=100,admissionPricePerStar=0,
+            baseFoodPrice=100,foodPricePerStar=0,baseRestPrice=100,restPricePerStar=0 };
+        f.Visitors=new VisitorWorld(f.Grid,f.Fences,f.Buildings,f.Creatures,definition,f.Economy,new ParkReputation(rules));
         return f.Visitors.TrySpawn();
     }
 

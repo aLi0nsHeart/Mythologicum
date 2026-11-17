@@ -194,3 +194,123 @@ MonoBehaviour:
       staffEfficiency: 1
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 0.75
+    - id: attractions
+      name: technology.attractions.name
+      description: technology.attractions.description
+      cost: 200
+      workSeconds: 30
+      prerequisites: []
+      fences:
+      buildings:
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: petting-zoo
+      name: technology.petting_zoo.name
+      description: technology.petting_zoo.description
+      cost: 150
+      workSeconds: 25
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 08000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: viewing-tower
+      name: technology.viewing_tower.name
+      description: technology.viewing_tower.description
+      cost: 250
+      workSeconds: 35
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 09000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: viewing-window
+      name: technology.viewing_window.name
+      description: technology.viewing_window.description
+      cost: 250
+      workSeconds: 35
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 10000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: balloon-ride
+      name: technology.balloon_ride.name
+      description: technology.balloon_ride.description
+      cost: 600
+      workSeconds: 75
+      prerequisites:
+      - attractions
+      - viewing-tower
+      fences:
+      buildings: 0a000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: predator-feeding-gallery
+      name: technology.predator_feeding_gallery.name
+      description: technology.predator_feeding_gallery.description
+      cost: 350
+      workSeconds: 45
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 0b000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: trickster-theatre
+      name: technology.trickster_theatre.name
+      description: technology.trickster_theatre.description
+      cost: 300
+      workSeconds: 40
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 0c000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: cabinet-of-curiosities
+      name: technology.cabinet_of_curiosities.name
+      description: technology.cabinet_of_curiosities.description
+      cost: 200
+      workSeconds: 30
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 0d000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: expedition-pavilion
+      name: technology.expedition_pavilion.name
+      description: technology.expedition_pavilion.description
+      cost: 250
+      workSeconds: 35
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 0e000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: clockwork-carousel
+      name: technology.clockwork_carousel.name
+      description: technology.clockwork_carousel.description
+      cost: 250
+      workSeconds: 35
+      prerequisites:
+      - attractions
+      fences:
+      buildings: 0f000000
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1

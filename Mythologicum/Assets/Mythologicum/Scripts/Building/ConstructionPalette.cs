@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace Mythologicum
 {
-    public enum ConstructionCategory { Buildings, Paths, Fences, Creatures, Enclosures, Terrain }
+    public enum ConstructionCategory { Buildings, Paths, Fences, Creatures, Enclosures, Terrain, Attractions }
 
     /// <summary>A curved icon dock with compact construction flyouts.</summary>
     public sealed class ConstructionPalette
@@ -18,6 +18,9 @@ namespace Mythologicum
         private readonly List<KeyValuePair<BuildingDefinition, Button>> buildingButtons = new List<KeyValuePair<BuildingDefinition, Button>>();
         private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
         private readonly Button creaturesCategory;
+        private readonly Button windowChoice, windowAttractionChoice, attractionsChoice;
+        private Action selectViewingWindow;
+        public void ConfigureWindowTool(Action choose) { selectViewingWindow = choose; Refresh(hasEntrance); }
         private readonly Button enclosuresCategory, treeChoice, gravestoneChoice, scarecrowChoice;
         private readonly List<KeyValuePair<CreatureDefinition,Button>> creatureButtons = new List<KeyValuePair<CreatureDefinition,Button>>();
         private ParkProgression progression;
@@ -86,13 +89,17 @@ namespace Mythologicum
                 () => { Close(); selectGravestone?.Invoke(); }, true);
             scarecrowChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "enclosure.scarecrow.place", Vector2.zero,
                 () => { Close(); selectScarecrow?.Invoke(); }, true);
+            attractionsChoice = MakeButton(template, groups[ConstructionCategory.Buildings].transform, "attraction.palette.attractions", Vector2.zero,
+                () => Toggle(ConstructionCategory.Attractions), true);
             for (int i = 0; i < definitions.Length; i++)
             {
                 BuildingDefinition definition = definitions[i];
+                // The viewing building has one shared entry here and in Fences below.
+                if (definition.kind == BuildingKind.ViewingWindow) continue;
                 bool enrichment = definition.kind == BuildingKind.GoatDispenser;
                 string stableName=string.Format(System.Globalization.CultureInfo.InvariantCulture,Loc.InternalName("park.construction_palette.x_tiles_cost"),
                     Loc.InternalName(definition.displayName),definition.width,definition.depth,definition.constructionCost);
-                Button button = MakeButton(template, groups[enrichment ? ConstructionCategory.Enclosures : ConstructionCategory.Buildings].transform,
+                Button button = MakeButton(template, groups[enrichment ? ConstructionCategory.Enclosures : definition.IsAttraction ? ConstructionCategory.Attractions : ConstructionCategory.Buildings].transform,
                     Loc.Format("park.construction_palette.x_tiles_cost", definition.DisplayName, definition.width, definition.depth, definition.constructionCost),
                     Vector2.zero, () => { Close(); selectBuilding(definition); }, true,stableName:stableName);
                 buildingButtons.Add(new KeyValuePair<BuildingDefinition, Button>(definition, button));
@@ -109,6 +116,10 @@ namespace Mythologicum
                 () => { Close(); selectFence(FenceKind.Sanctified); }, true);
             gateChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "park.construction_palette.staff_gate", Vector2.zero,
                 () => { Close(); selectGate(); }, true);
+            windowChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "attraction.window.name", Vector2.zero,
+                () => { Close(); selectViewingWindow?.Invoke(); }, true);
+            windowAttractionChoice = MakeButton(template, groups[ConstructionCategory.Attractions].transform, "attraction.window.name", Vector2.zero,
+                () => { Close(); selectViewingWindow?.Invoke(); }, true, stableName:"Viewing window attraction");
             var placeable = new List<CreatureDefinition>();
             foreach (CreatureDefinition creature in creatures) if (creature.manuallyPlaceable) placeable.Add(creature);
             for (int i = 0; i < placeable.Count; i++)
@@ -246,6 +257,17 @@ namespace Mythologicum
                 = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
             enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = scarecrowChoice.interactable = hasEntrance;
+            attractionsChoice.interactable = hasEntrance;
+            bool windowUnlocked = progression?.Completed("viewing-window") ?? false;
+            foreach (var button in new[] { windowChoice, windowAttractionChoice })
+            {
+                button.interactable = hasEntrance && windowUnlocked && selectViewingWindow != null;
+                button.GetComponentInChildren<Text>().text = windowUnlocked
+                    ? Loc.Format("attraction.window.place_cost", ViewingWindowDefinition.Current.constructionCost)
+                    : Loc.Format("park.construction_palette.locked_research", Loc.Text("attraction.window.name"), Loc.Text("attraction.window.name"));
+                UIHoverTooltip.Attach(button, !hasEntrance ? Loc.Text("park.construction_palette.place_the_park_entrance_first")
+                    : !windowUnlocked ? Loc.Text("attraction.window.research_required") : Loc.Text("attraction.window.controls"));
+            }
             Loc.Set(scarecrowChoice.GetComponentInChildren<Text>(), "enclosure.scarecrow.place_cost", ScarecrowDefinition.Current.constructionCost);
             spikedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Spiked) ?? true;
             heavyFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Heavy) ?? true;

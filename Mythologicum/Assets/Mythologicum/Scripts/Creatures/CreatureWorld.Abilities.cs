@@ -52,11 +52,22 @@ namespace Mythologicum
             foreach (CreatureAgent other in agents)
             {
                 if (other == observer || !other.Alive || other.IsSedated || other.Definition.threat <= observer.Definition.threat
+                    || AuthorizedPettingGuest(observer, other)
                     || !CanSee(observer, other, range) || !ReachableRegion(observer.Cell).Contains(other.Cell)) continue;
                 float distance = HorizontalDistance(observer.transform.position, other.transform.position);
                 if (distance < best) { best = distance; closest = other; }
             }
             return closest;
+        }
+
+        private bool AuthorizedPettingGuest(CreatureAgent animal, CreatureAgent person)
+        {
+            var host = person.PettingHost;
+            if (!animal.Definition.pettable || host == null || !host.IsOpen || !buildings.Contains(host)
+                || host.Footprint.Definition.kind != BuildingKind.PettingZoo
+                || animal.Definition.threat > host.Footprint.Definition.attraction.maximumCreatureThreat) return false;
+            var region = ReachableRegion(host.Footprint.RearAccessCell);
+            return region.Contains(animal.Cell) && region.Contains(person.Cell);
         }
 
         private void BeginFenceAttack(CreatureAgent agent, FenceEdge edge)

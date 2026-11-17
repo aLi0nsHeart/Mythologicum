@@ -252,3 +252,135 @@ Treat the current run's result files, logs and process exit code as the evidence
 this documentation does not record a validation outcome. Designer settings and
 manual checks are explained in the
 [visitor types guide](../Assets/Mythologicum/Documentation/Visitor-Types-Guide.md).
+
+## Visitor arrival preparation and timings
+
+The model runner includes `VisitorArrivalPathChecks` for budgeted entrance BFS,
+exact path order, cache reuse, revision invalidation and warmed Mono allocations.
+
+Copy `Tests/Visitors/Unity/VisitorArrivalNativeChecks.cs` into the disposable
+project's `Assets/Editor` and run `-executeMethod VisitorArrivalNativeChecks.Run`.
+It writes `VisitorArrivalNativeResults.txt`. Its edit-mode checks cover unique
+model preparation steps, cleanup, admission isolation, a complete first decision
+at the visitor limit, changed paths/gates/physical obstacles, and immediate danger
+response during preparation. Real loading frames are covered separately by the
+ordinary UI and scene-transition Play-mode harnesses.
+
+For CPU timings, copy
+`Tests/Performance/Unity/VisitorArrivalPerformanceValidation.cs` and run
+`-executeMethod VisitorArrivalPerformanceValidation.Run`. It uses a 128x128 flat
+terrain, 4,935 connected path tiles, 48 exhibits and retained adult/child models.
+It writes `VisitorArrivalPerformanceResults.txt` and
+`LocalCache/Performance/VisitorArrivals/Latest.json` / `Latest.txt`.
+
+Measurements separate loading-time model preparation, creation/admission, direct
+first decisions and actual budgeted arrival updates. The optional preparation
+rows also allow the same helper to run against the older runtime. Direct private
+`Think` calls deliberately allow a synchronous fallback; the budgeted `Tick` row
+tests the normal arrival path. Timing samples are informational, with no timing
+thresholds. Rendering, skinning, GPU uploads and overall game FPS are outside this
+edit-mode fixture. Keep the real-graphics, sequential disposable-editor setup
+described above.
+
+## Staff search performance checks
+
+The default model runner includes `StaffReachableBufferChecks`. It compares
+reusable buffers with an independent original BFS, including exact order, changed
+topology, public result ownership and supported Mono allocation measurements.
+
+Copy `Tests/Staff/Unity/StaffPerformanceNativeChecks.cs` into the disposable
+project's `Assets/Editor` and run `-executeMethod StaffPerformanceNativeChecks.Run`.
+It writes `StaffPerformanceNativeResults.txt` and verifies old/new approach goals
+across walls, gates, fractional positions, ranges and path preferences. It also
+checks strict containment, breaches, physical obstacles, sedation and actual fear
+responses. Its query timings are informational and have no timing thresholds.
+
+For actual staff tasks, copy `Tests/Staff/Unity/StaffIntegrationValidation.cs` and
+run `-executeMethod StaffIntegrationValidation.Start`. It writes
+`StaffValidationResults.txt` and checks hiring/accounts, research, care, carrying,
+security and imported locomotion. It creates its fixture scene only in the
+disposable project and uses the `MythologicumValidation/StaffIntegrationValidation`
+identity. Its accounting visitors are neutral and use explicitly affordable
+fixture prices; production pricing and visitor types have separate suites.
+
+## Researchable attractions
+
+The default model runner includes `AttractionDataChecks`, `FenceWindowChecks`,
+`AttractionRideCycleChecks` and `VisitorAttractionSaveChecks`. To run these suites alone:
+
+```powershell
+& .\Tests\Creatures\RunChecks.ps1 -CheckNames @(
+    '..\Buildings\AttractionDataChecks'
+    '..\Buildings\FenceWindowChecks'
+    '..\Buildings\AttractionRideCycleChecks'
+    '..\Visitors\VisitorAttractionSaveChecks'
+)
+```
+
+These cover stable building IDs, copied/validated settings, research dependencies,
+rotated petting entrances, fence-window accounts and containment, and optional
+active-visit save validation. Legacy economy snapshots are also covered by
+`FinanceChecks`; the original starting-park balance audit excludes optional
+researched attractions.
+
+Petting checks include fence-mounted geometry in all four directions, preserving
+an existing access path, duplicate/gate/window conflicts, empty tile occupancy,
+and compatibility with the earlier building-shaped entrance. Active and orphaned
+visit saves accept the appropriate adjacent or legacy two-step portal geometry.
+
+Copy these sources into the disposable project's `Assets/Editor`, alongside the
+current game sources and assets:
+
+- `Tests/Buildings/Unity/AttractionDataNativeChecks.cs`
+- `Tests/Buildings/Unity/AttractionVisualNativeChecks.cs`
+- `Tests/Buildings/Unity/ViewingWindowConstructionNativeChecks.cs`
+- `Tests/Buildings/Unity/AttractionIntegrationValidation.cs`
+- `Tests/Visitors/Unity/VisitorAttractionNativeChecks.cs`
+- `Tests/Visitors/Unity/AttractionPassengerNativeChecks.cs`
+
+Run `-executeMethod VisitorAttractionNativeChecks.Run` for actual paid visits,
+quoted prices, capacity reservations, cancelled visits, window visits, controlled
+theatre performances and petting entry/approach/exit. This edit-mode fixture writes
+`VisitorAttractionNativeResults.txt` and uses the isolated
+`MythologicumValidation/VisitorAttractionValidation` identity.
+
+Run `-executeMethod AttractionIntegrationValidation.Start` separately for real
+research, construction, animated placeholder models, sloped viewing windows,
+inspection, construction undo and a production scene save/load round-trip with an
+active petting visit. It calls the three building native helpers above, which are
+not standalone batch entry points. This Play-mode harness writes
+`AttractionIntegrationResults.txt`, captures `Attractions-Catalogue.png` under
+`LocalCache/SteampunkUIValidation`, and uses the isolated
+`MythologicumValidation/AttractionIntegrationValidation` identity. It removes only
+its own uniquely named save slot and associated backup/temporary files.
+
+The petting fixture uses the production snapping resolver on every side of a
+closed pen, places the gateway over an existing path, checks preview/model fence
+alignment and fence-click inspection, undoes placement without removing the path
+or fence, and retains mounted geometry across a real scene load.
+
+The viewing building occupies two tiles along the fence and one row inside the
+enclosure. Checks cover both attachment segments, foundation rules, protected
+room entry and exit, completed-visit fees, legacy fence-window compatibility and
+restoring an indoor visitor through production save/load. The visitor fixture
+also removes the entrance path during an active visit: the guest must exit onto
+clear ground without paying for the interrupted visit.
+
+Run `-executeMethod AttractionPassengerNativeChecks.Start` separately for actual
+procedural models and passengers. It checks inside visits and tower height,
+distinct balloon basket positions, two consecutive groups, landing before
+unloading, pause, quoted fees, carousel passengers and occupied-attraction
+demolition protection. It writes `AttractionPassengerNativeResults.txt` and uses
+the isolated `MythologicumValidation/AttractionPassengerValidation` identity.
+The ordinary integration fixture also saves a balloon in flight and a visitor
+on the tower, then restores their actual positions through production scene
+loading. Ride clocks, timing/capacity snapshots and passenger seats are saved
+separately; older saves have no shared ride state.
+
+Use the sequential, real-graphics disposable-editor setup described above and
+omit `-quit` so scene transitions can complete. The ordinary
+`SteampunkUIIntegrationValidation.Start` harness covers the wider menu, layout and
+save/load regressions. Check fresh result files, logs and exit codes for each run.
+
+Designer settings and manual checks are described in the
+[attractions guide](../Assets/Mythologicum/Documentation/Attractions-Guide.md).

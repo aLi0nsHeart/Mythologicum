@@ -43,6 +43,7 @@ namespace Mythologicum.Editor
                 "Building dimensions, purchase/upkeep costs, default prices, food/rest services, staff capacity and salaries, goat supply stock and dispensing. Buildings use a copy at park start; restart Play mode after editing. Existing saved footprints and player-set prices are preserved.");
             Add("Fences", "Fences/DefaultFences",
                 "Health, climbing, phasing and resistance to creature attacks, separately for each fence type. New segments use the configured health; repairs and containment use the current rules.");
+            Add("Viewing windows", "Attractions/ViewingWindow", "Fence-window purchase cost, visitor ticket price, upkeep, capacity, visit duration and appeal. Building attractions are in the Buildings catalogue.");
             Add("Visitors", "Visitors/DefaultVisitors",
                 "Arrival rate, capacity and base needs, plus visitor-type arrival weights, exhibit interests, hunger/rest/fear multipliers, patience and satisfaction. Initial values apply to newly arriving visitors.");
             Add("People models", "People/People",

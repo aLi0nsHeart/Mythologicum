@@ -33,10 +33,18 @@ namespace Mythologicum
         public BuildingKind kind;
         public Vector2Int cell;
         public int rotation, width, depth, door, stock;
+        // Optional; older petting entrances retain their original building footprint.
+        public bool fenceMounted;
+        public AttractionRideSave ride;
+        public bool hasRide;
         public float height, price, revenue, expenses;
         public string research;
     }
-    [Serializable] public sealed class SavedFence { public Vector2Int cell; public bool alongX, gate; public FenceKind kind; public float health; }
+    [Serializable] public sealed class SavedFence
+    {
+        public Vector2Int cell; public bool alongX, gate, window; public FenceKind kind; public float health;
+        public float windowPrice, windowRevenue, windowExpenses;
+    }
     [Serializable] public sealed class SavedResearch { public string species; public float progress; }
     [Serializable] public sealed class SavedActor
     {
@@ -49,6 +57,7 @@ namespace Mythologicum
         // Optional visitor-only data. Missing fields in older saves remain general visitors.
         public VisitorType visitorType;
         public List<string> observedSpecies, observedOrigins;
+        public VisitorAttractionSave attraction;
     }
     public static class ParkSaveStore
     {

@@ -63,6 +63,8 @@ namespace Mythologicum
                     Mathf.Clamp01(selected.LastExhibitInterest) * 100f);
             if (selected.Type == VisitorType.Adventurers)
                 details.text += Loc.Format("visitor.info.discoveries", selected.ObservedSpecies.Count, selected.ObservedOrigins.Count);
+            if (!string.IsNullOrEmpty(selected.AttractionName)) details.text += Loc.Format("attraction.visitor.info",
+                selected.AttractionName, selected.AttractionInterest * 100f, selected.AttractionSecondsRemaining);
             details.text += Loc.Text("visitor.info.deselect");
             float height=Mathf.Ceil(details.preferredHeight);
             details.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);

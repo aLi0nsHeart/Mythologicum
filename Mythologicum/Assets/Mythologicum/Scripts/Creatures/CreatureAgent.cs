@@ -51,7 +51,11 @@ namespace Mythologicum
         internal FenceEdge? EscapeBarrier;
         internal readonly CreatureExploration Exploration = new CreatureExploration();
         internal bool ExternallyControlled;
-        internal string ExternalStatus;
+        internal ParkBuildingRecord PettingHost;
+        internal ParkBuildingRecord AttractionHost;
+        internal bool AttractionPoseControlled;
+        internal bool AttractionWalking;
+        internal float AttractionScareRelief = -1f, AttractionScareCooldown;
         internal bool ExternalResting;
         internal readonly List<Vector2Int> Route = new List<Vector2Int>();
         internal Vector2Int? Goal;

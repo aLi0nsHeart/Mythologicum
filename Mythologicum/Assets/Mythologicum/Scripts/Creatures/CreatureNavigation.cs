@@ -96,8 +96,19 @@ namespace Mythologicum
         /// Cells touched at a corner are tested too, preventing sight through building corners.
         /// </summary>
         public bool HasLineOfSight(Vector2Int start, Vector2Int end)
+            => HasLineOfSightCore(start, end, null);
+
+        // Only a paid viewing experience can see through its own glazing.
+        // Ordinary perception and all movement keep buildings solid.
+        internal bool HasLineOfSightFromRoom(Vector2Int start, Vector2Int end, BuildingFootprint room)
+            => HasLineOfSightCore(start, end, room);
+
+        private bool ClearForSight(Vector2Int cell, BuildingFootprint? room)
+            => IsWalkable(cell) || grid.Contains(cell) && room.HasValue && room.Value.Contains(cell);
+
+        private bool HasLineOfSightCore(Vector2Int start, Vector2Int end, BuildingFootprint? room)
         {
-            if (!IsWalkable(start) || !IsWalkable(end) || !grid.GroundLineOfSight(start,end)) return false;
+            if (!ClearForSight(start, room) || !ClearForSight(end, room) || !grid.GroundLineOfSight(start,end)) return false;
             int dx = end.x - start.x, dy = end.y - start.y;
             int nx = Math.Abs(dx), ny = Math.Abs(dy);
             int sx = Math.Sign(dx), sy = Math.Sign(dy);
@@ -109,8 +120,8 @@ namespace Mythologicum
                 long decision = (1L + 2L * ix) * ny - (1L + 2L * iy) * nx;
                 if (decision == 0)
                 {
-                    if (!IsWalkable(cell + new Vector2Int(sx, 0))
-                        || !IsWalkable(cell + new Vector2Int(0, sy))) return false;
+                    if (!ClearForSight(cell + new Vector2Int(sx, 0), room)
+                        || !ClearForSight(cell + new Vector2Int(0, sy), room)) return false;
                     cell += new Vector2Int(sx, sy);
                     ix++;
                     iy++;
@@ -125,7 +136,7 @@ namespace Mythologicum
                     cell += new Vector2Int(0, sy);
                     iy++;
                 }
-                if (!IsWalkable(cell)) return false;
+                if (!ClearForSight(cell, room)) return false;
             }
             return true;
         }

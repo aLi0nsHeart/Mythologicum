@@ -23,6 +23,8 @@ namespace Mythologicum
         [Tooltip("Legacy tag setting retained for existing profiles. Fear now compares threat values.")]
         public CreatureTags fearedTags;
         public bool manuallyPlaceable = true;
+        [Tooltip("Suitable for designated safe-contact petting exhibits, subject to the attraction's threat limit.")]
+        public bool pettable;
         [Tooltip("Expedition rarity and difficulty tier, independent of combat threat.")]
         [Range(1, 5)] public int rating = 1;
 

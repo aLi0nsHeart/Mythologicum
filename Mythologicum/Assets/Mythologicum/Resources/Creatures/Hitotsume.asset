@@ -23,6 +23,7 @@ MonoBehaviour:
   preyTags: 4
   fearedTags: 0
   manuallyPlaceable: 1
+  pettable: 0
   rating: 1
   initialHunger: 45
   hungerPerSecond: 0.8

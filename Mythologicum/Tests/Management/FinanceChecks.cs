@@ -144,6 +144,14 @@ public static class FinanceChecks
         Equal(85, finances.Balance, "Categorized building accounts preserve expected bank balance");
         Equal(13, workplace.Expenses, "Workplace history still records its complete local expense");
         Equal(10, finances.TrackedSeconds, "Building count never advances the financial clock more than once");
+        var legacy = new FinanceSnapshot { trackedSeconds = 1 };
+        var legacyBucket = new FinanceWindowBucket { age = 0, income = new double[(int)ParkTransactionCategory.Other + 1], expenses = new double[(int)ParkTransactionCategory.Other + 1] };
+        legacyBucket.income[(int)ParkTransactionCategory.Other] = 7;
+        legacy.buckets.Add(legacyBucket); finances.RestoreFinance(legacy);
+        Equal(7, finances.IncomeInWindow(ParkTransactionCategory.Other), "Older financial categories preserve their stable indices");
+        Equal(0, finances.IncomeInWindow(ParkTransactionCategory.Attractions), "Older saves start the new attraction category empty");
+        finances.Earn(4, ParkTransactionCategory.Attractions);
+        Equal(4, finances.IncomeInWindow(ParkTransactionCategory.Attractions), "Expanded restored buckets can record attraction income");
         Console.WriteLine("PASS: " + checks + " rolling finance, categorization, save validation and building accounting checks.");
     }
 }

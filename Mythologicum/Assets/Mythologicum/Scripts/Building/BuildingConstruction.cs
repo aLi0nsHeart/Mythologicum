@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Mythologicum
 {
@@ -7,6 +9,8 @@ namespace Mythologicum
     {
         private sealed class View
         {
+            public Transform Root;
+            public AttractionVisualAnimator Ride;
             public MeshRenderer Body;
             public MeshRenderer Marker;
             public bool? LastOpen;
@@ -16,6 +20,9 @@ namespace Mythologicum
         private readonly Transform parent;
         private readonly Material material, entranceMaterial;
         private readonly Dictionary<ParkBuildingRecord, View> views = new Dictionary<ParkBuildingRecord, View>();
+        private readonly Collider[] pettingOverlap = new Collider[64];
+        public Func<ParkBuildingRecord, int> AttractionOccupancy { get; set; }
+        public Func<ParkBuildingRecord, bool> CanDemolish { get; set; }
 
         public BuildingConstruction(SquareBuildGrid grid, FenceLayout fences, Transform parent,
             Material material, Material entranceMaterial)
@@ -30,11 +37,27 @@ namespace Mythologicum
         public bool CanPlace(BuildingFootprint footprint)
         {
             if (!Network.CanPlace(footprint)) return false;
-            if(grid.Terrain!=null&&!Network.RestoringSave&&!grid.Terrain.TryPlanFoundation(footprint,grid,out _))return false;
+            if(grid.Terrain!=null&&footprint.RequiresFoundation&&!Network.RestoringSave&&!grid.Terrain.TryPlanFoundation(footprint,grid,out _))return false;
             Vector3 half = new Vector3(footprint.Width * grid.CellSize / 2f - 0.05f,
                 footprint.Definition.height / 2f - 0.01f, footprint.Depth * grid.CellSize / 2f - 0.05f);
-            if (Physics.CheckBox(PreviewPosition(footprint) + Vector3.up * footprint.Definition.height / 2f,
-                half, Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
+            if (footprint.IsFenceMounted && !footprint.RequiresFoundation)
+                half = footprint.RearEdge.AlongX ? new Vector3(grid.CellSize / 2f - .05f, half.y, FenceConstruction.Thickness / 2f)
+                    : new Vector3(FenceConstruction.Thickness / 2f, half.y, grid.CellSize / 2f - .05f);
+            Vector3 center = PreviewPosition(footprint) + Vector3.up * footprint.Definition.height / 2f;
+            if (footprint.Definition.attraction?.kind == AttractionKind.PettingZoo)
+            {
+                int count = Physics.OverlapBoxNonAlloc(center, half, pettingOverlap, Quaternion.identity,
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                bool blocked = count >= pettingOverlap.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    var collider = pettingOverlap[i]; pettingOverlap[i] = null;
+                    var fence = collider != null ? collider.GetComponentInParent<FenceSegment>() : null;
+                    if (fence == null || !fence.Edge.Equals(footprint.RearEdge)) blocked = true;
+                }
+                if (blocked) return false;
+            }
+            else if (Physics.CheckBox(center, half, Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
             return !Physics.CheckBox(grid.CellCenter(footprint.AccessCell) + Vector3.up * 0.5f,
                 new Vector3(grid.CellSize / 2f - 0.05f, 0.49f, grid.CellSize / 2f - 0.05f),
                 Quaternion.identity, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
@@ -46,7 +69,7 @@ namespace Mythologicum
             if (!CanPlace(footprint)) return false;
             ParkBuildingRecord record = Network.TryPlace(footprint);
             if (record == null) return false;
-            if(grid.Terrain!=null)
+            if(grid.Terrain!=null&&footprint.RequiresFoundation)
             {
                 if(!Network.RestoringSave)
                 {
@@ -64,27 +87,33 @@ namespace Mythologicum
             Vector3 size = new Vector3(definition.width * grid.CellSize - 0.16f,
                 definition.height, definition.depth * grid.CellSize - 0.16f);
             var collider = root.AddComponent<BoxCollider>();
-            collider.size = size;
+            collider.size = footprint.IsFenceMounted && !footprint.RequiresFoundation ? new Vector3(grid.CellSize - .1f, definition.height, FenceConstruction.Thickness) : size;
+            collider.isTrigger = footprint.IsFenceMounted && !footprint.RequiresFoundation;
             collider.center = Vector3.up * definition.height / 2f;
             GameObject body = CreateVisual(root.transform, definition);
+            var ride = body.GetComponent<AttractionVisualAnimator>();
+            if (ride == null && definition.IsAttraction)
+            { ride = body.AddComponent<AttractionVisualAnimator>(); ride.Initialize(definition); }
+            if (ride != null) ride.Bind(() => Network.Contains(record) ? AttractionOccupancy?.Invoke(record) ?? 0 : 0);
             float doorX = (definition.DoorColumn + 0.5f - definition.width / 2f) * grid.CellSize;
             GameObject marker = Part(root.transform, definition.RequiresPathConnection ? "Connect a path here" : "Animal release point",
-                new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
+                footprint.IsFenceMounted ? root.transform.InverseTransformPoint(grid.CellCenter(footprint.AccessCell) + Vector3.up * .14f)
+                    : new Vector3(doorX, 0.14f, -(definition.depth + 1) * grid.CellSize / 2f),
                 new Vector3(grid.CellSize * 0.6f, 0.08f, grid.CellSize * 0.6f), entranceMaterial);
-            views.Add(record, new View { Body = definition.visualPrefab == null ? body.GetComponent<MeshRenderer>() : null,
+            views.Add(record, new View { Root = root.transform, Ride = ride, Body = definition.visualPrefab == null ? body.GetComponent<MeshRenderer>() : null,
                 Marker = marker.GetComponent<MeshRenderer>() });
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 Network.Remove(record);
                 grid.Terrain?.ReleaseFoundation(record);
                 views.Remove(record);
-            });
+            }, () => CanDemolish?.Invoke(record) ?? true);
             return true;
         }
         public Vector3 PreviewPosition(BuildingFootprint footprint)
         {
             var position=footprint.Center(grid);
-            if(grid.Terrain!=null&&!Network.RestoringSave&&grid.Terrain.TryPlanFoundation(footprint,grid,out var plan))position.y=grid.Origin.y+plan.Level;
+            if(grid.Terrain!=null&&footprint.RequiresFoundation&&!Network.RestoringSave&&grid.Terrain.TryPlanFoundation(footprint,grid,out var plan))position.y=grid.Origin.y+plan.Level;
             return position;
         }
 
@@ -96,6 +125,9 @@ namespace Mythologicum
             return false;
         }
 
+        internal Transform TransformFor(ParkBuildingRecord record) => views.TryGetValue(record, out var view) ? view.Root : null;
+        public AttractionVisualAnimator AttractionVisualFor(ParkBuildingRecord record) => views.TryGetValue(record, out var view) ? view.Ride : null;
+
         // Shared by placement and its ghost; creates no occupancy, labels or gameplay components.
         public GameObject CreateVisual(Transform parent, BuildingDefinition definition)
         {
@@ -105,6 +137,8 @@ namespace Mythologicum
             GameObject body;
             if (definition.visualPrefab != null)
                 body = CreateModel(parent, definition, size);
+            else if (definition.IsAttraction)
+                return AttractionVisuals.Create(parent, definition, size, material);
             else if (resting)
             {
                 float benchWidth = size.x * 0.8f;
@@ -179,6 +213,11 @@ namespace Mythologicum
             {
                 ParkBuildingRecord record = pair.Key;
                 View view = pair.Value;
+                if (record.Footprint.IsFenceMounted)
+                {
+                    view.Root.position = record.Footprint.Center(grid);
+                    view.Marker.transform.position = grid.CellCenter(record.Footprint.AccessCell) + Vector3.up * .14f;
+                }
                 if (view.LastOpen == record.IsOpen) continue;
                 view.LastOpen = record.IsOpen;
                 Color color = record.IsOpen ? record.Footprint.Definition.openColor : new Color(0.85f, 0.12f, 0.1f);

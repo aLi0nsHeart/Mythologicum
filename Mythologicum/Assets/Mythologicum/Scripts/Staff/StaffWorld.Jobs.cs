@@ -177,13 +177,18 @@ namespace Mythologicum
 
         private bool IsExposed(CreatureAgent target)
         {
-            if (!groundRegions.TryGetValue(target.Cell,out var region))
+            if (target.Definition.pettable && AuthorizedPettingCreature?.Invoke(target) == true) return false;
+            foreach (Vector2Int cell in GroundRegion(target.Cell)) if (Buildings.IsPathConnected(cell)) return true;
+            return false;
+        }
+        private HashSet<Vector2Int> GroundRegion(Vector2Int start)
+        {
+            if (!groundRegions.TryGetValue(start,out var region))
             {
-                region = new HashSet<Vector2Int>(groundNavigation.Reachable(target.Cell,grid.Width * grid.Depth));
+                region = new HashSet<Vector2Int>(groundNavigation.Reachable(start,grid.Width * grid.Depth));
                 foreach (Vector2Int cell in region) groundRegions[cell] = region;
             }
-            foreach (Vector2Int cell in region) if (Buildings.IsPathConnected(cell)) return true;
-            return false;
+            return region;
         }
         private void JoinGroup(StaffAgent leader, CreatureAgent target)
         {
@@ -207,7 +212,7 @@ namespace Mythologicum
         private Vector2Int MeetingPoint(StaffAgent worker, CreatureAgent target)
         {
             Vector2Int best = worker.Home.Footprint.AccessCell; int score = int.MaxValue;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
                 if (!Buildings.IsPathConnected(cell) || Distance(grid.CellCenter(cell),target.transform.position) < tuning.shootingRange + tuning.regroupSafetyMargin) continue;
                 int distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell);
@@ -245,12 +250,15 @@ namespace Mythologicum
         private Vector2Int? FindRangedPosition(StaffAgent worker, CreatureAgent target, float range, bool clearShot = false)
         {
             Vector2Int? best = null; float score = float.MaxValue;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
+                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : tuning.offPathApproachPenalty);
+                // Equal scores retain the original BFS winner. Avoid sight tests for
+                // candidates that cannot beat it, including nonfinite tuning values.
+                if (!(distance < score)) continue;
                 if (Distance(grid.CellCenter(cell),target.transform.position) > range || !navigation.HasLineOfSight(cell,target.Cell)) continue;
                 if (clearShot && !navigation.HasClearShot(cell,target.Cell)) continue;
-                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : tuning.offPathApproachPenalty);
-                if (distance < score) { score = distance; best = cell; }
+                score = distance; best = cell;
             }
             return best;
         }
@@ -313,7 +321,7 @@ namespace Mythologicum
         private void Patrol(StaffAgent worker)
         {
             if (worker.Actor.Route.Count > 0) { SetStatus(worker,StaffTask.Patrolling,"staff.status.patrolling_visitor_paths"); return; }
-            var paths = navigation.Reachable(worker.Actor.Cell,true);
+            var paths = ReachableWorkCells(worker.Actor.Cell,true);
             if (paths.Count == 0) { SetGoal(worker,worker.Home.Footprint.AccessCell); SetStatus(worker,StaffTask.Returning,"staff.status.returning_to_visitor_paths"); return; }
             SetGoal(worker,paths[UnityEngine.Random.Range(0,paths.Count)],true);
             SetStatus(worker,StaffTask.Patrolling,"staff.status.patrolling_visitor_paths");
@@ -326,7 +334,7 @@ namespace Mythologicum
                 if (!ValidCreature(target) || target.IsSedated || target.Definition.threat <= worker.Actor.Definition.threat
                     || !creatures.CanSee(worker.Actor,target,tuning.threatFleeRange)) continue;
                 // Staff gates provide access but an intact fence still separates a patient from its observer.
-                var region = groundNavigation.Reachable(worker.Actor.Cell,grid.Width * grid.Depth);
+                var region = GroundRegion(worker.Actor.Cell);
                 if (!region.Contains(target.Cell)) continue;
                 float current = Distance(worker.Actor.transform.position,target.transform.position);
                 if (current < distance) { distance = current; best = target; }
@@ -336,7 +344,7 @@ namespace Mythologicum
         private void Flee(StaffAgent worker, CreatureAgent danger)
         {
             Vector2Int best = worker.Actor.Cell; float distance = -1f;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
                 float score = Distance(grid.CellCenter(cell),danger.transform.position)
                     - ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) * tuning.fleeingTravelPenalty;

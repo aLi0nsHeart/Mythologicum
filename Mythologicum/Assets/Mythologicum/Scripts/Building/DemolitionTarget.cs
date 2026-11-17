@@ -8,12 +8,14 @@ namespace Mythologicum
     {
         private Action onRemoved;
         private bool removed;
+        private Func<bool> canRemove;
+        public bool CanDemolish => !removed && (canRemove?.Invoke() ?? true);
 
-        public void Initialize(Action onRemoved) => this.onRemoved = onRemoved;
+        public void Initialize(Action onRemoved, Func<bool> canRemove = null) { this.onRemoved = onRemoved; this.canRemove = canRemove; }
 
         public bool Demolish()
         {
-            if (removed) return false;
+            if (!CanDemolish) return false;
             removed = true;
             foreach (Collider collider in GetComponentsInChildren<Collider>()) collider.enabled = false;
             onRemoved?.Invoke();

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum VisitorActivity { Arriving, Walking, Watching, SeekingFood, Eating, SeekingRest, Resting,
-        Fleeing, ReturningToPath, Leaving, Stranded, Captured }
+        Fleeing, ReturningToPath, Leaving, Stranded, Captured, SeekingAttraction, EnjoyingAttraction }
 
     /// <summary>A guest's decisions; the shared actor supplies hunger, energy, fear and predator interactions.</summary>
     public sealed class VisitorAgent : MonoBehaviour
@@ -36,6 +36,13 @@ namespace Mythologicum
         private string priceComplaint;
         public string PriceComplaint { get => Loc.Resolve(priceComplaint); internal set => priceComplaint = value; }
         internal CreatureAgent Watching;
+        internal VisitorAttractionVisit Attraction;
+        internal float NextAttractionDecision;
+        internal readonly Dictionary<string, float> AttractionHistory = new Dictionary<string, float>(System.StringComparer.Ordinal);
+        public string AttractionName => Attraction == null ? "" : Attraction.Building != null
+            ? Attraction.Building.Footprint.Definition.DisplayName : Loc.Text(Attraction.HasPettingPortal ? "attraction.petting_zoo.name" : "attraction.viewing_window.name");
+        public float AttractionInterest => Attraction?.Interest ?? 0f;
+        public float AttractionSecondsRemaining => Attraction != null && Attraction.Phase == VisitorAttractionPhase.Visiting ? Mathf.Max(0, StateTimer) : 0f;
         internal readonly Dictionary<CreatureAgent, float> ViewedAt = new Dictionary<CreatureAgent, float>();
     }
 }

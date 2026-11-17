@@ -120,7 +120,6 @@ namespace Mythologicum
             if (!TrySpawn(definition, cell, null, visualPrefab)) return null;
             CreatureAgent actor = agents[agents.Count - 1];
             actor.ExternallyControlled = true;
-            actor.ExternalStatus = "visitor.status.arriving";
             return actor;
         }
 
@@ -1001,7 +1000,7 @@ namespace Mythologicum
                 : agent.Activity == CreatureActivity.Sleeping || agent.IsSedated ? "stand_to_sit"
                 : agent.Activity == CreatureActivity.Grazing || agent.Activity == CreatureActivity.Feeding ? "eating"
                 : agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.AttackingFence ? "attack"
-                : agent.Route.Count > 0 ? (agent.Activity == CreatureActivity.Fleeing
+                : agent.Route.Count > 0 || agent.AttractionWalking ? (agent.Activity == CreatureActivity.Fleeing
                     || agent.Activity == CreatureActivity.Hunting ? "run_forward" : "walk_forward")
                 : "idle";
             if (!agent.Alive && !agent.BodyAnimator.HasState(0, Animator.StringToHash("Base Layer.death")))
@@ -1068,7 +1067,7 @@ namespace Mythologicum
             grid.ActorPosition(cell,agent.Definition.bodyScale.y);
         private void GroundActor(CreatureAgent actor)
         {
-            if(grid.Terrain==null||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence
+            if(grid.Terrain==null||actor.AttractionPoseControlled||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence
                 || actor.Activity == CreatureActivity.BurrowingFence)return;
             actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y+actor.Elevation);
         }

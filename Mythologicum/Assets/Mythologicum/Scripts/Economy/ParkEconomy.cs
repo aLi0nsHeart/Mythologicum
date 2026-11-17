@@ -6,7 +6,7 @@ namespace Mythologicum
 {
     public enum ParkTransactionCategory
     {
-        Admission, Food, Rest, BuildingUpkeep, Salary, Supplies, Construction, Hiring, Research, Expeditions, Other
+        Admission, Food, Rest, BuildingUpkeep, Salary, Supplies, Construction, Hiring, Research, Expeditions, Other, Attractions
     }
 
     [Serializable]
@@ -30,7 +30,8 @@ namespace Mythologicum
     /// </summary>
     public sealed class ParkEconomy
     {
-        public const int CategoryCount = (int)ParkTransactionCategory.Other + 1;
+        public const int CategoryCount = (int)ParkTransactionCategory.Attractions + 1;
+        private const int LegacyCategoryCount = (int)ParkTransactionCategory.Other + 1;
         public const float WindowSeconds = 60f;
         private readonly List<FinanceWindowBucket> recent = new List<FinanceWindowBucket>();
         public float Balance { get; private set; }
@@ -161,7 +162,12 @@ namespace Mythologicum
             TrackedSeconds = snapshot.trackedSeconds;
             foreach (var bucket in snapshot.buckets)
                 recent.Add(new FinanceWindowBucket
-                { age = bucket.age, income = (double[])bucket.income.Clone(), expenses = (double[])bucket.expenses.Clone() });
+                { age = bucket.age, income = ExpandCategories(bucket.income), expenses = ExpandCategories(bucket.expenses) });
+        }
+
+        private static double[] ExpandCategories(double[] values)
+        {
+            var result = new double[CategoryCount]; Array.Copy(values, result, values.Length); return result;
         }
 
         public static void ValidateSnapshot(FinanceSnapshot snapshot)
@@ -175,8 +181,8 @@ namespace Mythologicum
             {
                 if (bucket == null || !Finite(bucket.age) || bucket.age < 0f || bucket.age >= WindowSeconds
                     || bucket.age > snapshot.trackedSeconds + .01f || bucket.age >= previousAge
-                    || bucket.income == null || bucket.income.Length != CategoryCount
-                    || bucket.expenses == null || bucket.expenses.Length != CategoryCount)
+                    || bucket.income == null || (bucket.income.Length != CategoryCount && bucket.income.Length != LegacyCategoryCount)
+                    || bucket.expenses == null || bucket.expenses.Length != bucket.income.Length)
                     throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_bucket"));
                 foreach (double value in bucket.income)
                     if (!ValidStoredAmount(value)) throw new InvalidDataException(Loc.Text("park.park_economy.invalid_saved_financial_income"));

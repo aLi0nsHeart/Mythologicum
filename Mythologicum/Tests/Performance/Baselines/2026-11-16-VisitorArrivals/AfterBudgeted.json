@@ -1,0 +1,74 @@
+{
+    "utcTime": "2026-11-16T09:59:16.4560869Z",
+    "unityVersion": "6000.0.74f1",
+    "scope": "128x128 real flat GridHeightField, imported visitor models. Edit-mode CPU only: no rendering, skinning, GPU uploads, or frame-rate claim.",
+    "mapSize": 128,
+    "connectedPathTiles": 4935,
+    "exhibits": 48,
+    "checks": 138,
+    "timings": [
+        {
+            "name": "RefreshReputation",
+            "samples": 16,
+            "coldMs": 4.3957,
+            "medianMs": 0.4906,
+            "worstMs": 4.3957
+        },
+        {
+            "name": "PrepareModels-loading-total",
+            "samples": 1,
+            "coldMs": 14.1843,
+            "medianMs": 14.1843,
+            "worstMs": 14.1843
+        },
+        {
+            "name": "TrySpawn-real-model",
+            "samples": 16,
+            "coldMs": 7.7701,
+            "medianMs": 0.2967,
+            "worstMs": 7.7701
+        },
+        {
+            "name": "RestoreTyped-real-model",
+            "samples": 16,
+            "coldMs": 0.7976,
+            "medianMs": 0.3659,
+            "worstMs": 0.7976
+        },
+        {
+            "name": "FirstThink-real-model-cold-viewing",
+            "samples": 16,
+            "coldMs": 32.3956,
+            "medianMs": 4.1524,
+            "worstMs": 32.3956
+        },
+        {
+            "name": "FirstThink-real-model-shared-viewing",
+            "samples": 16,
+            "coldMs": 3.7561,
+            "medianMs": 0.7444,
+            "worstMs": 3.7561
+        },
+        {
+            "name": "RestoreTyped-placeholder",
+            "samples": 16,
+            "coldMs": 1.7012,
+            "medianMs": 0.3549,
+            "worstMs": 7.9552
+        },
+        {
+            "name": "FirstThink-placeholder-cold-viewing",
+            "samples": 16,
+            "coldMs": 4.3193,
+            "medianMs": 3.7134,
+            "worstMs": 4.3667
+        },
+        {
+            "name": "Budgeted-arrival-Tick",
+            "samples": 20,
+            "coldMs": 20.9606,
+            "medianMs": 0.2755,
+            "worstMs": 20.9606
+        }
+    ]
+}

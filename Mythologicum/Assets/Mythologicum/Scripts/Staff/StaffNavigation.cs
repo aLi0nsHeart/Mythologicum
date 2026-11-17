@@ -44,9 +44,17 @@ namespace Mythologicum
         public List<Vector2Int> Reachable(Vector2Int start, bool pathsOnly = false)
         {
             var result = new List<Vector2Int>();
-            if (!IsWalkable(start,pathsOnly)) return result;
-            var visited = new HashSet<Vector2Int> { start };
-            var pending = new Queue<Vector2Int>(); pending.Enqueue(start);
+            FillReachable(start, pathsOnly, result, new Queue<Vector2Int>(), new HashSet<Vector2Int>());
+            return result;
+        }
+
+        /// <summary>Fills caller-owned scratch buffers in the same BFS order as Reachable.</summary>
+        internal void FillReachable(Vector2Int start, bool pathsOnly, List<Vector2Int> result,
+            Queue<Vector2Int> pending, HashSet<Vector2Int> visited)
+        {
+            result.Clear(); pending.Clear(); visited.Clear();
+            if (!IsWalkable(start,pathsOnly)) return;
+            visited.Add(start); pending.Enqueue(start);
             while (pending.Count > 0)
             {
                 Vector2Int cell = pending.Dequeue(); result.Add(cell);
@@ -57,7 +65,6 @@ namespace Mythologicum
                     if (visited.Add(next)) pending.Enqueue(next);
                 }
             }
-            return result;
         }
 
         public bool HasLineOfSight(Vector2Int start, Vector2Int end) => sight.HasLineOfSight(start,end);

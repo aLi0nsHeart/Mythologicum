@@ -1,18 +1,26 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Mythologicum
 {
     /// <summary>Guest visits, path travel, viewing and services. Uses the creature world's shared prey actors.</summary>
-    public sealed class VisitorWorld : IDisposable
+    public sealed partial class VisitorWorld : IDisposable
     {
+        private static readonly ProfilerMarker ArrivalProfile = new ProfilerMarker("Mythologicum.VisitorArrival");
+        private static readonly ProfilerMarker ModelPreparationProfile = new ProfilerMarker("Mythologicum.VisitorModelPreparation");
+        private static readonly ProfilerMarker PathPreparationProfile = new ProfilerMarker("Mythologicum.ArrivalPathPreparation");
+        private static readonly ProfilerMarker DecisionProfile = new ProfilerMarker("Mythologicum.VisitorDecision");
+        private static readonly ProfilerMarker ReputationProfile = new ProfilerMarker("Mythologicum.ExhibitRecount");
         private readonly SquareBuildGrid grid;
         private readonly FenceLayout fences;
         private readonly ParkBuildingNetwork buildings;
         private readonly CreatureWorld creatures;
         private readonly ParkEconomy economy;
         private readonly VisitorNavigation navigation;
+        private readonly VisitorArrivalPaths arrivalPaths;
         private readonly CreatureNavigation sight;
         private readonly VisitorViewingCache viewing;
         private readonly Dictionary<Vector2Int, int> viewingOrder = new Dictionary<Vector2Int, int>();
@@ -25,6 +33,7 @@ namespace Mythologicum
         private float arrivalTimer, time, reputationTimer, admissionCredit;
         private int reputationGridRevision = -1, reputationFenceRevision = -1;
         private int gridRevision = -1, fenceRevision = -1;
+        private bool modelsPrepared;
         public VisitorDefinition Definition { get; }
         public ParkReputation Reputation { get; }
         public int RejectedAdmissions { get; private set; }
@@ -53,10 +62,64 @@ namespace Mythologicum
             Definition = definition;
             Reputation = reputation ?? new ParkReputation();
             navigation = new VisitorNavigation(grid, fences, creatures.IsClear);
+            arrivalPaths = new VisitorArrivalPaths(grid, fences, navigation);
             sight = new CreatureNavigation(grid, fences, creatures.IsClear);
             viewing = new VisitorViewingCache(grid, sight.HasLineOfSight);
             actorProfile = Profile(VisitorType.Legacy);
             arrivalTimer = definition.spawnInterval;
+        }
+
+        /// <summary>Warm native model/avatar resources behind the loading screen, one model per rendered frame.</summary>
+        public IEnumerator PrepareModels(Camera warmupCamera = null)
+        {
+            if (modelsPrepared || !Definition.prewarmVisitorModels) yield break;
+            yield return null; // Present the loader before the first imported-model initialization.
+            foreach (var type in new[] { VisitorType.ThrillSeekers, VisitorType.Wonderlust, VisitorType.Adventurers, VisitorType.Children }) Profile(type);
+            var models = new HashSet<GameObject>();
+            var people = Definition.people;
+            if (people != null)
+                foreach (var pool in new[] { people.civilians, people.adultVisitors, people.childVisitors })
+                    if (pool != null) foreach (var model in pool) if (model != null) models.Add(model);
+            foreach (var model in models)
+            {
+                GameObject preview = null;
+                try
+                {
+                    using (ModelPreparationProfile.Auto())
+                    {
+                        preview = UnityEngine.Object.Instantiate(model);
+                        preview.name = "Visitor model preparation";
+                        foreach (var collider in preview.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                        foreach (var renderer in preview.GetComponentsInChildren<Renderer>(true))
+                        {
+                            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                            renderer.receiveShadows = false;
+                            // A supplied gameplay camera renders the model behind the opaque loading screen.
+                            renderer.forceRenderingOff = warmupCamera == null;
+                        }
+                        if (warmupCamera != null)
+                            preview.transform.position = warmupCamera.transform.position + warmupCamera.transform.forward
+                                * Mathf.Max(warmupCamera.nearClipPlane * 2f, 5f);
+                        foreach (var animator in preview.GetComponentsInChildren<Animator>(true))
+                        {
+                            animator.applyRootMotion = false;
+                            if (!animator.isActiveAndEnabled || animator.runtimeAnimatorController == null) continue;
+                            animator.Rebind(); animator.Update(0f);
+                        }
+                    }
+                    yield return null;
+                }
+                finally
+                {
+                    if (preview != null)
+                    {
+                        preview.SetActive(false);
+                        if (Application.isPlaying) UnityEngine.Object.Destroy(preview);
+                        else UnityEngine.Object.DestroyImmediate(preview);
+                    }
+                }
+            }
+            modelsPrepared = true;
         }
 
         private CreatureDefinition Profile(VisitorType type)
@@ -101,9 +164,10 @@ namespace Mythologicum
 
         public VisitorAgent TrySpawn()
         {
+            using var sample = ArrivalProfile.Auto();
             buildings.Refresh();
             if (Population >= Definition.maximumVisitors || buildings.Entrance == null || !buildings.Entrance.IsOpen) return null;
-            RefreshReputation();
+            RefreshReputationIfNeeded();
             float acceptance = AdmissionAcceptance;
             admissionCredit += acceptance;
             if (acceptance <= 0f || admissionCredit < 1f)
@@ -124,12 +188,15 @@ namespace Mythologicum
             if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime <= 0f) return;
             float dt = deltaTime; time += dt;
             buildings.Refresh();
+            TickRideCycles(dt);
             RefreshNavigation();
             viewing.BeginTick(Definition.viewRange);
             Reputation.Tick(dt);
             reputationTimer -= dt;
-            if (reputationTimer <= 0f || reputationGridRevision != grid.Revision || reputationFenceRevision != fences.Revision)
-                RefreshReputation();
+            RefreshReputationIfNeeded();
+            if (buildings.Entrance != null && buildings.Entrance.IsOpen && (Population > 0 || Definition.maximumVisitors > 0))
+                using (PathPreparationProfile.Auto())
+                    arrivalPaths.Prepare(buildings.Entrance.Footprint.AccessCell, Definition.arrivalPathCellsPerFrame);
             if (buildings.Entrance != null && buildings.Entrance.IsOpen && Population < Definition.maximumVisitors)
             {
                 arrivalTimer -= dt * Reputation.DemandMultiplier;
@@ -147,6 +214,7 @@ namespace Mythologicum
                 var settings = guest.TypeSettings;
                 if (actor.CapturedBy != null && actor.CapturedBy.Alive)
                 {
+                    CancelAttraction(guest, false);
                     guest.LeavingPark = true;
                     ReleaseService(guest); actor.Route.Clear(); actor.Goal = null;
                     SetActivity(guest, VisitorActivity.Captured, "visitor.status.caught_by_a_predator");
@@ -166,7 +234,8 @@ namespace Mythologicum
                 bool watching = guest.Activity == VisitorActivity.Watching && guest.Watching != null
                     && guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange);
                 guest.Mood.Tick(dt, actor.Vitals.Hunger, actor.Energy.Energy, actor.Vitals.Fear,
-                    watching, resting || (guest.Activity == VisitorActivity.Eating && ServiceAvailable(guest)),
+                    watching, resting || (guest.Activity == VisitorActivity.Eating && ServiceAvailable(guest))
+                        || guest.Activity == VisitorActivity.EnjoyingAttraction,
                     Definition.minimumStaySeconds, Definition.maximumStaySeconds,
                     settings.RewardMultiplier(guest.LastExhibitInterest), settings.fearLossMultiplier);
                 if (guest.Mood.ShouldLeave) guest.LeavingPark = true;
@@ -180,6 +249,7 @@ namespace Mythologicum
                     && Distance(actor.transform.position, guest.LastDanger) < Definition.fleeSafeDistance);
                 if (danger)
                 {
+                    InterruptAttraction(guest);
                     ReleaseService(guest);
                     if (guest.Activity != VisitorActivity.Fleeing || guest.DecisionTimer <= 0f || actor.Route.Count == 0)
                     {
@@ -187,10 +257,20 @@ namespace Mythologicum
                         Flee(guest);
                     }
                 }
+                else if (guest.Attraction != null) TickAttraction(guest);
                 else if (guest.DecisionTimer <= 0f)
                 {
-                    guest.DecisionTimer = Mathf.Max(.05f, Definition.decisionInterval);
-                    Think(guest);
+                    // Build the shared entrance search over several frames instead of charging
+                    // its entire cost to a freshly spawned visitor. Safety and exits never wait.
+                    bool preparingArrival = !guest.LeavingPark && guest.Activity == VisitorActivity.Arriving
+                        && actor.Route.Count == 0 && buildings.Entrance != null && buildings.Entrance.IsOpen
+                        && actor.Cell == buildings.Entrance.Footprint.AccessCell
+                        && !arrivalPaths.TryGet(actor.Cell, out _);
+                    if (!preparingArrival)
+                    {
+                        guest.DecisionTimer = Mathf.Max(.05f, Definition.decisionInterval);
+                        Think(guest);
+                    }
                 }
                 Move(guest, dt);
                 CompleteActivity(guest);
@@ -202,15 +282,22 @@ namespace Mythologicum
                     Reputation.ReportDeparture(guest.Mood.Satisfaction);
                     creatures.RemoveExternal(actor); continue;
                 }
-                actor.ExternalStatus = Loc.Format("visitor.status.with_satisfaction", guest.Status, guest.Mood.Satisfaction);
                 actor.ExternalResting = guest.Activity == VisitorActivity.Resting;
                 creatures.RefreshExternal(actor);
             }
         }
 
         /// <summary>Recounts creatures visible from connected public paths; fence ownership is irrelevant.</summary>
+        private void RefreshReputationIfNeeded()
+        {
+            if (reputationTimer <= 0f || reputationGridRevision != grid.Revision || reputationFenceRevision != fences.Revision)
+                RefreshReputation();
+        }
+
+        /// <summary>Explicitly refreshes exhibition data; ordinary arrivals share the scheduled snapshot.</summary>
         public void RefreshReputation()
         {
+            using var sample = ReputationProfile.Auto();
             buildings.Refresh();
             var displayed = new Dictionary<string, ParkExhibit>(StringComparer.Ordinal);
             float range = Definition.viewRange;
@@ -253,7 +340,8 @@ namespace Mythologicum
                 guest.DecisionTimer = 0f;
                 CreatureAgent actor = guest.Actor;
                 if (actor == null) continue;
-                if (actor.Route.Count > 0 && !navigation.CanCross(actor.Cell, actor.Route[0], guest.GroundRoute))
+                if (actor.Route.Count > 0 && !PettingPortalStep(guest, actor.Cell, actor.Route[0])
+                    && !navigation.CanCross(actor.Cell, actor.Route[0], guest.GroundRoute))
                 {
                     actor.Route.Clear(); actor.Goal = null;
                     actor.transform.position = Position(actor, actor.Cell);
@@ -285,7 +373,9 @@ namespace Mythologicum
 
         private void Think(VisitorAgent guest)
         {
+            using var sample = DecisionProfile.Auto();
             CreatureAgent actor = guest.Actor;
+            if (guest.Attraction != null) { TickAttraction(guest); return; }
             CompleteActivity(guest);
             if (guest.LeavingPark && (guest.Activity == VisitorActivity.Eating || guest.Activity == VisitorActivity.Resting))
             { ReleaseService(guest); SetActivity(guest, VisitorActivity.Arriving, "visitor.status.ready_to_leave"); }
@@ -324,7 +414,14 @@ namespace Mythologicum
                 && guest.Watching.Alive && creatures.CanSee(actor, guest.Watching, Definition.viewRange)) return;
             if (guest.Activity == VisitorActivity.Walking && actor.Route.Count > 0 && guest.Watching != null
                 && guest.Watching.Alive) return;
-            List<Vector2Int> paths = navigation.Reachable(actor.Cell);
+            List<Vector2Int> paths;
+            if (buildings.Entrance != null && actor.Cell == buildings.Entrance.Footprint.AccessCell)
+            {
+                arrivalPaths.Prepare(actor.Cell, 1);
+                paths = arrivalPaths.GetOrBuild(actor.Cell);
+            }
+            else paths = navigation.Reachable(actor.Cell);
+            if (TryAttraction(guest, paths)) return;
             if (TryViewingSpot(guest, paths)) return;
             if (actor.Route.Count > 0) return;
             if (paths.Count > 1 && SetRoute(guest, paths[UnityEngine.Random.Range(0, paths.Count)]))
@@ -438,6 +535,7 @@ namespace Mythologicum
 
         private void Flee(VisitorAgent guest)
         {
+            if (TryPettingEmergencyExit(guest)) return;
             CreatureAgent actor = guest.Actor;
             Vector2Int best = actor.Cell; float bestScore = float.MinValue;
             foreach (Vector2Int candidate in GroundRegion(actor.Cell))
@@ -483,10 +581,11 @@ namespace Mythologicum
 
         private void Move(VisitorAgent guest, float dt)
         {
+            if (guest.Attraction?.InsideInterior == true) return;
             CreatureAgent actor = guest.Actor;
             if (actor.Route.Count == 0) return;
             Vector2Int next = actor.Route[0];
-            if (!navigation.CanCross(actor.Cell, next, guest.GroundRoute))
+            if (!PettingPortalStep(guest, actor.Cell, next) && !navigation.CanCross(actor.Cell, next, guest.GroundRoute))
             {
                 actor.Route.Clear(); actor.Goal = null; guest.DecisionTimer = 0f;
                 actor.transform.position = Position(actor, actor.Cell); return;
@@ -507,6 +606,7 @@ namespace Mythologicum
         {
             CreatureAgent actor = guest.Actor;
             if (actor.Route.Count > 0) return;
+            if (CompleteAttractionMovement(guest)) return;
             if (guest.Activity == VisitorActivity.SeekingFood || guest.Activity == VisitorActivity.SeekingRest)
             {
                 if (!ServiceAvailable(guest) || actor.Cell != guest.Service.Footprint.AccessCell)

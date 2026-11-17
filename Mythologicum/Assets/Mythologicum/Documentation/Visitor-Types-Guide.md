@@ -11,8 +11,9 @@ choose and how rewarding those visits feel.
 | Adventurers | Prefer rarity, new species and new origins; have more patience and wait longer before revisiting the same individual. |
 | Children | Prefer approachable, playful creatures; become hungry and tired sooner, seek services earlier, and are more easily frightened. |
 
-Children currently visit independently. Family groups and petting-zoo interaction
-are separate future features.
+Children currently visit independently; family groups remain a future feature.
+Researched attractions include petting-zoo visits for suitable creatures; see the
+[attractions guide](Attractions-Guide.md) for placement and balancing.
 
 ## Adjust the visitor mix and behaviour
 
@@ -68,6 +69,25 @@ the three adult types; **Child Visitors** supplies Children only. An empty pool
 uses that age group's placeholder instead of borrowing a model from the other
 pool. The existing **Civilians** pool remains for General visitors restored from
 older parks. Staff model references remain separate.
+
+## Smooth arrivals
+
+In `DefaultVisitors.asset`, expand **Simulation Updates**. **Prewarm Visitor
+Models** is enabled by default: the loading screen prepares each configured
+visitor model and its animation resources before play. The temporary models do
+not count as guests, charge admission or change the visitor mix.
+
+**Arrival Path Cells Per Frame** defaults to 256. New guests share an entrance
+path search prepared over several frames, rather than rebuilding it for every
+arrival. Lower this budget if preparation causes a long frame; increase it if
+guests wait noticeably at the entrance after large path changes. Results are used
+only when complete, and the reachable paths and exhibit preferences stay the
+same. Visitors still react immediately to danger and can leave normally.
+
+**Reputation Refresh Seconds** still defaults to 5 simulation seconds. Arrivals
+reuse that exhibition snapshot; construction changes refresh it immediately.
+Admission prices continue to use the current entrance price. These settings are
+shared by all four types, alongside their individual needs and interests.
 
 ## Inspect and test in a park
 

@@ -23,6 +23,7 @@ MonoBehaviour:
   preyTags: 0
   fearedTags: 2
   manuallyPlaceable: 1
+  pettable: 1
   rating: 1
   origin: creature.origin.central_europe
   maximumHealth: 30

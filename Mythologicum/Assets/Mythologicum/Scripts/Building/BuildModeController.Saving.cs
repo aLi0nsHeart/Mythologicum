@@ -32,13 +32,15 @@ namespace Mythologicum
             foreach (var record in records)
             {
                 var f = record.Footprint; var d = f.Definition;
+                var ride = visitorWorld.CaptureRide(record);
                 data.buildings.Add(new SavedBuilding { kind = d.kind, cell = f.Anchor, rotation = f.Rotation,
+                    fenceMounted = f.IsFenceMounted,
+                    ride = ride, hasRide = ride != null,
                     width = d.width, depth = d.depth, height = d.height, door = d.entranceColumn,
                     price = record.Price, revenue = record.Revenue, expenses = record.Expenses, stock = record.FeedStock,
                     research = staffWorld.ResearchTarget(record)?.name });
             }
-            foreach (var edge in fences.Layout.Edges) data.fences.Add(new SavedFence { cell = edge.Start,
-                alongX = edge.AlongX, kind = fences.Layout.KindAt(edge), gate = fences.Layout.IsGate(edge), health = fences.Layout.HealthAt(edge) });
+            foreach (var edge in fences.Layout.Edges) data.fences.Add(CaptureFence(edge));
             foreach (var actor in creatureWorld.Agents)
             {
                 if (!actor.Alive || actor.ExternallyControlled) continue;
@@ -57,6 +59,7 @@ namespace Mythologicum
                     saved.observedSpecies = new List<string>(guest.ObservedSpecies);
                     saved.observedOrigins = new List<string>(guest.ObservedOrigins);
                     saved.observedSpecies.Sort(StringComparer.Ordinal); saved.observedOrigins.Sort(StringComparer.Ordinal);
+                    saved.attraction = visitorWorld.CaptureAttraction(guest, records);
                     data.visitors.Add(saved);
                 }
             foreach (var species in creatureCatalog) data.research.Add(new SavedResearch { species = species.name, progress = staffWorld.Research.Progress(species) });
@@ -64,6 +67,19 @@ namespace Mythologicum
         }
         private static int IndexOf(IReadOnlyList<ParkBuildingRecord> records, ParkBuildingRecord record)
         { for (int i = 0; i < records.Count; i++) if (records[i] == record) return i; return -1; }
+        private SavedFence CaptureFence(FenceEdge edge)
+        {
+            var window = fences.Layout.WindowAt(edge);
+            return new SavedFence { cell = edge.Start, alongX = edge.AlongX, kind = fences.Layout.KindAt(edge),
+                gate = fences.Layout.IsGate(edge), health = fences.Layout.HealthAt(edge), window = window != null,
+                windowPrice = window?.Price ?? 0, windowRevenue = window?.Revenue ?? 0, windowExpenses = window?.Expenses ?? 0 };
+        }
+        private void RestoreFenceWindow(FenceEdge edge, SavedFence saved, float minimumExpenses = 0)
+        {
+            if (!saved.window) return;
+            if (!fences.Layout.TrySetWindow(edge, saved.windowPrice)) throw new InvalidDataException(Loc.Text("attraction.window.invalid_save"));
+            fences.Layout.WindowAt(edge).RestoreAccounts(saved.windowPrice, saved.windowRevenue, Mathf.Max(saved.windowExpenses, minimumExpenses));
+        }
         private SavedActor CaptureActor(CreatureAgent actor) => new SavedActor { species = actor.Definition.name,
             cell = actor.CarriedBy != null ? grid.WorldToCell(actor.transform.position) : actor.Cell,
             hunger = actor.Vitals.Hunger, fear = actor.Vitals.Fear, energy = actor.Energy.Energy, health = actor.Health.Current,
@@ -113,17 +129,38 @@ namespace Mythologicum
             foreach (var saved in data.buildings)
             {
                 var definition = SavedDefinition(saved,data.width,data.depth);
-                var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation);
+                if (saved.hasRide && (!VisitorWorld.IsBatchRide(definition) || saved.ride == null))
+                    throw new InvalidDataException(Loc.Text("attraction.save.invalid"));
+                if (saved.hasRide) AttractionRideCycle.ValidateSave(saved.ride, definition.serviceSeconds, definition.attraction.boardingWindowSeconds);
+                var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation,saved.fenceMounted);
                 var record=network.TryPlace(footprint);
                 if (record == null)
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
-                if(checkTerrain!=null&&!checkTerrain.RegisterFoundation(record,footprint))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_foundation_is_not_flat"));
+                if(checkTerrain!=null&&footprint.RequiresFoundation&&!checkTerrain.RegisterFoundation(record,footprint))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_foundation_is_not_flat"));
             }
             foreach (var cell in data.paths) if (!checkGrid.GroundWalkable(cell,true)||!checkGrid.TryOccupy(cell, BuildCellContent.Path)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_path"));
             foreach (var fence in data.fences)
+            {
                 if (!Enum.IsDefined(typeof(FenceKind), fence.kind) || fence.health <= 0f || !Finite(fence.health)
                     || !checkFences.TryAdd(new FenceEdge(fence.cell, fence.alongX), fence.kind))
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_fence"));
+                var edge = new FenceEdge(fence.cell, fence.alongX);
+                if (fence.gate && !checkFences.TrySetGate(edge)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_fence"));
+                if (fence.window && (fence.gate || !Finite(fence.windowPrice) || fence.windowPrice < 0
+                    || !Finite(fence.windowRevenue) || fence.windowRevenue < 0 || !Finite(fence.windowExpenses) || fence.windowExpenses < 0
+                    || !checkFences.TrySetWindow(edge, fence.windowPrice))) throw new InvalidDataException(Loc.Text("attraction.window.invalid_save"));
+            }
+            foreach (var record in network.Records)
+                if (record.Footprint.IsFenceMounted)
+                {
+                    foreach (var edge in record.Footprint.AttachmentEdges())
+                        if (checkFences.IsGate(edge) || checkFences.HasWindow(edge))
+                            throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
+                    foreach (var cell in record.Footprint.Cells())
+                        if (record.Footprint.Contains(cell + Vector2Int.right) && checkFences.HasFence(new FenceEdge(cell + Vector2Int.right, false))
+                            || record.Footprint.Contains(cell + Vector2Int.up) && checkFences.HasFence(new FenceEdge(cell + Vector2Int.up, true)))
+                            throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
+                }
             var enrichment = new HashSet<Vector2Int>();
             foreach (var cell in data.trees)
                 if (!checkGrid.IsAvailable(cell) || !enrichment.Add(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_tree"));
@@ -159,11 +196,21 @@ namespace Mythologicum
                 // This is a corrupt-file guard, not the live hiring limit.
                 if (count >= 1000000) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.too_many_saved_employees"));
             }
+            var passengerSeats = new HashSet<string>();
             foreach (var saved in data.visitors)
-                if (!ValidActor(saved, checkGrid) || rockCells.Contains(saved.cell)
+            {
+                if (saved == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
+                VisitorWorld.ValidateAttractionSave(saved.attraction, network.Records, checkGrid, checkFences);
+                bool insideRoom = (saved.attraction?.insideViewingRoom == true || saved.attraction?.insideInterior == true) && saved.attraction.building >= 0;
+                if (insideRoom && saved.cell != saved.attraction.interior
+                    || !ValidActor(saved, checkGrid, insideRoom) || rockCells.Contains(saved.cell)
                     || !Enum.IsDefined(typeof(VisitorType), saved.visitorType)
                     || !ValidInterestHistory(saved.observedSpecies) || !ValidInterestHistory(saved.observedOrigins))
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
+                if (saved.attraction?.hasInterior == true && saved.attraction.building >= 0
+                    && !passengerSeats.Add(saved.attraction.building + ":" + saved.attraction.seat))
+                    throw new InvalidDataException(Loc.Text("attraction.save.invalid"));
+            }
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_species_research"));
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
                 || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_finances_or_camera"));
@@ -182,8 +229,8 @@ namespace Mythologicum
             }
             return true;
         }
-        private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid) => saved != null && checkGrid.Contains(saved.cell)
-            && checkGrid.ContentAt(saved.cell) != BuildCellContent.Building && Finite(saved.health) && saved.health > 0f
+        private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid, bool allowBuilding = false) => saved != null && checkGrid.Contains(saved.cell)
+            && (allowBuilding || checkGrid.ContentAt(saved.cell) != BuildCellContent.Building) && Finite(saved.health) && saved.health > 0f
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
             && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored)
             && Finite(saved.escapeCooldown) && saved.escapeCooldown >= 0f
@@ -194,6 +241,7 @@ namespace Mythologicum
         {
             var source = Array.Find(buildingCatalog, d => d.kind == saved.kind);
             if (source == null || saved.width < 1 || saved.depth < 1 || saved.width > (mapWidth<0?grid.Width:mapWidth) || saved.depth > (mapDepth<0?grid.Depth:mapDepth)
+                || saved.fenceMounted && saved.kind != BuildingKind.PettingZoo && saved.kind != BuildingKind.ViewingWindow
                 || !Finite(saved.height) || saved.height <= 0f || !Finite(saved.price) || !Finite(saved.revenue) || !Finite(saved.expenses))
                 throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_type_is_unavailable_or_invalid"));
             // Clone settings so loading a footprint never changes the player's catalogue.
@@ -218,14 +266,16 @@ namespace Mythologicum
                 var restored = new List<ParkBuildingRecord>();
                 foreach (var saved in data.buildings)
                 {
-                    if (!buildingConstruction.TryPlace(new BuildingFootprint(SavedDefinition(saved), saved.cell, saved.rotation))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_building"));
+                    if (!buildingConstruction.TryPlace(new BuildingFootprint(SavedDefinition(saved), saved.cell, saved.rotation, saved.fenceMounted))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_building"));
                     restored.Add(buildingConstruction.Network.Records[restored.Count]);
+                    if (saved.hasRide) visitorWorld.RestoreRide(restored[restored.Count - 1], saved.ride);
                 }
                 foreach (var cell in data.paths) if (!paths.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_path"));
                 foreach (var saved in data.fences)
                 {
                     var edge = new FenceEdge(saved.cell, saved.alongX);
                     if (!fences.RestoreSegment(edge, saved.kind, saved.gate, saved.health)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_fence"));
+                    RestoreFenceWindow(edge, saved);
                 }
                 foreach (var cell in data.trees) if (!trees.RestoreTree(cell,data.treeVisuals?.Find(item=>item.cell==cell))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_tree"));
                 foreach (var cell in data.graves) if (!graves.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_gravestone"));
@@ -254,11 +304,16 @@ namespace Mythologicum
                 }
                 foreach (var saved in data.visitors)
                 {
-                    var guest = visitorWorld.RestoreGuestWithType(saved.cell, saved.visitorType);
+                    // Ordinary spawning keeps building interiors blocked. Restore an authorized
+                    // room guest at the public door first, then restore the saved indoor position.
+                    var spawnCell = (saved.attraction?.insideViewingRoom == true || saved.attraction?.insideInterior == true)
+                        && saved.attraction.building >= 0 ? saved.attraction.access : saved.cell;
+                    var guest = visitorWorld.RestoreGuestWithType(spawnCell, saved.visitorType);
                     if (guest == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_visitor"));
                     RestoreActor(guest.Actor, saved); guest.Mood.Restore(saved.satisfaction, saved.age, saved.patience, saved.leaving);
                     guest.LeavingPark = saved.leaving;
                     guest.RestoreInterests(saved.observedSpecies, saved.observedOrigins);
+                    visitorWorld.RestoreAttraction(guest, saved.attraction, restored);
                 }
                 foreach (var saved in data.research) staffWorld.Research.Study(Species(saved.species), saved.progress);
                 for (int i = 0; i < restored.Count; i++)

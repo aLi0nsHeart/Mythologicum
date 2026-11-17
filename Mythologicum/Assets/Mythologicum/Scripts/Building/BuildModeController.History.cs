@@ -85,7 +85,8 @@ namespace Mythologicum
                 buildings = after.buildings.Except(before.buildings).ToList(),
                 // Combat damage during a multi-frame terrain stroke is simulation state, not construction.
                 fences = after.fences.Keys.Where(edge => !before.fences.TryGetValue(edge, out var previous)
-                    || previous.kind != after.fences[edge].kind || previous.gate != after.fences[edge].gate).ToList(),
+                    || previous.kind != after.fences[edge].kind || previous.gate != after.fences[edge].gate
+                    || previous.window != after.fences[edge].window).ToList(),
                 cost = Math.Max(0f, constructionCost), charged = pendingConstructionCharged, purchasedAt = pendingConstructionTime,
                 receipt = constructionCost > 0 ? economy.CurrentExpenseBucket : null
             };
@@ -112,11 +113,12 @@ namespace Mythologicum
             }
             if (rocks != null) result.rocks.UnionWith(rocks.Capture());
             foreach (var record in buildingConstruction.Network.Records) result.buildings.Add(record);
-            foreach (var edge in fences.Layout.Edges) result.fences.Add(edge, new SavedFence
-                { cell = edge.Start, alongX = edge.AlongX, kind = fences.Layout.KindAt(edge), gate = fences.Layout.IsGate(edge), health = fences.Layout.HealthAt(edge) });
+            foreach (var edge in fences.Layout.Edges) result.fences.Add(edge, CaptureFence(edge));
             return result;
         }
-        private static bool SameFence(SavedFence a, SavedFence b) => a.kind == b.kind && a.gate == b.gate && Math.Abs(a.health - b.health) < .0001f;
+        private static bool SameFence(SavedFence a, SavedFence b) => a.kind == b.kind && a.gate == b.gate
+            && a.window == b.window && Math.Abs(a.health - b.health) < .0001f
+            && (!a.window || Math.Abs(a.windowPrice - b.windowPrice) < .0001f && Math.Abs(a.windowRevenue - b.windowRevenue) < .0001f);
 
         public bool CanUndoLastConstruction(out string reason)
         {
@@ -143,15 +145,17 @@ namespace Mythologicum
             foreach (var cell in action.rocks) if (!rocks.Occupies(cell)) { reason = "park.build_mode_controller__history.a_rock_in_this_action_was_removed"; return false; }
             foreach (var edge in action.fences)
             {
-                if (!fences.Layout.HasFence(edge) || !SameFence(action.after.fences[edge], new SavedFence
-                    { kind = fences.Layout.KindAt(edge), gate = fences.Layout.IsGate(edge), health = fences.Layout.HealthAt(edge) }))
+                if (visitorWorld.Visitors.Any(guest => guest.Actor != null && guest.Actor.Alive
+                    && guest.Attraction?.Window != null && guest.Attraction.Window.Edge.Equals(edge)))
+                { reason = "attraction.window.in_use"; return false; }
+                if (!fences.Layout.HasFence(edge) || !SameFence(action.after.fences[edge], CaptureFence(edge)))
                 { reason = "park.build_mode_controller__history.a_fence_in_this_action_was_damaged_repaired_or_changed_und"; return false; }
             }
             foreach (var building in action.buildings)
             {
                 if (!buildingConstruction.Network.Contains(building)) { reason = "park.build_mode_controller__history.a_building_in_this_action_was_demolished"; return false; }
                 if (building.HiredCount > 0 || building.Revenue > 0 || Progression?.ActiveProject(building) != null
-                    || visitorWorld.Visitors.Any(guest => guest.Service == building)
+                    || visitorWorld.Visitors.Any(guest => guest.Service == building || guest.Attraction?.Building == building)
                     || creatureWorld.Agents.Any(actor => actor.Alive && actor.SourceDispenser == building))
                 { reason = "park.build_mode_controller__history.this_building_has_personnel_customers_animals_or_active_re"; return false; }
                 if (building == buildingConstruction.Network.Entrance && buildingConstruction.Network.Records.Any(other => other != building))
@@ -160,7 +164,12 @@ namespace Mythologicum
             if (action.cost > economy.Expenses) { reason = "park.build_mode_controller__history.the_original_construction_transaction_is_no_longer_availab"; return false; }
             var protectedCells = new HashSet<Vector2Int>(action.trees.Concat(action.graves).Concat(action.paths).Concat(action.rocks).Concat(action.scarecrows));
             foreach (var edge in action.fences) { protectedCells.Add(edge.CellA); protectedCells.Add(edge.CellB); }
-            foreach (var building in action.buildings) protectedCells.UnionWith(building.Footprint.Cells());
+            foreach (var building in action.buildings)
+            {
+                protectedCells.UnionWith(building.Footprint.Cells());
+                if (building.Footprint.IsFenceMounted)
+                { protectedCells.Add(building.Footprint.AccessCell); protectedCells.Add(building.Footprint.RearAccessCell); }
+            }
             foreach (var actor in creatureWorld.Agents)
                 if (actor.Alive && (protectedCells.Contains(actor.Cell)
                     || actor.SleepTree.HasValue && protectedCells.Contains(actor.SleepTree.Value)
@@ -181,7 +190,7 @@ namespace Mythologicum
                 { reason = "park.build_mode_controller__history.a_creature_or_person_is_standing_on_the_edited_ground_wait"; return false; }
                 var check = new GridHeightField(grid.Width, grid.Depth, grid.CellSize); check.Restore(targetTerrain);
                 foreach (var building in buildingConstruction.Network.Records)
-                    if (!action.buildings.Contains(building) && !check.RegisterFoundation(building, building.Footprint))
+                    if (building.Footprint.RequiresFoundation && !action.buildings.Contains(building) && !check.RegisterFoundation(building, building.Footprint))
                     { reason = "park.build_mode_controller__history.undo_would_disturb_an_existing_building_foundation"; return false; }
                 for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
                 {
@@ -208,14 +217,21 @@ namespace Mythologicum
                 foreach (var cell in action.graves) graves.TryRemove(cell);
                 foreach (var cell in action.scarecrows) scarecrows.TryRemove(cell);
                 foreach (var cell in action.rocks) rocks.TryRemove(cell);
+                var windowExpenses = new Dictionary<FenceEdge, float>();
+                foreach (var edge in action.fences) windowExpenses[edge] = fences.Layout.WindowAt(edge)?.Expenses ?? 0;
                 foreach (var edge in action.fences) fences.Layout.TryRemove(edge);
                 fences.Refresh(view);
                 foreach (var edge in action.fences)
-                    if (action.before.fences.TryGetValue(edge, out var previous)) fences.RestoreSegment(edge, previous.kind, previous.gate, previous.health);
+                    if (action.before.fences.TryGetValue(edge, out var previous))
+                    {
+                        fences.RestoreSegment(edge, previous.kind, previous.gate, previous.health);
+                        RestoreFenceWindow(edge, previous, windowExpenses[edge]);
+                    }
                 if (action.terrain.Count > 0)
                 {
                     grid.Terrain.Restore(targetTerrain);
-                    foreach (var building in buildingConstruction.Network.Records) grid.Terrain.RegisterFoundation(building, building.Footprint);
+                    foreach (var building in buildingConstruction.Network.Records)
+                        if (building.Footprint.RequiresFoundation) grid.Terrain.RegisterFoundation(building, building.Footprint);
                 }
                 if (action.cost > 0) economy.RefundPurchase(action.cost, ParkTransactionCategory.Construction, action.charged, action.purchasedAt, action.receipt);
                 constructionHistory.RemoveAt(constructionHistory.Count - 1);

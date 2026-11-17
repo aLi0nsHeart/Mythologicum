@@ -20,6 +20,8 @@ namespace Mythologicum
         private readonly GameObject[] pages = new GameObject[5];
         private readonly Button[] tabs = new Button[5];
         private Action<ParkOverlayMode> chooseOverlay;
+        private Func<int> viewingWindowCount;
+        public void ConfigureViewingWindows(Func<int> count) => viewingWindowCount = count;
         public void ConfigureOverlays(Action<ParkOverlayMode> choose) => chooseOverlay = choose;
         private readonly RectTransform priceContent;
         private readonly StarRatingGraphic stars;
@@ -94,6 +96,7 @@ namespace Mythologicum
             var reputation = visitors.Reputation;
             int employees = 0, living = 0; float upkeep = 0;
             foreach (var building in buildings.Records) { employees += building.HiredCount; upkeep += building.UpkeepPerSecond * 60f; }
+            upkeep += (viewingWindowCount?.Invoke() ?? 0) * ViewingWindowDefinition.Current.operatingCostPerSecond * 60f;
             foreach (var creature in creatures.Agents) if (creature.Alive && !creature.ExternallyControlled) living++;
             summary.text = Loc.Format("park.park_management_presentation.funds_park_rating_5_stars_visitors", economy.Balance, reputation.Stars, visitors.Population);
             statistics.text = Loc.Format("park.park_management_presentation.visitors_in_the_park_current_satisfaction_100_departed_vis", visitors.Population, visitors.Definition.maximumVisitors, visitors.AverageSatisfaction, visitors.DepartedCount, visitors.LostCount, visitors.StrandedCount, visitors.RejectedAdmissions, visitors.ExpensiveServiceRefusals);
@@ -115,6 +118,7 @@ namespace Mythologicum
             Add(b, "park.park_management_presentation.admission", economy.IncomeInWindow(ParkTransactionCategory.Admission));
             Add(b, "park.park_management_presentation.food_sales", economy.IncomeInWindow(ParkTransactionCategory.Food));
             Add(b, "park.park_management_presentation.rest_services", economy.IncomeInWindow(ParkTransactionCategory.Rest));
+            Add(b, "attraction.finance.income", economy.IncomeInWindow(ParkTransactionCategory.Attractions));
             Add(b, "park.park_management_presentation.other_income", economy.IncomeInWindow(ParkTransactionCategory.Other));
             b.Append(Loc.Text("park.park_management_presentation.expenses_minute"));
             Add(b, "park.park_management_presentation.building_upkeep", economy.ExpensesInWindow(ParkTransactionCategory.BuildingUpkeep));

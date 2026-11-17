@@ -15,6 +15,12 @@ MonoBehaviour:
   people: {fileID: 11400000, guid: 699756794611c714eb65bf9af704dc5a, type: 2}
   spawnInterval: 8
   maximumVisitors: 30
+  prewarmVisitorModels: 1
+  arrivalPathCellsPerFrame: 256
+  attractionDecisionSeconds: 5
+  attractionVisitGapSeconds: 20
+  attractionTravelPenalty: 0.25
+  attractionPricePenalty: 2
   ticketPrice: 15
   initialHunger: 20
   initialEnergy: 80

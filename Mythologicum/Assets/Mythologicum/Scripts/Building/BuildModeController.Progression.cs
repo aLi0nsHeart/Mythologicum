@@ -36,6 +36,7 @@ namespace Mythologicum
             parkStatus=new ParkStatusPresentation(canvas,economy,visitorWorld);
             management=new ProgressionPresentation(canvas,Progression,staffWorld,economy,id=>Species(id)?.DisplayName??id);
             parkManagement=new ParkManagementPresentation(canvas,buildingConstruction.Network,visitorWorld,creatureWorld,economy);
+            parkManagement.ConfigureViewingWindows(() => { int count = 0; foreach (var edge in fences.Layout.Windows) count++; return count; });
             overlays=new ParkOverlayPresentation(canvas,grid,fences.Layout,buildingConstruction.Network,enclosureMap,creatureWorld.IsClear);
             parkManagement.ConfigureOverlays(mode =>
             {
