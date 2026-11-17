@@ -25,6 +25,8 @@ namespace Mythologicum
         private ParkBuildingRecord selected;
         private FenceWindowRecord selectedWindow;
         private FenceLayout windowLayout;
+        private WaterTroughRecord selectedTrough;
+        private WaterTroughConstruction troughOwner;
         private bool inspecting = true;
         private Func<ParkBuildingRecord, int> attractionOccupancy;
         private Func<ParkBuildingRecord, string> attractionAvailability;
@@ -75,7 +77,7 @@ namespace Mythologicum
         public void Select(ParkBuildingRecord building)
         {
             bool changed=selected!=building;
-            selected = building; selectedWindow = null; message.text = "";
+            selected = building; selectedWindow = null; selectedTrough = null; message.text = "";
             if(changed){detailsScroll.StopMovement();detailsScroll.verticalNormalizedPosition=1f;}
             if (selected != null) price.text = selected.Price.ToString("0.##", Loc.Culture);
             if (selected != null && selected.Footprint.Definition.kind == BuildingKind.ResearchCentre
@@ -88,14 +90,29 @@ namespace Mythologicum
         { attractionOccupancy = occupancy; attractionAvailability = availability; }
         public void SelectWindow(FenceWindowRecord window, FenceLayout layout)
         {
-            selected = null; selectedWindow = window; windowLayout = layout;
+            selected = null; selectedTrough = null; selectedWindow = window; windowLayout = layout;
             message.text = ""; detailsScroll.StopMovement(); detailsScroll.verticalNormalizedPosition = 1f; Refresh();
         }
         public void ConfigureManagement(Action<ParkBuildingRecord> expeditions,Action<ParkBuildingRecord> technology)
         {openExpeditions=expeditions;openTechnology=technology;}
+        public void SelectTrough(WaterTroughRecord trough, WaterTroughConstruction owner)
+        {
+            selected = null; selectedWindow = null; selectedTrough = trough; troughOwner = owner;
+            message.text = ""; detailsScroll.StopMovement(); detailsScroll.verticalNormalizedPosition = 1; Refresh();
+        }
         public void Refresh()
         {
             if (panel == null) return;
+            if (selectedTrough != null)
+            {
+                bool valid = inspecting && troughOwner != null && troughOwner.Contains(selectedTrough);
+                panel.SetActive(valid); if (!valid) return;
+                frame.Refresh(); management.gameObject.SetActive(false); priceGroup.SetActive(false); staffGroup.SetActive(false); researchGroup.SetActive(false);
+                title.text = Loc.Text("habitat.trough.name");
+                accounts.text = Loc.Format("habitat.trough.accounts", selectedTrough.Stock, selectedTrough.Capacity, selectedTrough.Expenses,
+                    selectedTrough.Definition.refillThreshold, selectedTrough.Definition.refillCost);
+                LayoutContents(); return;
+            }
             if (selectedWindow != null)
             {
                 bool valid = inspecting && windowLayout?.WindowAt(selectedWindow.Edge) == selectedWindow;

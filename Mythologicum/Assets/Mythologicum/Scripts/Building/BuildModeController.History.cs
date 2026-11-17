@@ -16,6 +16,9 @@ namespace Mythologicum
             public readonly Dictionary<FenceEdge, SavedFence> fences = new Dictionary<FenceEdge, SavedFence>();
             public readonly HashSet<ParkBuildingRecord> buildings = new HashSet<ParkBuildingRecord>();
             public SavedTerrain terrain;
+            public SavedHabitatTerrain habitat;
+            public readonly HashSet<Vector2Int> caves = new HashSet<Vector2Int>();
+            public readonly Dictionary<Vector2Int, WaterTroughSave> troughs = new Dictionary<Vector2Int, WaterTroughSave>();
         }
         private sealed class ConstructionUndo
         {
@@ -23,14 +26,16 @@ namespace Mythologicum
             public override string ToString() => label?.Value??"";
             public ConstructionSnapshot before, after;
             public TerrainUndoPatch terrain;
+            public HabitatUndoPatch habitat;
             public List<Vector2Int> paths, trees, graves, rocks, scarecrows;
+            public List<Vector2Int> caves, troughs;
             public List<FenceEdge> fences;
             public List<ParkBuildingRecord> buildings;
             public float cost;
             public bool charged;
             public double purchasedAt;
             public FinanceWindowBucket receipt;
-            public bool Changed => terrain.Count > 0 || paths.Count + trees.Count + graves.Count + rocks.Count + scarecrows.Count + fences.Count + buildings.Count > 0;
+            public bool Changed => terrain.Count > 0 || habitat.Count > 0 || paths.Count + trees.Count + graves.Count + rocks.Count + scarecrows.Count + fences.Count + buildings.Count + caves.Count + troughs.Count > 0;
         }
         private readonly List<ConstructionUndo> constructionHistory = new List<ConstructionUndo>();
         private ConstructionSnapshot pendingConstruction;
@@ -73,15 +78,18 @@ namespace Mythologicum
             if (before.buildings.Any(item => !after.buildings.Contains(item)) || before.paths.Any(cell => !after.paths.Contains(cell))
                 || before.trees.Any(cell => !after.trees.Contains(cell)) || before.graves.Any(cell => !after.graves.Contains(cell))
                 || before.rocks.Any(cell => !after.rocks.Contains(cell)) || before.scarecrows.Any(cell => !after.scarecrows.Contains(cell))
+                || before.caves.Any(cell => !after.caves.Contains(cell)) || before.troughs.Keys.Any(cell => !after.troughs.ContainsKey(cell))
                 || before.fences.Keys.Any(edge => !after.fences.ContainsKey(edge)))
             { ResetConstructionHistory("park.build_mode_controller__history.destructive_changes_clear_construction_undo_history"); return; }
             var action = new ConstructionUndo
             {
                 label = pendingConstructionLabel, before = before, after = after,
                 terrain = new TerrainUndoPatch(before.terrain?.heights, after.terrain?.heights),
+                habitat = new HabitatUndoPatch(before.habitat, after.habitat),
                 paths = after.paths.Except(before.paths).ToList(), trees = after.trees.Except(before.trees).ToList(),
                 graves = after.graves.Except(before.graves).ToList(), rocks = after.rocks.Except(before.rocks).ToList(),
                 scarecrows = after.scarecrows.Except(before.scarecrows).ToList(),
+                caves = after.caves.Except(before.caves).ToList(), troughs = after.troughs.Keys.Except(before.troughs.Keys).ToList(),
                 buildings = after.buildings.Except(before.buildings).ToList(),
                 // Combat damage during a multi-frame terrain stroke is simulation state, not construction.
                 fences = after.fences.Keys.Where(edge => !before.fences.TryGetValue(edge, out var previous)
@@ -102,7 +110,7 @@ namespace Mythologicum
 
         private ConstructionSnapshot CaptureConstruction()
         {
-            var result = new ConstructionSnapshot { terrain = grid.Terrain?.Capture() };
+            var result = new ConstructionSnapshot { terrain = grid.Terrain?.Capture(), habitat = grid.Habitat.Capture() };
             for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
             {
                 var cell = new Vector2Int(x, y);
@@ -112,6 +120,8 @@ namespace Mythologicum
                 if (scarecrows != null && scarecrows.Occupies(cell)) result.scarecrows.Add(cell);
             }
             if (rocks != null) result.rocks.UnionWith(rocks.Capture());
+            if (shelters != null) foreach (var item in shelters.Capture()) if (item.kind == ConstructedShelterKind.Cave) result.caves.Add(item.cell);
+            if (waterTroughs != null) foreach (var item in waterTroughs.Capture()) result.troughs.Add(item.cell, item);
             foreach (var record in buildingConstruction.Network.Records) result.buildings.Add(record);
             foreach (var edge in fences.Layout.Edges) result.fences.Add(edge, CaptureFence(edge));
             return result;
@@ -137,6 +147,18 @@ namespace Mythologicum
         private bool ValidateConstructionUndo(ConstructionUndo action, out SavedTerrain targetTerrain, out string reason)
         {
             targetTerrain = grid.Terrain?.Capture(); reason = "";
+            if (!action.habitat.TryRevert(grid.Habitat.Capture(), out var targetHabitat))
+            { reason = "habitat.undo.changed"; return false; }
+            foreach (var cell in action.caves)
+                if (shelters?.Registry.Contains(cell, ConstructedShelterKind.Cave) != true) { reason = "habitat.undo.feature_removed"; return false; }
+            foreach (var cell in action.troughs)
+            {
+                var record = waterTroughs?.RecordAt(cell);
+                if (record == null) { reason = "habitat.undo.feature_removed"; return false; }
+                var original = action.after.troughs[cell];
+                if (Math.Abs(record.Stock - original.stock) > .0001f || Math.Abs(record.Expenses - original.expenses) > .0001f)
+                { reason = "habitat.undo.trough_used"; return false; }
+            }
             foreach (var cell in action.paths) if (grid.ContentAt(cell) != BuildCellContent.Path)
             { reason = "park.build_mode_controller__history.a_path_in_this_action_has_changed_undo_cannot_replace_newe"; return false; }
             foreach (var cell in action.trees) if (!trees.Occupies(cell)) { reason = "park.build_mode_controller__history.a_tree_in_this_action_was_removed"; return false; }
@@ -163,6 +185,7 @@ namespace Mythologicum
             }
             if (action.cost > economy.Expenses) { reason = "park.build_mode_controller__history.the_original_construction_transaction_is_no_longer_availab"; return false; }
             var protectedCells = new HashSet<Vector2Int>(action.trees.Concat(action.graves).Concat(action.paths).Concat(action.rocks).Concat(action.scarecrows));
+            protectedCells.UnionWith(action.caves); protectedCells.UnionWith(action.troughs);
             foreach (var edge in action.fences) { protectedCells.Add(edge.CellA); protectedCells.Add(edge.CellB); }
             foreach (var building in action.buildings)
             {
@@ -173,6 +196,7 @@ namespace Mythologicum
             foreach (var actor in creatureWorld.Agents)
                 if (actor.Alive && (protectedCells.Contains(actor.Cell)
                     || actor.SleepTree.HasValue && protectedCells.Contains(actor.SleepTree.Value)
+                    || actor.ShelterCell.HasValue && protectedCells.Contains(actor.ShelterCell.Value)
                     || actor.ScarecrowTarget.HasValue && protectedCells.Contains(actor.ScarecrowTarget.Value)))
                 { reason = "park.build_mode_controller__history.a_creature_or_person_is_using_this_construction_wait_until"; return false; }
             if (action.terrain.Count > 0)
@@ -199,6 +223,16 @@ namespace Mythologicum
                     { reason = "park.build_mode_controller__history.undo_would_make_an_existing_path_too_steep"; return false; }
                 }
             }
+            if (action.habitat.Count > 0 || action.terrain.Count > 0)
+            {
+                GridHeightField terrain = null;
+                if (targetTerrain != null) { terrain = new GridHeightField(grid.Width, grid.Depth, grid.CellSize); terrain.Restore(targetTerrain); }
+                var checkGrid = new SquareBuildGrid(grid.Origin, grid.CellSize, grid.Width, grid.Depth, terrain);
+                checkGrid.Habitat.Restore(targetHabitat);
+                foreach (var cell in checkGrid.Habitat.WaterCells)
+                    if (!grid.Habitat.IsWater(cell) && !HabitatWaterEditable(cell))
+                    { reason = "habitat.undo.water_blocked"; return false; }
+            }
             return true;
         }
 
@@ -217,6 +251,8 @@ namespace Mythologicum
                 foreach (var cell in action.graves) graves.TryRemove(cell);
                 foreach (var cell in action.scarecrows) scarecrows.TryRemove(cell);
                 foreach (var cell in action.rocks) rocks.TryRemove(cell);
+                foreach (var cell in action.caves) shelters.TryRemove(cell);
+                foreach (var cell in action.troughs) waterTroughs.TryRemove(cell);
                 var windowExpenses = new Dictionary<FenceEdge, float>();
                 foreach (var edge in action.fences) windowExpenses[edge] = fences.Layout.WindowAt(edge)?.Expenses ?? 0;
                 foreach (var edge in action.fences) fences.Layout.TryRemove(edge);
@@ -233,6 +269,7 @@ namespace Mythologicum
                     foreach (var building in buildingConstruction.Network.Records)
                         if (building.Footprint.RequiresFoundation) grid.Terrain.RegisterFoundation(building, building.Footprint);
                 }
+                if (action.habitat.Count > 0 && action.habitat.TryRevert(grid.Habitat.Capture(), out var restoredHabitat)) grid.Habitat.Restore(restoredHabitat);
                 if (action.cost > 0) economy.RefundPurchase(action.cost, ParkTransactionCategory.Construction, action.charged, action.purchasedAt, action.receipt);
                 constructionHistory.RemoveAt(constructionHistory.Count - 1);
                 grid.NotifyPhysicalChange(); buildingConstruction.Network.Refresh(); RefreshTerrainAttachments();

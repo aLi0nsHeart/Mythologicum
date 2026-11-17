@@ -15,6 +15,7 @@ namespace Mythologicum
 
         public bool HasFood(Vector2Int cell, float now) => grid.Contains(cell)
             && grid.ContentAt(cell) == BuildCellContent.Empty
+            && !grid.Habitat.IsWater(cell) && (grid.Habitat.BiomeAt(cell) == HabitatBiome.Grass || grid.Habitat.BiomeAt(cell) == HabitatBiome.Thicket)
             && (!recoversAt.TryGetValue(cell, out float ready) || now >= ready);
 
         public bool TryConsume(Vector2Int cell, float now)

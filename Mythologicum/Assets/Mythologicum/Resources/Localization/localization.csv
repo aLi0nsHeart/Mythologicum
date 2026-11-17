@@ -1558,3 +1558,113 @@ Interest: {1:0}% | Time remaining: {2:0}s
 "visitor.attraction.entering","Entering {0}","","","","","","","","","","",""
 "visitor.attraction.leaving","Leaving {0}","","","","","","","","","","",""
 "attraction.demolition.in_use","Visitors are inside. Wait until they have left before demolishing this attraction.","","","","","","","","","","",""
+"enum.HabitatBiome.Grass","Grass","","","","","","","","","","",""
+"enum.HabitatBiome.Dirt","Dirt","","","","","","","","","","",""
+"enum.HabitatBiome.Thicket","Thicket","","","","","","","","","","",""
+"enum.HabitatBiome.Stone","Stone","","","","","","","","","","",""
+"enum.HabitatBiome.Sand","Sand","","","","","","","","","","",""
+"enum.TerrainBrushMode.Water","Add water","","","","","","","","","","",""
+"enum.TerrainBrushMode.RemoveWater","Remove water","","","","","","","","","","",""
+"enum.TerrainBrushMode.Grass","Grass","","","","","","","","","","",""
+"enum.TerrainBrushMode.Dirt","Dirt","","","","","","","","","","",""
+"enum.TerrainBrushMode.Thicket","Thicket","","","","","","","","","","",""
+"enum.TerrainBrushMode.Stone","Stone","","","","","","","","","","",""
+"enum.TerrainBrushMode.Sand","Sand","","","","","","","","","","",""
+"habitat.terrain.invalid_brush","Choose a valid point inside the map and a positive brush radius.","","","","","","","","","","",""
+"habitat.terrain.invalid_water","Choose a valid pond surface and water depth.","","","","","","","","","","",""
+"habitat.terrain.water_blocked","Keep the pond and its banks clear of paths, buildings, objects and creatures.","","","","","","","","","","",""
+"habitat.terrain.water_too_steep","This pond would make its banks too steep. Use a wider brush or a shallower depth.","","","","","","","","","","",""
+"habitat.terrain.invalid_save","Invalid saved habitat terrain.","","","","","","","","","","",""
+"habitat.terrain.depth_less","Depth -","","","","","","","","","","",""
+"habitat.terrain.depth_more","Depth +","","","","","","","","","","",""
+"habitat.terrain.depth_value","Water depth: {0:0.0} m","","","","","","","","","","",""
+"habitat.terrain.water_hint","Hold and drag to dig a pond at the selected depth. The water surface stays at the first click's level. Keep its banks clear.","","","","","","","","","","",""
+"habitat.terrain.drain_hint","Hold and drag to remove water. The dug ground remains; use Raise or Flatten to fill the basin.","","","","","","","","","","",""
+"habitat.terrain.biome_hint","Hold and drag to paint {0} habitat. Biomes change ground preferences without changing its height.","","","","","","","","","","",""
+"enum.CreatureShelterMode.Legacy","Legacy shelter settings","","","","","","","","","","",""
+"enum.CreatureShelterMode.Ground","Open ground","","","","","","","","","","",""
+"enum.CreatureShelterMode.TreeCanopy","Tree canopy","","","","","","","","","","",""
+"enum.CreatureShelterMode.TreeShade","Tree shade","","","","","","","","","","",""
+"enum.CreatureShelterMode.Gravestone","Gravestone","","","","","","","","","","",""
+"enum.CreatureShelterMode.Burrow","Burrow","","","","","","","","","","",""
+"enum.CreatureShelterMode.Cave","Cave","","","","","","","","","","",""
+"enum.CreatureActivity.SeekingWater","Seeking water","","","","","","","","","","",""
+"enum.CreatureActivity.Drinking","Drinking","","","","","","","","","","",""
+"habitat.creature.thirst","
+Thirst: {0:0}% | Hydration: {1:0}%
+","","","","","","","","","","",""
+"habitat.creature.no_water","
+Does not need water.
+","","","","","","","","","","",""
+"habitat.creature.sleep.canopy","
+Sleep: climbs into a tree.
+","","","","","","","","","","",""
+"habitat.creature.sleep.shade","
+Sleep: prefers tree shade; clear ground is a fallback.
+","","","","","","","","","","",""
+"habitat.creature.sleep.shade_required","
+Sleep: requires clear ground beside a reachable tree.
+","","","","","","","","","","",""
+"habitat.creature.sleep.grave","
+Sleep: enters a gravestone.
+","","","","","","","","","","",""
+"habitat.creature.sleep.burrow","
+Sleep: digs or reuses a burrow.
+","","","","","","","","","","",""
+"habitat.creature.sleep.cave","
+Sleep: enters a cave.
+","","","","","","","","","","",""
+"habitat.creature.sleep.ground","
+Sleep: rests on clear ground.
+","","","","","","","","","","",""
+"habitat.creature.shelter","
+Shelter: {0} ({1})
+Usable sleep site: {2} | Suitability: {3:0}%
+","","","","","","","","","","",""
+"habitat.creature.required","required","","","","","","","","","","",""
+"habitat.creature.preferred","preferred","","","","","","","","","","",""
+"habitat.creature.available","available","","","","","","","","","","",""
+"habitat.creature.missing","missing","","","","","","","","","","",""
+"habitat.creature.retreating","
+Retreating to shelter.
+","","","","","","","","","","",""
+"habitat.creature.biomes","
+Ground suitability: {0:0}%
+Grass {1:0}% | Dirt {2:0}% | Thicket {3:0}%
+Stone {4:0}% | Sand {5:0}%
+","","","","","","","","","","",""
+"habitat.creature.biome_minimum","Preferred minimum {0}: {1:0}%
+","","","","","","","","","","",""
+"habitat.creature.biome_maximum","Preferred maximum {0}: {1:0}%
+","","","","","","","","","","",""
+"habitat.trough.name","Water trough","","","","","","","","","","",""
+"habitat.cave.name","Cave shelter","","","","","","","","","","",""
+"habitat.trough.place_cost","Water trough | Cost {0:0}","","","","","","","","","","",""
+"habitat.cave.place_cost","Cave shelter | Cost {0:0}","","","","","","","","","","",""
+"habitat.trough.controls","Click clear ground to place a water trough. Cost: {0:0}. Esc: cancel.","","","","","","","","","","",""
+"habitat.cave.controls","Click clear ground to place a cave shelter. Cost: {0:0}. Esc: cancel.","","","","","","","","","","",""
+"habitat.feature.blocked","Choose clear, dry ground away from objects and entrances.","","","","","","","","","","",""
+"habitat.trough.place","Place water trough","","","","","","","","","","",""
+"habitat.cave.place","Place cave shelter","","","","","","","","","","",""
+"habitat.trough.accounts","Water: {0:0.#} / {1:0.#}
+Supply expenses: {2:0.##}
+Refill below: {3:0.#}
+Refill supplies: {4:0.##}
+
+Zookeepers refill low troughs when they can reach them. Add staff gates for enclosed troughs. Public path access is not required.","","","","","","","","","","",""
+"habitat.undo.changed","The edited ground or water has changed again. Undo cannot overwrite it.","","","","","","","","","","",""
+"habitat.undo.feature_removed","An enclosure feature in this action was removed.","","","","","","","","","","",""
+"habitat.undo.trough_used","This trough has supplied water or been refilled. It can no longer be undone.","","","","","","","","","","",""
+"habitat.undo.water_blocked","Undo would flood a creature, path or enclosure object. Clear the area first.","","","","","","","","","","",""
+"habitat.terrain.protected_shore","Clear creatures and objects from this former pond before changing its ground.","","","","","","","","","","",""
+"habitat.shelter.invalid_save","Invalid saved creature shelter.","","","","","","","","","","",""
+"habitat.save.invalid_water_trough","A saved water trough is invalid or overlaps another object.","","","","","","","","","","",""
+"habitat.save.invalid_shelter_home","A saved creature shelter home is invalid.","","","","","","","","","","",""
+"habitat.save.restore_shelter_failed","Could not restore a creature shelter.","","","","","","","","","","",""
+"habitat.save.restore_trough_failed","Could not restore a water trough.","","","","","","","","","","",""
+"habitat.save.restore_home_failed","Could not restore a creature shelter home.","","","","","","","","","","",""
+"enum.StaffTask.RefillingWater","Refilling water","","","","","","","","","","",""
+"staff.status.taking_water_to_trough","Taking water to a trough","","","","","","","","","","",""
+"staff.status.trough_unreachable","Water trough cannot be reached; add staff access","","","","","","","","","","",""
+"staff.status.refilling_water_trough","Refilling the water trough","","","","","","","","","","",""
+"staff.status.waiting_for_trough_funds","Waiting for funds to refill the water trough","","","","","","","","","","",""

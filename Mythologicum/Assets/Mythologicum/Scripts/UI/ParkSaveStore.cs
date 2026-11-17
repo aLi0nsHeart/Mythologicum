@@ -8,6 +8,11 @@ namespace Mythologicum
     {
         public int version = 3, width, depth, departedVisitors, lostVisitors;
         public SavedTerrain terrain;
+        // Explicit presence avoids Unity JSON's empty-object representation of nullable nested classes.
+        public bool hasHabitat;
+        public SavedHabitatTerrain habitat;
+        public List<WaterTroughSave> waterTroughs;
+        public List<SavedShelter> shelters;
         public List<SavedTreeVisual> treeVisuals;
         public MapGenerationOptions generation;
         public List<Vector2Int> rocks;
@@ -51,6 +56,9 @@ namespace Mythologicum
         public string species;
         public Vector2Int cell;
         public float hunger, fear, energy, health, happiness, agitation, sedation, age, satisfaction, patience, explored;
+        public float thirst;
+        public bool hasShelterHome, shelterSleeping, shelterRetreat;
+        public Vector2Int shelterHome;
         public float escapeCooldown, fenceRetryCooldown, scareCooldown;
         public int building = -1;
         public bool retire, sedate, leaving;

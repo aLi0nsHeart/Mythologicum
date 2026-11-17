@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum StaffTask { Idle, Patrolling, Researching, Healing, Repairing, Restocking, Regrouping,
-        Hunting, Retiring, Sedating, FetchingCreature, CarryingCreature, Returning, Blocked, Fleeing, TechnologyResearch }
+        Hunting, Retiring, Sedating, FetchingCreature, CarryingCreature, Returning, Blocked, Fleeing, TechnologyResearch, RefillingWater }
 
     public sealed class StaffAgent : MonoBehaviour
     {
@@ -17,6 +17,7 @@ namespace Mythologicum
         public CreatureAgent Target { get; internal set; }
         internal FenceEdge? Fence;
         internal ParkBuildingRecord Feeder;
+        internal WaterTroughRecord WaterTrough;
         internal float DecisionTimer, ActionTimer, ShotTimer;
         internal Vector2Int? Destination, MeetingPoint;
     }

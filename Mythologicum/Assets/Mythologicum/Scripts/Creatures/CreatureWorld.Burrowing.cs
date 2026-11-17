@@ -9,7 +9,8 @@ namespace Mythologicum
 
         private bool CanDigAt(Vector2Int cell) => CreatureBurrowing.CanDigGround(grid, cell)
             && navigation.IsWalkable(cell) && environment.TreesAt(cell) == 0
-            && environment.GravestonesAt(cell) == 0 && environment.ScarecrowsAt(cell) == 0;
+            && environment.GravestonesAt(cell) == 0 && environment.ScarecrowsAt(cell) == 0
+            && !ShelterRegistry.Contains(cell, ConstructedShelterKind.Cave);
 
         private static bool BurrowTraversal(CreatureActivity activity) => activity == CreatureActivity.EnteringBurrow
             || activity == CreatureActivity.LeavingBurrow || activity == CreatureActivity.BurrowingFence
@@ -19,38 +20,35 @@ namespace Mythologicum
         {
             if (actor.InBurrow)
             {
-                if (actor.Energy.Energy >= actor.Definition.wakeThreshold || !CanDigAt(actor.Cell))
+                if (actor.ShelterRetreat && CanDigAt(actor.Cell) && ShelterRegistry.Contains(actor.Cell, ConstructedShelterKind.Burrow)
+                    && (ShelterThreatNearby(actor) || actor.Vitals.Fear > actor.Definition.Shelter.calmFearThreshold)) return;
+                if (actor.Energy.Energy >= actor.Definition.wakeThreshold || !CanDigAt(actor.Cell)
+                    || !ShelterRegistry.Contains(actor.Cell, ConstructedShelterKind.Burrow))
                 {
+                    actor.ShelterRetreat = false;
                     if (actor.Energy.Energy >= actor.Definition.wakeThreshold) actor.WantsSleep = false;
                     BeginSleepingBurrow(actor, false);
                 }
                 return;
             }
-            Vector2Int? site = null;
-            int best = int.MaxValue;
-            foreach (var cell in ReachableRegion(actor.Cell))
-            {
-                if (!CanDigAt(cell)) continue;
-                int distance = ConstructionRouteGraph.CellDistance(actor.Cell, cell);
-                if (distance < best || distance == best && site.HasValue
-                    && (cell.y < site.Value.y || cell.y == site.Value.y && cell.x < site.Value.x))
-                { best = distance; site = cell; }
-            }
-            if (!site.HasValue)
+            if (!FindBurrowSite(actor, out var site))
             {
                 FinishSegment(actor); actor.Activity = CreatureActivity.SeekingSleep;
                 return;
             }
-            if (actor.Cell == site.Value && actor.Route.Count == 0) BeginSleepingBurrow(actor, true);
+            actor.SleepTree = actor.ShelterCell = site; actor.HasShelter = true;
+            if (actor.Cell == site && actor.Route.Count == 0) BeginSleepingBurrow(actor, true);
             else
             {
                 actor.Activity = CreatureActivity.SeekingSleep;
-                SetGoal(actor, site.Value, true);
+                SetGoal(actor, site, true);
             }
         }
 
         private void BeginSleepingBurrow(CreatureAgent actor, bool entering)
         {
+            if (entering && !EnsureBurrow(actor.Cell))
+            { actor.Activity = CreatureActivity.SeekingSleep; actor.SleepTree = actor.ShelterCell = null; return; }
             actor.Route.Clear(); actor.Goal = null;
             actor.TraversalStartElevation = actor.Elevation;
             actor.TraversalDuration = Mathf.Max(.1f, actor.Definition.burrowSeconds);
@@ -124,7 +122,7 @@ namespace Mythologicum
                 return true;
             }
             bool entering = actor.Activity == CreatureActivity.EnteringBurrow;
-            if (entering && !CanDigAt(actor.Cell))
+            if (entering && (!CanDigAt(actor.Cell) || !ShelterRegistry.Contains(actor.Cell, ConstructedShelterKind.Burrow)))
             {
                 actor.InBurrow = false; actor.Elevation = 0f;
                 actor.transform.position = GroundPosition(actor, actor.Cell);
@@ -137,6 +135,7 @@ namespace Mythologicum
             if (actor.StateTimer <= 0f)
             {
                 actor.InBurrow = entering;
+                if (!entering) actor.SleepTree = actor.ShelterCell = null;
                 actor.Activity = entering ? CreatureActivity.Sleeping : CreatureActivity.Resting;
                 actor.DecisionTimer = 0f; actor.StateTimer = PauseDuration(actor);
             }

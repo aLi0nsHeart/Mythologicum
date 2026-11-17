@@ -227,6 +227,7 @@ namespace Mythologicum
         {
             if (worker.Target != null && worker.Target.CarriedBy == worker.Actor) creatures.CancelCarry(worker.Target);
             worker.Target = null; worker.Fence = null; worker.Feeder = null; worker.Destination = null; worker.MeetingPoint = null;
+            worker.WaterTrough = null;
             worker.ActionTimer = 0f;
             if (worker.Actor != null) { worker.Actor.Route.Clear(); worker.Actor.Goal = null; }
             SetStatus(worker, StaffTask.Idle, "staff.status.ready_for_work");

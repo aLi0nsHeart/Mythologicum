@@ -117,11 +117,11 @@ namespace Mythologicum
                 selected.Wellbeing.Happiness, selected.Wellbeing.Agitation > 0f ? Loc.Text("creature.info.agitated") : "",
                 selected.Vitals.Hunger, selected.Vitals.Fear, selected.Energy.Energy, selected.Energy.Exhaustion)
                 + (!definition.needsFood ? Loc.Text("creature.info.no_food_needed") : "")
-                + Loc.Text(definition.requiresBurrowForSleep ? "creature.info.sleep.burrow"
-                    : definition.requiresGravestoneForSleep ? "creature.info.sleep.grave"
-                    : definition.requiresTreeForSleep ? "creature.info.sleep.tree"
-                    : definition.prefersTreeShadeForSleep ? "creature.info.sleep.shade" : "creature.info.sleep.ground")
+                + (definition.Thirst.needsWater ? Loc.Format("habitat.creature.thirst", selected.Vitals.Thirst, 100f - selected.Vitals.Thirst)
+                    : Loc.Text("habitat.creature.no_water"))
+                + ShelterInformation(definition)
                 + Loc.Format("creature.info.environment", needs.Environment, selected.NearbyTrees, definition.requiredTrees)
+                + BiomeInformation(definition)
                 + (definition.minimumOpenGroundFraction > 0f
                     ? Loc.Format("creature.info.meadow", selected.NearbyOpenGroundFraction * 100f, definition.minimumOpenGroundFraction * 100f) : "")
                 + (definition.requiredGravestones > 0 || definition.requiresGravestoneForSleep
@@ -155,6 +155,36 @@ namespace Mythologicum
                 actionRect.sizeDelta=new Vector2(buttonWidth,38);
             }
             UIOverflowScroll.Attach(detailsScroll).Refresh();
+        }
+
+        private string ShelterInformation(CreatureDefinition definition)
+        {
+            var shelter = definition.Shelter;
+            string description = shelter.mode == CreatureShelterMode.TreeCanopy ? "habitat.creature.sleep.canopy"
+                : shelter.mode == CreatureShelterMode.TreeShade ? shelter.requiredForSleep ? "habitat.creature.sleep.shade_required" : "habitat.creature.sleep.shade"
+                : shelter.mode == CreatureShelterMode.Gravestone ? "habitat.creature.sleep.grave"
+                : shelter.mode == CreatureShelterMode.Burrow ? "habitat.creature.sleep.burrow"
+                : shelter.mode == CreatureShelterMode.Cave ? "habitat.creature.sleep.cave" : "habitat.creature.sleep.ground";
+            return Loc.Text(description) + Loc.Format("habitat.creature.shelter", Loc.Enum(shelter.mode),
+                Loc.Text(shelter.requiredForSleep ? "habitat.creature.required" : "habitat.creature.preferred"),
+                Loc.Text(selected.HasShelter ? "habitat.creature.available" : "habitat.creature.missing"), selected.ShelterSatisfaction)
+                + (selected.ShelterRetreat ? Loc.Text("habitat.creature.retreating") : "");
+        }
+
+        private string BiomeInformation(CreatureDefinition definition)
+        {
+            var fractions = selected.NearbyBiomeFractions;
+            string result = Loc.Format("habitat.creature.biomes", selected.BiomeSatisfaction,
+                fractions[0] * 100, fractions[1] * 100, fractions[2] * 100, fractions[3] * 100, fractions[4] * 100);
+            foreach (var preference in definition.Habitat.preferences ?? Array.Empty<CreatureBiomePreference>())
+            {
+                if (preference == null || preference.weight <= 0) continue;
+                if (preference.minimumFraction > 0)
+                    result += Loc.Format("habitat.creature.biome_minimum", Loc.Enum(preference.biome), preference.minimumFraction * 100);
+                if (preference.maximumFraction < 1)
+                    result += Loc.Format("habitat.creature.biome_maximum", Loc.Enum(preference.biome), preference.maximumFraction * 100);
+            }
+            return result;
         }
         public void Dispose() { if (panel != null) UnityEngine.Object.Destroy(panel); }
     }

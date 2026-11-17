@@ -55,6 +55,7 @@ namespace Mythologicum
                 if (ValidCreature(creature) && creature.Health.Current < creature.Health.Maximum && !creature.RetirementRequested
                     && !Claimed(creature,worker) && FindRangedPosition(worker, creature, tuning.shootingRange).HasValue)
                 { worker.Target = creature; SetStatus(worker, StaffTask.Healing, "staff.status.going_to_treat", creature.Definition.displayName); return; }
+            if (TryAssignWaterRefill(worker)) return;
             foreach (ParkBuildingRecord feeder in Buildings.Records)
             {
                 if (feeder.Footprint.Definition.kind != BuildingKind.GoatDispenser || feeder.FeedStock > tuning.feederRestockThreshold) continue;
@@ -76,6 +77,7 @@ namespace Mythologicum
 
         private void Work(StaffAgent worker, float dt)
         {
+            if (WorkWaterRefill(worker, dt)) return;
             if (worker.Task == StaffTask.TechnologyResearch)
             {
                 var project = Progression?.ActiveProject(worker.Home);

@@ -28,7 +28,7 @@ namespace Mythologicum
             foreach (var edge in footprint.AttachmentEdges())
                 if (!fences.CanPlaceWindow(edge) || FenceAttachedBuildingAt(edge) != null) return false;
             foreach (var cell in footprint.Cells())
-                if (!grid.IsAvailable(cell) || !creatureWorld.IsClear(cell) || !pen.Cells.Contains(cell)) return false;
+                if (!grid.IsAvailable(cell) || !creatureWorld.IsClear(cell) || !pen.Cells.Contains(cell) || HabitatFeatureAt(cell)) return false;
             return true;
         }
 

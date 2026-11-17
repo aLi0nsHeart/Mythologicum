@@ -72,6 +72,16 @@ namespace Mythologicum
         [Range(0f, 100f)] public float foodRelief = 60f;
         [Min(0.1f)] public float grazeSeconds = 3f;
 
+        [Header("Thirst (0 = hydrated; 100 = dehydrated)")]
+        public CreatureThirstSettings thirst = new CreatureThirstSettings();
+        public CreatureThirstSettings Thirst => thirst ?? (thirst = new CreatureThirstSettings());
+
+        [Header("Habitat and shelter")]
+        public CreatureHabitatSettings habitat = new CreatureHabitatSettings();
+        public CreatureHabitatSettings Habitat => habitat ?? (habitat = new CreatureHabitatSettings());
+        public CreatureShelterSettings shelter = new CreatureShelterSettings();
+        public CreatureShelterSettings Shelter => CreatureShelterSettings.Resolve(this);
+
         [Header("Energy (100 = rested; 0 = exhausted)")]
         [Range(0f, 100f)] public float initialEnergy = 100f;
         [Tooltip("Energy consumed each awake second. Sleep replenishes energy instead.")]
@@ -193,6 +203,8 @@ namespace Mythologicum
             maximumHealth = Mathf.Max(1f, maximumHealth);
             damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
             VisitorAppeal.Validate();
+            Habitat.Validate();
+            Thirst.Validate(); shelter?.Validate();
             scareApproachDistance = Mathf.Max(.1f, scareApproachDistance);
             scareJumpHeight = Mathf.Max(0f, scareJumpHeight); scareJumpForward = Mathf.Max(0f, scareJumpForward);
             scareJumpSquash = Mathf.Clamp(scareJumpSquash, 0f, .8f);
@@ -243,6 +255,8 @@ namespace Mythologicum
         [Range(0f, 100f), Tooltip("Happiness of newly placed or dispensed creatures. Saved individuals retain their saved happiness.")]
         public float initialHappiness = 75f;
         [Min(0f)] public float hungerWeight = .30f;
+        [Min(0f), Tooltip("Influence of hydration on happiness for species that require water.")]
+        public float thirstWeight = .20f;
         [Min(0f)] public float fearWeight = .10f;
         [Min(0f)] public float environmentWeight = .25f;
         [Min(0f)] public float spaceWeight = .20f;
@@ -293,6 +307,7 @@ namespace Mythologicum
         {
             initialHappiness = Mathf.Clamp(initialHappiness, 0, 100);
             hungerWeight = Mathf.Max(0, hungerWeight); fearWeight = Mathf.Max(0, fearWeight);
+            thirstWeight = Mathf.Max(0, thirstWeight);
             environmentWeight = Mathf.Max(0, environmentWeight); spaceWeight = Mathf.Max(0, spaceWeight);
             herdWeight = Mathf.Max(0, herdWeight);
             socialInteractionRange = Mathf.Max(.1f, socialInteractionRange);

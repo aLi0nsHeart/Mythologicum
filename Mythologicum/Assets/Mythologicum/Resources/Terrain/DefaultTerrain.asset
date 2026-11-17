@@ -31,3 +31,7 @@ MonoBehaviour:
     minimumStrength: 0.25
     maximumStrength: 4
     strengthStep: 0.25
+    initialWaterDepth: 1.2
+    minimumWaterDepth: 0.3
+    maximumWaterDepth: 4
+    waterDepthStep: 0.3

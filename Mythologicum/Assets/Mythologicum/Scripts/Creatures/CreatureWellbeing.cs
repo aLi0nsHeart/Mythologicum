@@ -32,7 +32,8 @@ namespace Mythologicum
             int nearbyTrees, int companions, float minimumSpace, int requiredTrees,
             int minCompanions, int maxCompanions, CreatureBehaviourSettings settings = null,
             int nearbyGravestones = 0, int requiredGravestones = 0,
-            float nearbyOpenGroundFraction = 1f, float minimumOpenGroundFraction = 0f)
+            float nearbyOpenGroundFraction = 1f, float minimumOpenGroundFraction = 0f,
+            float thirst = 0, bool needsWater = false, float biomeScore = -1, float shelterScore = -1)
         {
             // Each configured habitat feature contributes equally. Extra trees cannot compensate for missing graves, or vice versa.
             float environmentTotal = 0f;
@@ -49,6 +50,8 @@ namespace Mythologicum
                 float available = ClampScore(nearbyOpenGroundFraction * 100f) / 100f;
                 environmentTotal += ClampScore(100f * available / required); environmentNeeds++;
             }
+            if (biomeScore >= 0) { environmentTotal += ClampScore(biomeScore); environmentNeeds++; }
+            if (shelterScore >= 0) { environmentTotal += ClampScore(shelterScore); environmentNeeds++; }
             float environment = environmentNeeds > 0 ? environmentTotal / environmentNeeds : 100f;
             float space = minimumSpace <= 0f ? 100f : ClampScore(100f * Math.Max(0f, accessibleArea) / minimumSpace);
             companions = Math.Max(0, companions);
@@ -63,11 +66,12 @@ namespace Mythologicum
             double hungerWeight = Weight(settings.hungerWeight), fearWeight = Weight(settings.fearWeight),
                 environmentWeight = Weight(settings.environmentWeight), spaceWeight = Weight(settings.spaceWeight),
                 herdWeight = Weight(settings.herdWeight);
-            double total = hungerWeight + fearWeight + environmentWeight + spaceWeight + herdWeight;
+            double thirstWeight = needsWater ? Weight(settings.thirstWeight) : 0;
+            double total = hungerWeight + fearWeight + environmentWeight + spaceWeight + herdWeight + thirstWeight;
             // Relative weights can be edited independently. With all disabled, no unmet need reduces happiness.
             float happiness = total > 0d ? (float)(((100f - ClampScore(hunger)) * hungerWeight
                 + (100f - ClampScore(fear)) * fearWeight + environment * environmentWeight
-                + space * spaceWeight + herd * herdWeight) / total) : 100f;
+                + space * spaceWeight + herd * herdWeight + (100f - ClampScore(thirst)) * thirstWeight) / total) : 100f;
             return new CreatureNeedScores(environment, space, herd, happiness);
         }
 

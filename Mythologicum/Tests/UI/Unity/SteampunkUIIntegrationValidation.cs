@@ -831,10 +831,13 @@ public static class SteampunkUIIntegrationValidation
             "An explicitly configured zero uphill cost survives native JSON save and restore");
 
         string catalogBefore = JsonUtility.ToJson(catalog);
+        var viewingWindow = ViewingWindowDefinition.Current;
+        string viewingWindowBefore = JsonUtility.ToJson(viewingWindow);
         var runtime = catalog.CreateRuntimeCatalog();
         foreach (var item in runtime)
         {
-            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            var original = item.kind == BuildingKind.ViewingWindow ? viewingWindow.CreateBuildingDefinition()
+                : catalog.buildings.Single(source => source.kind == item.kind);
             Check(!ReferenceEquals(item, original) && item.width == original.width && item.depth == original.depth
                 && Near(item.height, original.height) && Near(item.constructionCost, original.constructionCost)
                 && Near(item.operatingCostPerSecond, original.operatingCostPerSecond),
@@ -846,7 +849,8 @@ public static class SteampunkUIIntegrationValidation
         visuals.ApplyTo(runtime);
         foreach (var item in runtime)
         {
-            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            var original = item.kind == BuildingKind.ViewingWindow ? viewingWindow.CreateBuildingDefinition()
+                : catalog.buildings.Single(source => source.kind == item.kind);
             Check(item.width == original.width + 1 && item.depth == original.depth && Near(item.height, original.height)
                 && item.entranceColumn == original.entranceColumn && Near(item.constructionCost, original.constructionCost + 17f),
                 "Visual binding preserves edited building geometry, doors and balance values: " + item.kind);
@@ -859,6 +863,8 @@ public static class SteampunkUIIntegrationValidation
             "Explicit building prefab and rotation choices take precedence over appearance fallbacks");
         Check(JsonUtility.ToJson(catalog) == catalogBefore,
             "Runtime catalogue edits do not modify the designer's building asset");
+        Check(JsonUtility.ToJson(viewingWindow) == viewingWindowBefore,
+            "Runtime catalogue edits do not modify the designer's shared viewing-window asset");
         var customBuilding = catalog.buildings.First(item => item.IsEmployeeBuilding).Copy();
         customBuilding.staffCapacity = 9;
         customBuilding.staffSalaryPerSecond = 2f;

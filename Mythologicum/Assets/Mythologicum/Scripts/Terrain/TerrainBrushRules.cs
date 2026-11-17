@@ -2,7 +2,7 @@ using System;
 
 namespace Mythologicum
 {
-    public enum TerrainBrushMode { Raise, Lower, Smooth, Flatten }
+    public enum TerrainBrushMode { Raise, Lower, Smooth, Flatten, Water, RemoveWater, Grass, Dirt, Thicket, Stone, Sand }
 
     /// <summary>Pure circular brush falloff and bounded movement toward a sampled target.</summary>
     public static class TerrainBrushRules

@@ -384,3 +384,55 @@ save/load regressions. Check fresh result files, logs and exit codes for each ru
 
 Designer settings and manual checks are described in the
 [attractions guide](../Assets/Mythologicum/Documentation/Attractions-Guide.md).
+
+## Water, biomes and shelters
+
+The habitat model suites can be selected directly:
+
+```powershell
+& .\Tests\Creatures\RunChecks.ps1 -CheckNames @(
+    'CreatureHabitatChecks'
+    'CreatureThirstChecks'
+    'CreatureShelterChecks'
+    '..\Terrain\HabitatTerrainChecks'
+    '..\Terrain\HabitatWaterGeometryChecks'
+)
+```
+
+These cover thirst and finite drinking, compatible vitals restoration, shelter
+configuration and persistent home records, biome painting, water depth, protected
+basin excavation, shoreline geometry and habitat save validation. Ordinary terrain
+and creature navigation suites continue to cover the existing foundation and
+land movement rules.
+
+Copy these sources into the disposable project's `Assets/Editor` alongside the
+current runtime, resources and scenes:
+
+- `Tests/Habitats/Unity/HabitatIntegrationValidation.cs`
+- `Tests/Creatures/Unity/CreatureWaterNativeChecks.cs`
+- `Tests/Creatures/Unity/CreatureShelterNativeChecks.cs`
+- `Tests/Terrain/Unity/HabitatTerrainNativeChecks.cs`
+
+Run `-executeMethod HabitatIntegrationValidation.Start` using the sequential,
+real-graphics disposable-editor setup above. Omit `-quit` so Play-mode scene
+loading can complete. The entry point calls the three `RunChecks()` helpers;
+they are not standalone batch entry points.
+
+The fixture verifies actual trough drinking and keeper refills through staff
+access, proportional water consumption, refill expense accounting, feature
+placement and Undo, pond excavation and Undo, protected brush cells, five visible
+ground types, water as a separate layer from land navigation, persistent burrow
+reuse and cave/tree/shade/grave shelter behaviour. Additional water cases check
+tired creatures emerging from burrows, trees and graves before drinking,
+finishing their drink and returning to the same home. The fixture then saves
+and loads a real park containing a keeper, water stock, pond levels, biome overrides, individual
+thirst and sleeping creatures associated with their saved homes. Terrain helpers
+also check mesh normals, batched render updates and the expanded brush controls.
+
+It writes `HabitatIntegrationResults.txt` and uses the isolated
+`MythologicumValidation/HabitatIntegrationValidation` identity. Its cleanup removes
+only its own uniquely named manual save slot and associated backup/temporary
+files. Use fresh result files, logs and editor exit codes as validation evidence.
+
+Designer settings and manual checks are described in the
+[habitat guide](../Assets/Mythologicum/Documentation/Habitat-Guide.md).

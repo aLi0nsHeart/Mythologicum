@@ -16,7 +16,7 @@ namespace Mythologicum
             {
                 if (HorizontalDistance(grid.CellCenter(cell), agent.transform.position) > agent.Definition.environmentRadius) continue;
                 localTiles++;
-                if (grid.ContentAt(cell) == BuildCellContent.Empty) meadowSample.Add(cell);
+                if (grid.ContentAt(cell) == BuildCellContent.Empty && grid.Habitat.BiomeAt(cell) == HabitatBiome.Grass) meadowSample.Add(cell);
             }
             if (localTiles == 0) return 0f;
             var sample = environment.Sample(meadowSample);

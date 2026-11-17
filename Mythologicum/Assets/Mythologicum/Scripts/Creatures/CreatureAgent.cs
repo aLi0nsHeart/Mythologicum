@@ -5,7 +5,7 @@ namespace Mythologicum
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
         SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing, Escaping,
         AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave, Sedated, Carried, FailedPhase,
-        EnteringBurrow, LeavingBurrow, BurrowingFence, FailedBurrow }
+        EnteringBurrow, LeavingBurrow, BurrowingFence, FailedBurrow, SeekingWater, Drinking }
 
     /// <summary>Individual runtime state. Species rules live in the shared profile asset.</summary>
     public sealed class CreatureAgent : MonoBehaviour
@@ -23,6 +23,9 @@ namespace Mythologicum
         public CreatureHealth Health { get; internal set; }
         public int NearbyGravestones { get; internal set; }
         public float NearbyOpenGroundFraction { get; internal set; }
+        public readonly float[] NearbyBiomeFractions = new float[5];
+        public float BiomeSatisfaction { get; internal set; } = 100;
+        public float ShelterSatisfaction { get; internal set; } = 100;
         public bool InBurrow { get; internal set; }
         public bool IsUnderground => InBurrow || Activity == CreatureActivity.BurrowingFence;
         public bool IsSedated { get; internal set; }
@@ -73,6 +76,9 @@ namespace Mythologicum
         internal Animator BodyAnimator;
         internal string AnimationState;
         internal bool WantsSleep;
+        internal bool ShelterRetreat;
+        internal Vector2Int? ShelterCell;
+        public bool HasShelter { get; internal set; }
         internal Vector2Int? SleepTree;
         internal float Elevation, TraversalDuration, TraversalStartElevation, AttemptAfter;
         internal Vector2Int TraversalFrom, TraversalTo;

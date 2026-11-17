@@ -71,9 +71,12 @@ namespace Mythologicum
         private bool GroundHit(Ray ray,out RaycastHit hit,float distance)=>terrainSurface!=null?terrainSurface.Raycast(ray,out hit,distance):ground.Raycast(ray,out hit,distance);
         private void RefreshTerrainAttachments()
         {
+            if(grid!=null&&habitatAttachmentRevision!=grid.Habitat.Revision)
+            {habitatAttachmentRevision=grid.Habitat.Revision;habitatSurface?.Refresh();}
             if(grid.Terrain==null||attachmentRevision==grid.Terrain.Revision)return;attachmentRevision=grid.Terrain.Revision;
             if(gridMesh!=null)Destroy(gridMesh);gridMesh=BuildGridVisual.CreateMesh(grid);gridObject.GetComponent<MeshFilter>().sharedMesh=gridMesh;
             paths.RefreshTerrain();fences.RefreshTerrain();trees.RefreshTerrain();graves.RefreshTerrain();scarecrows?.RefreshTerrain();rocks?.RefreshTerrain();creatureWorld.RefreshGroundPositions();
+            waterTroughs?.RefreshTerrain();shelters?.RefreshTerrain();
             pathSelection.Invalidate();fenceSelection.Invalidate();
         }
         private void DisposeTerrain()

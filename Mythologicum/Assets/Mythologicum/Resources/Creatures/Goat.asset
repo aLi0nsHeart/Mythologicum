@@ -92,3 +92,28 @@ MonoBehaviour:
   visualScale: {x: 1, y: 1, z: 1}
   color: {r: 0.88, g: 0.83, b: 0.7, a: 1}
   bodyScale: {x: 0.7, y: 0.7, z: 1}
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.08
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences:
+    - biome: 0
+      minimumFraction: 0.40
+      maximumFraction: 1
+      weight: 1
+  shelter:
+    mode: 1
+    requiredForSleep: 0
+    retreatWhenAfraid: 0
+    searchRadius: 32
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

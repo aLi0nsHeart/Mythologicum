@@ -104,7 +104,8 @@ namespace Mythologicum
             => HasLineOfSightCore(start, end, room);
 
         private bool ClearForSight(Vector2Int cell, BuildingFootprint? room)
-            => IsWalkable(cell) || grid.Contains(cell) && room.HasValue && room.Value.Contains(cell);
+            => IsWalkable(cell) || grid.Contains(cell) && (grid.Habitat.IsWater(cell) && grid.ContentAt(cell) != BuildCellContent.Building
+                || room.HasValue && room.Value.Contains(cell));
 
         private bool HasLineOfSightCore(Vector2Int start, Vector2Int end, BuildingFootprint? room)
         {

@@ -37,12 +37,30 @@ namespace Mythologicum
             return result;
         }
 
-        private int SleepSitesAt(CreatureAgent agent, Vector2Int cell) => agent.Definition.requiresGravestoneForSleep
-            ? environment.GravestonesAt(cell) : environment.TreesAt(cell);
-        private bool HasSleepSite(CreatureAgent agent) => agent.Definition.requiresBurrowForSleep
-            ? agent.InBurrow && CanDigAt(agent.Cell)
-            : !agent.Definition.requiresTreeForSleep && !agent.Definition.requiresGravestoneForSleep
-                || agent.SleepTree.HasValue && SleepSitesAt(agent, agent.SleepTree.Value) > 0;
+        private int SleepSitesAt(CreatureAgent agent, Vector2Int cell)
+        {
+            switch (agent.Definition.Shelter.mode)
+            {
+                case CreatureShelterMode.Gravestone: return environment.GravestonesAt(cell);
+                case CreatureShelterMode.TreeCanopy:
+                case CreatureShelterMode.TreeShade: return environment.TreesAt(cell);
+                case CreatureShelterMode.Cave: return ShelterRegistry.Contains(cell, ConstructedShelterKind.Cave) ? 1 : 0;
+                case CreatureShelterMode.Burrow: return ShelterRegistry.Contains(cell, ConstructedShelterKind.Burrow) ? 1 : 0;
+                default: return 0;
+            }
+        }
+        private bool HasSleepSite(CreatureAgent agent)
+        {
+            var settings = agent.Definition.Shelter;
+            if (settings.mode == CreatureShelterMode.Ground) return true;
+            if (settings.mode == CreatureShelterMode.Burrow)
+                return agent.InBurrow && CanDigAt(agent.Cell) && ShelterRegistry.Contains(agent.Cell, ConstructedShelterKind.Burrow);
+            if (!settings.requiredForSleep && !agent.SleepTree.HasValue) return true;
+            if (!agent.SleepTree.HasValue || SleepSitesAt(agent, agent.SleepTree.Value) == 0) return false;
+            if (settings.mode != CreatureShelterMode.TreeShade) return agent.Cell == agent.SleepTree.Value;
+            return ConstructionRouteGraph.CellDistance(agent.Cell, agent.SleepTree.Value) == 1
+                || (agent.Definition.shelter == null || agent.Definition.shelter.mode == CreatureShelterMode.Legacy) && agent.Cell == agent.SleepTree.Value;
+        }
 
         /// <summary>Threat is independent of damage; physical containment still makes exhibits safe to observe.</summary>
         public CreatureAgent FindThreat(CreatureAgent observer, float range)

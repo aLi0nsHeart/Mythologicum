@@ -92,6 +92,7 @@ namespace Mythologicum
         private bool PettingFootprintValid(BuildingFootprint footprint)
         {
             if (!grid.Contains(footprint.AccessCell) || !grid.Contains(footprint.RearAccessCell)
+                || HabitatFeatureAt(footprint.AccessCell) || HabitatFeatureAt(footprint.RearAccessCell)
                 || !creatureWorld.IsClear(footprint.AccessCell) || !creatureWorld.IsClear(footprint.RearAccessCell)
                 || !fences.Layout.HasFence(footprint.RearEdge) || fences.Layout.IsGate(footprint.RearEdge)
                 || fences.Layout.HasWindow(footprint.RearEdge)) return false;

@@ -87,7 +87,7 @@ namespace Mythologicum
                 if (footprint.Definition.kind == BuildingKind.ParkEntrance && HasEntrance) return false;
             }
             else if ((footprint.Definition.kind == BuildingKind.ParkEntrance) == HasEntrance) return false;
-            if (!grid.Contains(footprint.AccessCell) || grid.ContentAt(footprint.AccessCell) == BuildCellContent.Building) return false;
+            if (!grid.Contains(footprint.AccessCell) || grid.ContentAt(footprint.AccessCell) == BuildCellContent.Building || grid.Habitat.IsWater(footprint.AccessCell)) return false;
             if (footprint.IsFenceMounted)
             {
                 if (!grid.Contains(footprint.RearAccessCell) || grid.ContentAt(footprint.RearAccessCell) == BuildCellContent.Building) return false;

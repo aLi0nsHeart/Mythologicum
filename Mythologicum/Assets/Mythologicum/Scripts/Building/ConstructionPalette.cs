@@ -22,6 +22,10 @@ namespace Mythologicum
         private Action selectViewingWindow;
         public void ConfigureWindowTool(Action choose) { selectViewingWindow = choose; Refresh(hasEntrance); }
         private readonly Button enclosuresCategory, treeChoice, gravestoneChoice, scarecrowChoice;
+        private readonly Button troughChoice, caveChoice;
+        private Action selectTrough, selectCave;
+        public void ConfigureHabitatTools(Action trough, Action cave)
+        { selectTrough = trough; selectCave = cave; Refresh(hasEntrance); }
         private readonly List<KeyValuePair<CreatureDefinition,Button>> creatureButtons = new List<KeyValuePair<CreatureDefinition,Button>>();
         private ParkProgression progression;
         public void ConfigureProgression(ParkProgression value) { progression=value; Refresh(hasEntrance); }
@@ -89,6 +93,10 @@ namespace Mythologicum
                 () => { Close(); selectGravestone?.Invoke(); }, true);
             scarecrowChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "enclosure.scarecrow.place", Vector2.zero,
                 () => { Close(); selectScarecrow?.Invoke(); }, true);
+            troughChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "habitat.trough.name", Vector2.zero,
+                () => { Close(); selectTrough?.Invoke(); }, true);
+            caveChoice = MakeButton(template, groups[ConstructionCategory.Enclosures].transform, "habitat.cave.name", Vector2.zero,
+                () => { Close(); selectCave?.Invoke(); }, true);
             attractionsChoice = MakeButton(template, groups[ConstructionCategory.Buildings].transform, "attraction.palette.attractions", Vector2.zero,
                 () => Toggle(ConstructionCategory.Attractions), true);
             for (int i = 0; i < definitions.Length; i++)
@@ -257,6 +265,10 @@ namespace Mythologicum
                 = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
             enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = scarecrowChoice.interactable = hasEntrance;
+            troughChoice.interactable = hasEntrance && selectTrough != null;
+            caveChoice.interactable = hasEntrance && selectCave != null;
+            troughChoice.GetComponentInChildren<Text>().text = Loc.Format("habitat.trough.place_cost", WaterTroughDefinition.Current.constructionCost);
+            caveChoice.GetComponentInChildren<Text>().text = Loc.Format("habitat.cave.place_cost", ShelterDefinition.Current.caveConstructionCost);
             attractionsChoice.interactable = hasEntrance;
             bool windowUnlocked = progression?.Completed("viewing-window") ?? false;
             foreach (var button in new[] { windowChoice, windowAttractionChoice })

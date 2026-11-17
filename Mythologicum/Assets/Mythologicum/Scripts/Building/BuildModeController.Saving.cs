@@ -13,6 +13,8 @@ namespace Mythologicum
                 unlimited = economy.UnlimitedFunds, savedAt = DateTime.UtcNow.ToString("O"),
                 departedVisitors = visitorWorld.DepartedCount, lostVisitors = visitorWorld.LostCount };
             data.terrain=grid.Terrain?.Capture();
+            data.hasHabitat = true; data.habitat = grid.Habitat.Capture();
+            data.waterTroughs = waterTroughs?.Capture(); data.shelters = shelters?.Capture();
             data.treeVisuals=trees.CaptureVisuals();
             data.generation=mapOptions?.Clone();data.rocks=rocks.Capture();
             data.finance=economy.CaptureFinance();data.reputation=visitorWorld.Reputation.Capture();
@@ -45,6 +47,10 @@ namespace Mythologicum
             {
                 if (!actor.Alive || actor.ExternallyControlled) continue;
                 var saved = CaptureActor(actor); saved.building = IndexOf(records, actor.SourceDispenser);
+                var home = creatureWorld.CaptureValidShelterHome(actor);
+                saved.hasShelterHome = home.HasValue; saved.shelterHome = home ?? default;
+                saved.shelterSleeping = home.HasValue && actor.Activity == CreatureActivity.Sleeping && !actor.IsSedated && actor.CarriedBy == null;
+                saved.shelterRetreat = home.HasValue && actor.ShelterRetreat;
                 saved.retire = actor.RetirementRequested; saved.sedate = actor.SedationRequested;
                 data.creatures.Add(saved);
             }
@@ -82,7 +88,7 @@ namespace Mythologicum
         }
         private SavedActor CaptureActor(CreatureAgent actor) => new SavedActor { species = actor.Definition.name,
             cell = actor.CarriedBy != null ? grid.WorldToCell(actor.transform.position) : actor.Cell,
-            hunger = actor.Vitals.Hunger, fear = actor.Vitals.Fear, energy = actor.Energy.Energy, health = actor.Health.Current,
+            hunger = actor.Vitals.Hunger, thirst = actor.Vitals.Thirst, fear = actor.Vitals.Fear, energy = actor.Energy.Energy, health = actor.Health.Current,
             happiness = actor.Wellbeing.Happiness, agitation = actor.Wellbeing.Agitation,
             sedation = actor.SedationRemaining, explored = actor.Exploration.AwakeSeconds,
             // In-flight attempts are consumed on load, so saving cannot grant another
@@ -98,12 +104,12 @@ namespace Mythologicum
                 actor.ScareAfter - creatureWorld.SimulationTime) };
         private void RestoreActor(CreatureAgent actor, SavedActor saved)
         {
-            // Burrows are temporary creature actions. Restore at the saved logical
-            // safe-side cell; energy and retry timers survive, and tired animals can
-            // choose to dig a fresh sleeping burrow after loading.
+            // Traversals resume on their saved logical safe-side cell. Persistent
+            // shelter homes and settled sleep poses are restored after all features.
             actor.Cell = saved.cell;
             actor.transform.position = grid.ActorPosition(saved.cell,actor.Definition.bodyScale.y);
-            actor.Vitals.Restore(actor.Definition.needsFood ? saved.hunger : actor.Definition.StartingHunger, saved.fear);
+            actor.Vitals.Restore(actor.Definition.needsFood ? saved.hunger : actor.Definition.StartingHunger, saved.fear,
+                actor.Definition.Thirst.needsWater ? saved.thirst : 0);
             actor.Energy = new CreatureEnergy(saved.energy);
             actor.Health.Damage(Mathf.Max(0f, actor.Health.Maximum - Mathf.Max(1f, saved.health)));
             actor.Wellbeing.Restore(saved.happiness, saved.agitation); actor.Exploration.Tick(saved.explored);
@@ -123,6 +129,8 @@ namespace Mythologicum
             GridHeightField checkTerrain=null;
             if(data.version>=3){checkTerrain=new GridHeightField(data.width,data.depth,data.cellSize);checkTerrain.Restore(data.terrain);}
             var checkGrid = new SquareBuildGrid(grid.Origin, data.cellSize, data.width, data.depth,checkTerrain);
+            if (data.hasHabitat && data.habitat == null) throw new InvalidDataException(Loc.Text("habitat.terrain.invalid_save"));
+            checkGrid.Habitat.Restore(data.hasHabitat ? data.habitat : null);
             var checkFences = new FenceLayout(checkGrid, fences.Layout.Rules);
             var network = new ParkBuildingNetwork(checkGrid, checkFences);
             network.RestoringSave = true;
@@ -133,6 +141,8 @@ namespace Mythologicum
                     throw new InvalidDataException(Loc.Text("attraction.save.invalid"));
                 if (saved.hasRide) AttractionRideCycle.ValidateSave(saved.ride, definition.serviceSeconds, definition.attraction.boardingWindowSeconds);
                 var footprint=new BuildingFootprint(definition,saved.cell,saved.rotation,saved.fenceMounted);
+                if (checkGrid.Habitat.IsWater(footprint.AccessCell) || footprint.IsFenceMounted && checkGrid.Habitat.IsWater(footprint.RearAccessCell))
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
                 var record=network.TryPlace(footprint);
                 if (record == null)
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_building_has_an_invalid_footprint"));
@@ -184,13 +194,36 @@ namespace Mythologicum
                 foreach(var item in data.treeVisuals)if(item==null||!treeCells.Contains(item.cell)||!ids.Add(item.cell)||!Finite(item.height)||item.height<.1f||item.height>100||!Finite(item.yaw))
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_tree_appearance"));
             }
+            var troughCells = new HashSet<Vector2Int>();
+            if (data.waterTroughs != null) foreach (var trough in data.waterTroughs)
+            {
+                if (trough == null || !checkGrid.IsAvailable(trough.cell) || !checkGrid.GroundWalkable(trough.cell)
+                    || !enrichment.Add(trough.cell) || !troughCells.Add(trough.cell)
+                    || !Finite(trough.stock) || trough.stock < 0 || !Finite(trough.expenses) || trough.expenses < 0
+                    || SavedAccessReserved(network.Records, trough.cell))
+                    throw new InvalidDataException(Loc.Text("habitat.save.invalid_water_trough"));
+            }
+            CreatureShelterRegistry.ValidateSaved(data.shelters, checkGrid);
+            var shelterKinds = new Dictionary<Vector2Int, ConstructedShelterKind>();
+            if (data.shelters != null) foreach (var shelter in data.shelters)
+            {
+                if (!enrichment.Add(shelter.cell) || SavedAccessReserved(network.Records, shelter.cell))
+                    throw new InvalidDataException(Loc.Text("habitat.shelter.invalid_save"));
+                shelterKinds.Add(shelter.cell, shelter.kind);
+            }
             foreach (var saved in data.creatures)
-                if (Species(saved.species) == null || !ValidActor(saved, checkGrid)||rockCells.Contains(saved.cell)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_creature_is_unavailable_or_invalid"));
+            {
+                var species = saved == null ? null : Species(saved.species);
+                if (species == null || !ValidActor(saved, checkGrid) || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell))
+                    throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_creature_is_unavailable_or_invalid"));
+                ValidateShelterHome(saved, species, checkGrid, shelterKinds, data.trees, data.graves);
+            }
             var hired = new Dictionary<int,int>();
             foreach (var saved in data.staff)
             {
                 if (!ValidActor(saved, checkGrid) || saved.building < 0 || saved.building >= data.buildings.Count
-                    ||rockCells.Contains(saved.cell)|| !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_staff_home_or_employee"));
+                    ||rockCells.Contains(saved.cell)||troughCells.Contains(saved.cell)|| saved.hasShelterHome || saved.shelterSleeping || saved.shelterRetreat
+                    || !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_staff_home_or_employee"));
                 hired.TryGetValue(saved.building, out int count); hired[saved.building] = count + 1;
                 // A lowered hiring limit must not discard employees already hired in an older balance.
                 // This is a corrupt-file guard, not the live hiring limit.
@@ -203,7 +236,8 @@ namespace Mythologicum
                 VisitorWorld.ValidateAttractionSave(saved.attraction, network.Records, checkGrid, checkFences);
                 bool insideRoom = (saved.attraction?.insideViewingRoom == true || saved.attraction?.insideInterior == true) && saved.attraction.building >= 0;
                 if (insideRoom && saved.cell != saved.attraction.interior
-                    || !ValidActor(saved, checkGrid, insideRoom) || rockCells.Contains(saved.cell)
+                    || !ValidActor(saved, checkGrid, insideRoom) || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell)
+                    || saved.hasShelterHome || saved.shelterSleeping || saved.shelterRetreat
                     || !Enum.IsDefined(typeof(VisitorType), saved.visitorType)
                     || !ValidInterestHistory(saved.observedSpecies) || !ValidInterestHistory(saved.observedOrigins))
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_visitor"));
@@ -217,6 +251,35 @@ namespace Mythologicum
             if(data.version>=2)Progression.Validate(data.progression,network.Records);
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+        private static bool SavedAccessReserved(IReadOnlyList<ParkBuildingRecord> records, Vector2Int cell)
+        {
+            foreach (var record in records)
+                if (record.Footprint.AccessCell == cell || record.Footprint.IsFenceMounted && record.Footprint.RearAccessCell == cell) return true;
+            return false;
+        }
+        private static void ValidateShelterHome(SavedActor actor, CreatureDefinition species, SquareBuildGrid checkGrid,
+            Dictionary<Vector2Int, ConstructedShelterKind> constructed, List<Vector2Int> trees, List<Vector2Int> graves)
+        {
+            if (!actor.hasShelterHome)
+            {
+                if (actor.shelterSleeping || actor.shelterRetreat) throw new InvalidDataException(Loc.Text("habitat.save.invalid_shelter_home"));
+                return;
+            }
+            var home = actor.shelterHome; var mode = species.Shelter.mode;
+            bool valid = checkGrid.Contains(home) && !checkGrid.Habitat.IsWater(home)
+                && (mode == CreatureShelterMode.TreeCanopy || mode == CreatureShelterMode.TreeShade ? trees.Contains(home)
+                    : mode == CreatureShelterMode.Gravestone ? graves.Contains(home)
+                    : mode == CreatureShelterMode.Cave ? constructed.TryGetValue(home, out var cave) && cave == ConstructedShelterKind.Cave
+                    : mode == CreatureShelterMode.Burrow && constructed.TryGetValue(home, out var burrow) && burrow == ConstructedShelterKind.Burrow
+                        && CreatureBurrowing.CanDigGround(checkGrid, home));
+            if (actor.shelterSleeping)
+            {
+                bool legacyShade = mode == CreatureShelterMode.TreeShade && (species.shelter == null || species.shelter.mode == CreatureShelterMode.Legacy);
+                valid &= actor.sedation <= 0 && (mode == CreatureShelterMode.TreeShade
+                    ? ConstructionRouteGraph.CellDistance(actor.cell, home) == 1 || legacyShade && actor.cell == home : actor.cell == home);
+            }
+            if (!valid) throw new InvalidDataException(Loc.Text("habitat.save.invalid_shelter_home"));
+        }
         private static bool ValidInterestHistory(List<string> values)
         {
             if (values == null) return true; // Older saves have no observation history.
@@ -230,6 +293,7 @@ namespace Mythologicum
             return true;
         }
         private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid, bool allowBuilding = false) => saved != null && checkGrid.Contains(saved.cell)
+            && !checkGrid.Habitat.IsWater(saved.cell) && Finite(saved.thirst) && saved.thirst >= 0f && saved.thirst <= 100f
             && (allowBuilding || checkGrid.ContentAt(saved.cell) != BuildCellContent.Building) && Finite(saved.health) && saved.health > 0f
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
             && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored)
@@ -262,6 +326,7 @@ namespace Mythologicum
                     if(data.version>=3)grid.Terrain.Restore(data.terrain);
                     else grid.Terrain.ImportHeights(new float[(grid.Width+1)*(grid.Depth+1)]);
                 }
+                grid.Habitat.Restore(data.hasHabitat ? data.habitat : null);
                 SelectTool(Tool.None);
                 var restored = new List<ParkBuildingRecord>();
                 foreach (var saved in data.buildings)
@@ -282,6 +347,10 @@ namespace Mythologicum
                 if (data.scarecrows != null) foreach (var cell in data.scarecrows)
                     if (!scarecrows.TryPlace(cell)) throw new InvalidDataException(Loc.Text("park.save.restore_scarecrow_failed"));
                 if(data.rocks!=null)foreach(var cell in data.rocks)if(!rocks.TryPlace(cell))throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_rock"));
+                if (data.shelters != null) foreach (var shelter in data.shelters)
+                    if (!shelters.Restore(shelter)) throw new InvalidDataException(Loc.Text("habitat.save.restore_shelter_failed"));
+                if (data.waterTroughs != null) foreach (var trough in data.waterTroughs)
+                    if (!waterTroughs.Restore(trough)) throw new InvalidDataException(Loc.Text("habitat.save.restore_trough_failed"));
                 buildingConstruction.Network.Refresh();
                 // Restore all saved actors even if the designer has since lowered the shared population cap.
                 creatureWorld.PopulationLimit = Math.Max(creatureWorld.PopulationLimit, data.creatures.Count + data.staff.Count + data.visitors.Count);
@@ -299,6 +368,8 @@ namespace Mythologicum
                     var dispenser = saved.building >= 0 && saved.building < restored.Count ? restored[saved.building] : null;
                     if (!creatureWorld.TrySpawn(Species(saved.species), saved.cell, dispenser)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_creature"));
                     var actor = creatureWorld.Agents[creatureWorld.Agents.Count - 1]; RestoreActor(actor, saved);
+                    if (!creatureWorld.RestoreShelterState(actor, saved.hasShelterHome ? saved.shelterHome : (Vector2Int?)null, saved.shelterSleeping, saved.shelterRetreat))
+                        throw new InvalidDataException(Loc.Text("habitat.save.restore_home_failed"));
                     if (saved.retire) staffWorld.RequestRetire(actor);
                     if (saved.sedate) staffWorld.RequestSedate(actor);
                 }
