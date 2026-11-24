@@ -55,7 +55,7 @@ namespace Mythologicum
         {
             if (!RegisteredLiving(actor)) return false;
             RefreshNavigation();
-            if (!navigation.IsWalkable(cell)) return false;
+            if (!StrictNavigation(actor).IsWalkable(cell)) return false;
             Vector3 point = grid.CellCenter(cell);
             foreach (CreatureAgent other in agents)
                 if (other != actor && other != ignore && other.Alive

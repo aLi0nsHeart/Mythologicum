@@ -81,6 +81,19 @@ namespace Mythologicum
         public CreatureHabitatSettings Habitat => habitat ?? (habitat = new CreatureHabitatSettings());
         public CreatureShelterSettings shelter = new CreatureShelterSettings();
         public CreatureShelterSettings Shelter => CreatureShelterSettings.Resolve(this);
+        [Header("Aquatic movement and hunting")]
+        public CreatureAquaticSettings aquatic = new CreatureAquaticSettings();
+        public CreatureAquaticSettings Aquatic => aquatic ?? (aquatic = new CreatureAquaticSettings());
+
+        [Header("Flight and sky abilities")]
+        public CreatureFlightSettings flight = new CreatureFlightSettings();
+        public CreatureFlightSettings Flight => flight ?? (flight = new CreatureFlightSettings());
+        [Header("Stalking and ambush")]
+        public CreatureStalkingSettings stalking = new CreatureStalkingSettings();
+        public CreatureStalkingSettings Stalking => stalking ?? (stalking = new CreatureStalkingSettings());
+        [Header("Shoreline luring")]
+        public CreatureLureSettings lure = new CreatureLureSettings();
+        public CreatureLureSettings Lure => lure ?? (lure = new CreatureLureSettings());
 
         [Header("Energy (100 = rested; 0 = exhausted)")]
         [Range(0f, 100f)] public float initialEnergy = 100f;
@@ -204,7 +217,8 @@ namespace Mythologicum
             damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
             VisitorAppeal.Validate();
             Habitat.Validate();
-            Thirst.Validate(); shelter?.Validate();
+            Thirst.Validate(); shelter?.Validate(); Aquatic.Validate();
+            Flight.Validate(); Stalking.Validate(); Lure.Validate();
             scareApproachDistance = Mathf.Max(.1f, scareApproachDistance);
             scareJumpHeight = Mathf.Max(0f, scareJumpHeight); scareJumpForward = Mathf.Max(0f, scareJumpForward);
             scareJumpSquash = Mathf.Clamp(scareJumpSquash, 0f, .8f);
@@ -257,10 +271,28 @@ namespace Mythologicum
         [Min(0f)] public float hungerWeight = .30f;
         [Min(0f), Tooltip("Influence of hydration on happiness for species that require water.")]
         public float thirstWeight = .20f;
+        [Min(0f), Tooltip("Influence of energy on happiness. Zero disables exhaustion-related unhappiness and distress.")]
+        public float energyWeight = .20f;
         [Min(0f)] public float fearWeight = .10f;
         [Min(0f)] public float environmentWeight = .25f;
         [Min(0f)] public float spaceWeight = .20f;
         [Min(0f)] public float herdWeight = .15f;
+
+        [Header("Serious unmet needs")]
+        [Range(0f, 100f), Tooltip("Individual satisfaction below this score creates distress, even when other needs are met. Zero disables this rule.")]
+        public float criticalNeedThreshold = 40f;
+        [Range(0f, 100f), Tooltip("Maximum target happiness when any enabled need is completely unmet. The limit eases toward 100 at Critical Need Threshold.")]
+        public float criticalHappinessCap = 20f;
+        [Range(0f, 1f), Tooltip("Agitation caused by one completely unmet need. Multiple serious deficits combine toward one.")]
+        public float criticalAgitation = .85f;
+        [Range(0f, 100f), Tooltip("Satisfaction below this score is listed as an unmet need in the creature panel.")]
+        public float unmetNeedThreshold = 80f;
+
+        [Header("Agitation response")]
+        [Min(0f), Tooltip("Maximum agitation increase per simulation second, on a zero-to-one scale.")]
+        public float agitationBuildPerSecond = .20f;
+        [Min(0f), Tooltip("Maximum agitation decrease per simulation second once conditions improve.")]
+        public float agitationRecoveryPerSecond = .08f;
 
         [Header("Socializing and local exploration")]
         [Min(.1f), Tooltip("Maximum distance in metres for starting and continuing a social interaction.")]
@@ -279,6 +311,8 @@ namespace Mythologicum
         public float urgentHunger = 80f;
         [Range(0f, 100f), Tooltip("Energy low enough to override settling caution when seeking a sleeping site.")]
         public float urgentEnergy = 8f;
+        [Min(.1f), Tooltip("Seconds before retrying an unsuccessful sleep search. Other urgent needs can be addressed meanwhile.")]
+        public float sleepSearchRetrySeconds = 5f;
         [Range(0f, 100f), Tooltip("Hunger where hunger-driven escape pressure begins; it reaches full strength at 100.")]
         public float escapeHungerStart = 75f;
         [Range(0f, 1f), Tooltip("Cap on combined escape intention chance per simulation minute.")]
@@ -308,6 +342,14 @@ namespace Mythologicum
             initialHappiness = Mathf.Clamp(initialHappiness, 0, 100);
             hungerWeight = Mathf.Max(0, hungerWeight); fearWeight = Mathf.Max(0, fearWeight);
             thirstWeight = Mathf.Max(0, thirstWeight);
+            energyWeight = FiniteRange(energyWeight, .20f, 0f, float.MaxValue);
+            criticalNeedThreshold = FiniteRange(criticalNeedThreshold, 40f, 0f, 100f);
+            criticalHappinessCap = FiniteRange(criticalHappinessCap, 20f, 0f, 100f);
+            criticalAgitation = FiniteRange(criticalAgitation, .85f, 0f, 1f);
+            unmetNeedThreshold = FiniteRange(unmetNeedThreshold, 80f, 0f, 100f);
+            agitationBuildPerSecond = FiniteRange(agitationBuildPerSecond, .20f, 0f, float.MaxValue);
+            agitationRecoveryPerSecond = FiniteRange(agitationRecoveryPerSecond, .08f, 0f, float.MaxValue);
+            sleepSearchRetrySeconds = FiniteRange(sleepSearchRetrySeconds, 5f, .1f, float.MaxValue);
             environmentWeight = Mathf.Max(0, environmentWeight); spaceWeight = Mathf.Max(0, spaceWeight);
             herdWeight = Mathf.Max(0, herdWeight);
             socialInteractionRange = Mathf.Max(.1f, socialInteractionRange);
@@ -322,5 +364,8 @@ namespace Mythologicum
             attackFearSeconds = Mathf.Max(0, attackFearSeconds); fenceStrikeEnergyCost = Mathf.Clamp(fenceStrikeEnergyCost, 0, 100);
             maximumFenceStrikes = Mathf.Max(1, maximumFenceStrikes);
         }
+
+        private static float FiniteRange(float value, float fallback, float minimum, float maximum)
+            => float.IsNaN(value) || float.IsInfinity(value) ? fallback : Math.Max(minimum, Math.Min(maximum, value));
     }
 }

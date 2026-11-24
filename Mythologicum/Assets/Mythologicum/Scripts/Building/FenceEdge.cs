@@ -4,7 +4,8 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum FenceKind { Wooden, Spiked, Heavy, Sanctified }
+    // Values are persisted in park saves; append new kinds without reordering existing ones.
+    public enum FenceKind { Wooden = 0, Spiked = 1, Heavy = 2, Sanctified = 3, Deep = 4, Aviary = 5, Aquarium = 6 }
 
     /// <summary>A paid viewing point attached to a physical fence segment.</summary>
     public sealed class FenceWindowRecord

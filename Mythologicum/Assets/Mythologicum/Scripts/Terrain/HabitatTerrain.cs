@@ -7,6 +7,15 @@ namespace Mythologicum
 {
     public enum HabitatBiome { Grass, Dirt, Thicket, Stone, Sand }
 
+    public readonly struct WaterSurfaceEdit
+    {
+        public Vector2Int Cell { get; }
+        public bool HasSurface { get; }
+        public float WorldLevel { get; }
+        public WaterSurfaceEdit(Vector2Int cell, bool hasSurface, float worldLevel = 0)
+        { Cell = cell; HasSurface = hasSurface; WorldLevel = worldLevel; }
+    }
+
     [Serializable] public sealed class SavedBiomeCell
     {
         public Vector2Int cell;
@@ -132,6 +141,26 @@ namespace Mythologicum
             int index = Index(cell); float relative = worldLevel - grid.Origin.y;
             if (water[index] && Math.Abs(levels[index] - relative) < .0001f) return false;
             water[index] = true; levels[index] = relative; Touch(cell, cell); return true;
+        }
+
+        /// <summary>Applies exact-cell automatic pool edits with one render/navigation notification.</summary>
+        public bool TryApplyWaterSurfaces(IReadOnlyList<WaterSurfaceEdit> edits, out string reason)
+        {
+            reason = "";
+            if (edits == null) { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            foreach (var edit in edits)
+                if (!grid.Contains(edit.Cell) || edit.HasSurface && (grid.ContentAt(edit.Cell) != BuildCellContent.Empty
+                    || !Finite(edit.WorldLevel) || Math.Abs(edit.WorldLevel - grid.Origin.y) > 10000f))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+            bool changed = false; var minimum = new Vector2Int(grid.Width, grid.Depth); var maximum = new Vector2Int(-1, -1);
+            foreach (var edit in edits)
+            {
+                int index = Index(edit.Cell); float level = edit.HasSurface ? edit.WorldLevel - grid.Origin.y : 0;
+                if (water[index] == edit.HasSurface && (!edit.HasSurface || Math.Abs(levels[index] - level) < .00001f)) continue;
+                water[index] = edit.HasSurface; levels[index] = level; changed = true; Include(edit.Cell, ref minimum, ref maximum);
+            }
+            if (changed) Touch(minimum, maximum);
+            return true;
         }
 
         public SavedHabitatTerrain Capture()

@@ -1,0 +1,299 @@
+﻿{
+    "date":  "2026-11-20",
+    "unity":  "6000.0.74f1",
+    "scope":  "Production scene restore of copied saves; 1800 manual simulation ticks at 1/30 second. CPU simulation and reports, excluding rendering, GPU, scheduling, input and autosave. Initial tick includes cold/JIT work. Unity Random seeded; normal visitor appearance/type arrivals remain stochastic. Original saves are not included.",
+    "results":  [
+                    {
+                        "fixture":  "HabitatPark",
+                        "tag":  "Baseline",
+                        "mapWidth":  72,
+                        "mapDepth":  72,
+                        "initialCreatures":  9,
+                        "initialVisitors":  29,
+                        "initialStaff":  2,
+                        "finalCreatures":  9,
+                        "finalVisitors":  26,
+                        "finalStaff":  2,
+                        "samples":  1800,
+                        "simulatedSeconds":  60.000003814697269,
+                        "timings":  [
+                                        {
+                                            "name":  "Total",
+                                            "samples":  1800,
+                                            "over16Ms":  93,
+                                            "over50Ms":  93,
+                                            "medianMs":  0.6636000000000001,
+                                            "p95Ms":  235.48190000000003,
+                                            "p99Ms":  245.88000000000003,
+                                            "worstMs":  427.11490000000006,
+                                            "totalMs":  24333.3656
+                                        },
+                                        {
+                                            "name":  "Creatures",
+                                            "samples":  1800,
+                                            "over16Ms":  93,
+                                            "over50Ms":  93,
+                                            "medianMs":  0.0639,
+                                            "p95Ms":  234.71030000000003,
+                                            "p99Ms":  245.11870000000003,
+                                            "worstMs":  425.8704,
+                                            "totalMs":  23066.665399999998
+                                        },
+                                        {
+                                            "name":  "Staff",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0114,
+                                            "p95Ms":  0.027700000000000004,
+                                            "p99Ms":  0.0719,
+                                            "worstMs":  14.097100000000001,
+                                            "totalMs":  53.70729999999999
+                                        },
+                                        {
+                                            "name":  "Visitors",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.203,
+                                            "p95Ms":  0.5896,
+                                            "p99Ms":  0.9563,
+                                            "worstMs":  29.213700000000004,
+                                            "totalMs":  507.3552000000008
+                                        },
+                                        {
+                                            "name":  "Other",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.34140000000000006,
+                                            "p95Ms":  0.5690000000000001,
+                                            "p99Ms":  0.7777000000000001,
+                                            "worstMs":  12.3157,
+                                            "totalMs":  704.3967999999998
+                                        }
+                                    ],
+                        "worstMsExcludingFirst":  427.1149,
+                        "over50MsExcludingFirst":  92
+                    },
+                    {
+                        "fixture":  "HabitatPark",
+                        "tag":  "After",
+                        "mapWidth":  72,
+                        "mapDepth":  72,
+                        "initialCreatures":  9,
+                        "initialVisitors":  29,
+                        "initialStaff":  2,
+                        "finalCreatures":  9,
+                        "finalVisitors":  26,
+                        "finalStaff":  2,
+                        "samples":  1800,
+                        "simulatedSeconds":  60.000003814697269,
+                        "timings":  [
+                                        {
+                                            "name":  "Total",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  1,
+                                            "medianMs":  0.6297,
+                                            "p95Ms":  1.5778,
+                                            "p99Ms":  2.0089,
+                                            "worstMs":  82.3769,
+                                            "totalMs":  1444.9761999999985
+                                        },
+                                        {
+                                            "name":  "Creatures",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0587,
+                                            "p95Ms":  0.8249000000000001,
+                                            "p99Ms":  0.9473,
+                                            "worstMs":  36.8945,
+                                            "totalMs":  275.1400000000001
+                                        },
+                                        {
+                                            "name":  "Staff",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0111,
+                                            "p95Ms":  0.023,
+                                            "p99Ms":  0.07100000000000001,
+                                            "worstMs":  11.1346,
+                                            "totalMs":  49.125700000000019
+                                        },
+                                        {
+                                            "name":  "Visitors",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.1993,
+                                            "p95Ms":  0.5748,
+                                            "p99Ms":  0.8681000000000001,
+                                            "worstMs":  27.6783,
+                                            "totalMs":  486.0096999999997
+                                        },
+                                        {
+                                            "name":  "Other",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.3227,
+                                            "p95Ms":  0.4539,
+                                            "p99Ms":  0.5278,
+                                            "worstMs":  11.8056,
+                                            "totalMs":  633.672899999999
+                                        }
+                                    ],
+                        "worstMsExcludingFirst":  11.8272,
+                        "over50MsExcludingFirst":  0
+                    },
+                    {
+                        "fixture":  "LatestPark",
+                        "tag":  "Baseline",
+                        "mapWidth":  72,
+                        "mapDepth":  72,
+                        "initialCreatures":  2,
+                        "initialVisitors":  20,
+                        "initialStaff":  2,
+                        "finalCreatures":  2,
+                        "finalVisitors":  19,
+                        "finalStaff":  2,
+                        "samples":  1800,
+                        "simulatedSeconds":  60.000003814697269,
+                        "timings":  [
+                                        {
+                                            "name":  "Total",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  1,
+                                            "medianMs":  0.43110000000000006,
+                                            "p95Ms":  0.6807000000000001,
+                                            "p99Ms":  0.9075000000000001,
+                                            "worstMs":  56.4014,
+                                            "totalMs":  914.4090999999993
+                                        },
+                                        {
+                                            "name":  "Creatures",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.024800000000000004,
+                                            "p95Ms":  0.0796,
+                                            "p99Ms":  0.1041,
+                                            "worstMs":  21.1579,
+                                            "totalMs":  82.39600000000005
+                                        },
+                                        {
+                                            "name":  "Staff",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0044,
+                                            "p95Ms":  0.0074,
+                                            "p99Ms":  0.026600000000000003,
+                                            "worstMs":  5.8863,
+                                            "totalMs":  15.576100000000132
+                                        },
+                                        {
+                                            "name":  "Visitors",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0978,
+                                            "p95Ms":  0.24630000000000003,
+                                            "p99Ms":  0.4288,
+                                            "worstMs":  18.7636,
+                                            "totalMs":  248.2813
+                                        },
+                                        {
+                                            "name":  "Other",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.2924,
+                                            "p95Ms":  0.3704,
+                                            "p99Ms":  0.4964,
+                                            "worstMs":  10.570800000000002,
+                                            "totalMs":  567.1228999999998
+                                        }
+                                    ],
+                        "worstMsExcludingFirst":  5.5089,
+                        "over50MsExcludingFirst":  0
+                    },
+                    {
+                        "fixture":  "LatestPark",
+                        "tag":  "After",
+                        "mapWidth":  72,
+                        "mapDepth":  72,
+                        "initialCreatures":  2,
+                        "initialVisitors":  20,
+                        "initialStaff":  2,
+                        "finalCreatures":  2,
+                        "finalVisitors":  19,
+                        "finalStaff":  2,
+                        "samples":  1800,
+                        "simulatedSeconds":  60.000003814697269,
+                        "timings":  [
+                                        {
+                                            "name":  "Total",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  1,
+                                            "medianMs":  0.4409,
+                                            "p95Ms":  0.8048000000000001,
+                                            "p99Ms":  1.1365,
+                                            "worstMs":  56.9713,
+                                            "totalMs":  971.1874
+                                        },
+                                        {
+                                            "name":  "Creatures",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.025,
+                                            "p95Ms":  0.0951,
+                                            "p99Ms":  0.1424,
+                                            "worstMs":  21.8453,
+                                            "totalMs":  86.27499999999987
+                                        },
+                                        {
+                                            "name":  "Staff",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.0044,
+                                            "p95Ms":  0.0098,
+                                            "p99Ms":  0.027600000000000004,
+                                            "worstMs":  5.801200000000001,
+                                            "totalMs":  16.17980000000002
+                                        },
+                                        {
+                                            "name":  "Visitors",
+                                            "samples":  1800,
+                                            "over16Ms":  1,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.09910000000000001,
+                                            "p95Ms":  0.26,
+                                            "p99Ms":  0.4305,
+                                            "worstMs":  18.814500000000004,
+                                            "totalMs":  253.5813000000001
+                                        },
+                                        {
+                                            "name":  "Other",
+                                            "samples":  1800,
+                                            "over16Ms":  0,
+                                            "over50Ms":  0,
+                                            "medianMs":  0.29850000000000007,
+                                            "p95Ms":  0.49960000000000007,
+                                            "p99Ms":  0.6876000000000001,
+                                            "worstMs":  10.4879,
+                                            "totalMs":  614.0824999999998
+                                        }
+                                    ],
+                        "worstMsExcludingFirst":  7.0665,
+                        "over50MsExcludingFirst":  0
+                    }
+                ]
+}

@@ -1,0 +1,180 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: NandiBear
+  m_EditorClassIdentifier:
+  displayName: creature.name.nandi_bear
+  diet: 0
+  tags: 2
+  preyTags: 29
+  fearedTags: 0
+  manuallyPlaceable: 1
+  pettable: 0
+  rating: 3
+  origin: creature.origin.eastern_africa
+  maximumHealth: 220
+  damage: 48
+  threat: 58
+  visitorAppeal:
+    thrill: 0.85
+    wonder: 0.55
+    adventure: 0.85
+    children: 0.15
+  needsFood: 1
+  feedsOnFear: 0
+  initialHunger: 30
+  hungerPerSecond: 0.75
+  huntThreshold: 50
+  foodRelief: 70
+  grazeSeconds: 3
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.08
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 48
+  habitat:
+    preferences:
+    - biome: 2
+      minimumFraction: 0.5
+      maximumFraction: 1
+      weight: 1
+    - biome: 3
+      minimumFraction: 0.1
+      maximumFraction: 0.4
+      weight: 1
+  aquatic:
+    canSwim: 0
+    canWadeShallows: 1
+    preferWater: 0
+    minimumSwimDepth: 0.35
+    swimSpeed: 3
+    waterSearchRadius: 48
+    preferredWaterArea: 0
+    swimmingBodyOffset: -0.5
+    restingBodyOffset: -0.65
+    dragPreyToWater: 0
+    preferredPreyTags: 17
+    captureSeconds: 0.8
+    drowningSeconds: 4
+    dragSpeedMultiplier: 0.65
+  shelter:
+    mode: 6
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 48
+    retreatSafeDistance: 6
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3
+  initialEnergy: 95
+  energyDrainPerSecond: 0.3
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 20
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  requiresGravestoneForSleep: 0
+  requiresBurrowForSleep: 0
+  prefersTreeShadeForSleep: 0
+  canClimbWoodenFences: 0
+  canPhaseFences: 0
+  canBreakFences: 0
+  canBurrowFences: 0
+  fearGainPerSecond: 35
+  fearRecoveryPerSecond: 15
+  fleeThreshold: 25
+  walkSpeed: 1.7
+  runSpeed: 4.5
+  visionRange: 18
+  fearRange: 8
+  interactionRange: 1.5
+  decisionInterval: 0.35
+  minimumSpace: 260
+  requiredTrees: 5
+  requiredGravestones: 0
+  environmentRadius: 20
+  minimumOpenGroundFraction: 0
+  minimumCompanions: 0
+  maximumCompanions: 0
+  herdRange: 20
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 5
+  preyMemorySeconds: 6
+  attackSeconds: 0.8
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.28, g: 0.23, b: 0.17, a: 1}
+  bodyScale: {x: 0.95, y: 0.95, z: 1.1}
+  placeholderKind: 11
+  placeholderAccentColor: {r: 0.49, g: 0.38, b: 0.24, a: 1}
+  placeholderDetailColor: {r: 0.83, g: 0.63, b: 0.2, a: 1}
+  phaseHungerThreshold: 80
+  burrowSeconds: 2
+  burrowDepth: 1
+  burrowEnergyCost: 5
+  treeClimbSeconds: 1.5
+  fenceClimbSeconds: 2
+  failedClimbSeconds: 1.2
+  climbRetrySeconds: 8
+  climbEnergyCost: 5
+  scareRange: 3
+  scareSeconds: 1.5
+  scareCooldownSeconds: 8
+  scareApproachDistance: 1.5
+  canUseScarecrows: 1
+  scareJumpHeight: 1.4
+  scareJumpForward: 0.65
+  scareJumpSquash: 0.25
+  behaviour:
+    initialHappiness: 75
+    hungerWeight: 0.3
+    thirstWeight: 0.2
+    fearWeight: 0.1
+    environmentWeight: 0.25
+    spaceWeight: 0.2
+    herdWeight: 0.15
+    socialInteractionRange: 3
+    wanderSearchSteps: 4
+    grazingSearchSteps: 5
+    agitatedPauseMultiplier: 0.4
+    needsCheckSeconds: 0.5
+    urgentHunger: 80
+    urgentEnergy: 8
+    escapeHungerStart: 75
+    maximumEscapeChance: 0.95
+    escapeAttemptSeconds: 30
+    crowdingCheckSeconds: 0.5
+    escapeSearchSteps: 6
+    safeEscapeScore: 1000
+    phaseSeconds: 1.5
+    scareFearImpulse: 15
+    attackFearSeconds: 0.25
+    fenceStrikeEnergyCost: 1
+    maximumFenceStrikes: 1

@@ -21,15 +21,16 @@ public static class CentralEuropeProgressionChecks
         var ratings = new Dictionary<string, int> { { "Wolpertinger", 1 }, { "Unicorn", 2 }, { "Waldschrat", 3 } };
         var economy = new ParkEconomy(100000);
         var park = new ParkProgression(rules, economy, buildings, ratings, () => 0d);
-        Check(park.Region("central-europe").species.SequenceEqual(ratings.Keys), "Central Europe contains all three stable species IDs");
-        Check(park.BuyAccess(home, "central-europe") && park.BuyTeam(home), "A player can buy Central Europe access and a team");
+        Check(park.Region("western-europe").species.Where(ratings.ContainsKey).SequenceEqual(ratings.Keys),
+            "Western Europe retains the original three species IDs and their mission tie order alongside additions");
+        Check(park.BuyAccess(home, "western-europe") && park.BuyTeam(home), "A player can buy Western Europe access and a team");
         string[] difficulties = { "survey", "capture", "dangerous" };
         int index = 0;
         foreach (string id in ratings.Keys)
         {
             string difficulty = difficulties[index++];
             Check(park.Stock(id) == 0, "New mythical creatures start with no free stock: " + id);
-            Check(park.Launch(home, "central-europe", difficulty, 1), "A normal mission can be dispatched for " + id);
+            Check(park.Launch(home, "western-europe", difficulty, 1), "A normal mission can be dispatched for " + id);
             var mission = park.Missions.Single();
             Check(mission.species == id && mission.succeeds, "Tier filtering can select the intended species: " + id);
             var snapshot = park.Capture(buildings.Records);
@@ -41,6 +42,6 @@ public static class CentralEuropeProgressionChecks
             Check(!park.TryPlace(id, () => false) && park.Stock(id) == mission.quantity, "Failed placement preserves the specimen: " + id);
             Check(park.TryPlace(id, () => true) && park.Stock(id) == mission.quantity - 1, "Successful placement consumes one specimen: " + id);
         }
-        Console.WriteLine("PASS: " + checks + " Central Europe expedition, save and specimen-placement checks.");
+        Console.WriteLine("PASS: " + checks + " Western Europe expedition, save and specimen-placement checks.");
     }
 }

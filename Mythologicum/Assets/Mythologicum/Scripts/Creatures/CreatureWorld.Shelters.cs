@@ -20,7 +20,17 @@ namespace Mythologicum
                 && (mode == CreatureShelterMode.Cave || mode == CreatureShelterMode.Gravestone);
         }
         public bool IsShelterProtected(CreatureAgent actor) => actor != null && actor.Alive && HasSleepSite(actor)
-            && (IsHiddenInShelter(actor) || actor.Definition.Shelter.mode == CreatureShelterMode.TreeCanopy && actor.Elevation > .01f);
+            && (IsHiddenInShelter(actor) || actor.Definition.Shelter.mode == CreatureShelterMode.TreeCanopy && actor.Elevation > .01f
+                || actor.Definition.Shelter.mode == CreatureShelterMode.Water && IsSwimming(actor)
+                    && actor.Activity == CreatureActivity.Sleeping && !WaterShelterThreatNearby(actor));
+
+        private bool WaterShelterThreatNearby(CreatureAgent actor)
+        {
+            foreach (var other in agents)
+                if (other != actor && other.Alive && !other.IsSedated && other.Definition.threat > actor.Definition.threat
+                    && CanSee(actor, other, actor.Definition.fearRange) && StrictRegion(other).Contains(actor.Cell)) return true;
+            return false;
+        }
 
         public bool HasShelterAvailable(CreatureAgent actor)
         {
@@ -28,6 +38,7 @@ namespace Mythologicum
             var settings = actor.Definition.Shelter;
             bool available = !settings.requiredForSleep || settings.mode == CreatureShelterMode.Ground
                 || settings.mode == CreatureShelterMode.Burrow && FindBurrowSite(actor, out _)
+                || settings.mode == CreatureShelterMode.Water && TryFindWater(actor, false, out _)
                 || FindShelterSite(actor, false, out _, out _);
             actor.HasShelter = available; return available;
         }
@@ -87,8 +98,21 @@ namespace Mythologicum
         {
             source = stand = default;
             var settings = actor.Definition.Shelter; var mode = settings.mode;
+            if (mode == CreatureShelterMode.Water)
+            {
+                if(actor.SleepTree.HasValue)
+                {
+                    var held=actor.SleepTree.Value;
+                    if(actor.Definition.Aquatic.IsSwimmable(grid,held) && StrictRegion(actor).Contains(held)
+                        && !SiteReserved(actor,held,mode) && (!retreat || !actor.HasDanger
+                            || HorizontalDistance(grid.CellCenter(held),actor.LastDanger)>=settings.retreatSafeDistance))
+                    { source=stand=held;return true; }
+                }
+                if (!TryFindWater(actor, retreat, out source)) return false;
+                stand = source; return true;
+            }
             if (mode == CreatureShelterMode.Ground || mode == CreatureShelterMode.Burrow) return false;
-            HashSet<Vector2Int> reachable = retreat ? ReachableRegion(actor.Cell) : AbilityRegion(actor);
+            HashSet<Vector2Int> reachable = retreat ? StrictRegion(actor) : AbilityRegion(actor);
             float nearest = float.MaxValue;
             int radius = Mathf.Min(Mathf.Max(grid.Width, grid.Depth), Mathf.CeilToInt(settings.searchRadius / grid.CellSize));
             for (int x = Mathf.Max(0, actor.Cell.x - radius); x <= Mathf.Min(grid.Width - 1, actor.Cell.x + radius); x++)
@@ -97,11 +121,11 @@ namespace Mythologicum
                 var cell = new Vector2Int(x, z);
                 if (!reachable.Contains(cell)) continue;
                 float distance = HorizontalDistance(grid.CellCenter(cell), actor.transform.position);
-                if (distance > settings.searchRadius || SiteReserved(actor, cell, mode)) continue;
+                if (distance > settings.searchRadius) continue;
                 bool found = mode == CreatureShelterMode.TreeCanopy || mode == CreatureShelterMode.TreeShade ? environment.TreesAt(cell) > 0
                     : mode == CreatureShelterMode.Gravestone ? environment.GravestonesAt(cell) > 0
                     : mode == CreatureShelterMode.Cave && ShelterRegistry.Contains(cell, ConstructedShelterKind.Cave);
-                if (!found) continue;
+                if (!found || SiteReserved(actor, cell, mode)) continue;
                 if (mode == CreatureShelterMode.TreeShade)
                 {
                     foreach (var direction in ShelterDirections)
@@ -164,10 +188,11 @@ namespace Mythologicum
 
         private bool ShelterThreatNearby(CreatureAgent actor)
         {
-            var local = ReachableRegion(actor.Cell);
+            var local = StrictRegion(actor);
             foreach (var other in agents)
                 if (other != actor && other.Alive && !other.IsSedated && !other.IsUnderground && !IsHiddenInShelter(other)
-                    && other.Definition.threat > actor.Definition.threat && local.Contains(other.Cell)
+                    && other.Definition.threat > actor.Definition.threat && (local.Contains(other.Cell)
+                        || other.Definition.Aquatic.canSwim && StrictRegion(other).Contains(actor.Cell))
                     && HorizontalDistance(actor.transform.position, other.transform.position) <= actor.Definition.fearRange
                     && navigation.HasLineOfSight(actor.Cell, other.Cell)) return true;
             return false;
@@ -193,7 +218,9 @@ namespace Mythologicum
                 { BeginTreeTraversal(actor, true); return true; }
                 if (settings.mode == CreatureShelterMode.Gravestone)
                 { BeginTreeTraversal(actor, true); return true; }
-                actor.Activity = CreatureActivity.Sleeping; return true;
+                actor.Activity = CreatureActivity.Sleeping;
+                if (settings.mode == CreatureShelterMode.Water) actor.transform.position = GroundPosition(actor, actor.Cell);
+                return true;
             }
             actor.Activity = CreatureActivity.Fleeing;
             return SetGoal(actor, stand, true);
@@ -217,7 +244,11 @@ namespace Mythologicum
                 {
                     actor.ShelterRetreat = false; actor.WantsSleep = false;
                     if (Mathf.Abs(actor.Elevation) > .01f) BeginTreeTraversal(actor, false);
-                    else { actor.Activity = CreatureActivity.Resting; actor.SleepTree = actor.ShelterCell = null; actor.StateTimer = PauseDuration(actor); }
+                    else
+                    {
+                        actor.Activity = CreatureActivity.Resting; actor.SleepTree = actor.ShelterCell = null; actor.StateTimer = PauseDuration(actor);
+                        if (settings.mode == CreatureShelterMode.Water) actor.transform.position = GroundPosition(actor, actor.Cell);
+                    }
                 }
                 return;
             }
@@ -235,7 +266,11 @@ namespace Mythologicum
             if (actor.Cell == stand && actor.Route.Count == 0)
             {
                 if (settings.mode == CreatureShelterMode.TreeCanopy || settings.mode == CreatureShelterMode.Gravestone) BeginTreeTraversal(actor, true);
-                else actor.Activity = CreatureActivity.Sleeping;
+                else
+                {
+                    actor.Activity = CreatureActivity.Sleeping;
+                    if (settings.mode == CreatureShelterMode.Water) actor.transform.position = GroundPosition(actor, actor.Cell);
+                }
             }
             else { actor.Activity = CreatureActivity.SeekingSleep; SetGoal(actor, stand); }
         }

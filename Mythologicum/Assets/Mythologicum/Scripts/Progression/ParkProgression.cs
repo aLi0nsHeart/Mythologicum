@@ -21,6 +21,8 @@ namespace Mythologicum
     [Serializable] public sealed class SavedTechnology { public int building; public string technology; public float work; }
     [Serializable] public sealed class ProgressionSave
     {
+        // Missing in older JSON saves: version zero used country and combined region IDs.
+        public int regionVersion;
         public int teams, nextMission;
         public float time;
         public List<string> regions=new List<string>(), technologies=new List<string>();
@@ -57,16 +59,17 @@ namespace Mythologicum
             var rng=new Random();this.random=random ?? rng.NextDouble;this.speciesName=speciesName ?? (id=>id);
             Inbox = new NotificationInbox(rules.notificationMergeSeconds);
             Teams = Math.Max(0, Math.Min(rules.maximumTeams, rules.startingTeams));
-            if (rules.startingRegions != null) foreach (string id in rules.startingRegions) if (Region(id) != null) access.Add(id);
+            if (rules.startingRegions != null) foreach (string id in rules.startingRegions)
+            { var region=Region(id); if (region != null) access.Add(region.id); }
             if (rules.startingTechnologies != null) foreach (string id in rules.startingTechnologies) if (Technology(id) != null) completed.Add(id);
             if (rules.startingCreatures != null) foreach (var item in rules.startingCreatures)
                 if (item != null && item.species != null && ratings.ContainsKey(item.species) && item.count > 0)
                     stock[item.species] = (int)Math.Min(int.MaxValue, (long)Stock(item.species) + item.count);
         }
-        public ExpeditionRegion Region(string id) => Array.Find(Rules.regions,r=>r.id==id);
+        public ExpeditionRegion Region(string id) => Array.Find(Rules.regions,r=>r.id==ExpeditionRegionMigration.CanonicalId(id));
         public ExpeditionDifficulty Difficulty(string id) => Array.Find(Rules.difficulties,d=>d.id==id);
         public TechnologyDefinition Technology(string id) => Array.Find(Rules.technologies,t=>t.id==id);
-        public bool HasAccess(string region) => access.Contains(region);
+        public bool HasAccess(string region) => access.Contains(ExpeditionRegionMigration.CanonicalId(region));
         public bool Completed(string technology) => completed.Contains(technology);
         public int Stock(string species) => species!=null && stock.TryGetValue(species,out int count) ? count : 0;
         public bool CanUse(ParkBuildingRecord home,BuildingKind kind) => home!=null && buildings.Contains(home) && home.IsOpen && home.Footprint.Definition.kind==kind;
@@ -116,7 +119,7 @@ namespace Mythologicum
             var r=Region(region);
             if(!CanUse(home,BuildingKind.ExpeditionCentre)||r==null||HasAccess(region)||!RegionHasCreatures(region)||!economy.TrySpend(r.accessCost,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(r.accessCost);
-            access.Add(region);Revision++;return true;
+            access.Add(r.id);Revision++;return true;
         }
         public bool Launch(ParkBuildingRecord home,string region,string difficulty,int teams)
         {
@@ -125,7 +128,7 @@ namespace Mythologicum
                 ||!economy.TrySpend(d.costPerTeam*teams,ParkTransactionCategory.Expeditions))return false;
             home.RecordExpense(d.costPerTeam*teams);
             float chance=Chance(difficulty,teams), duration=MissionSeconds(d);
-            missions.Add(new ExpeditionMission {id=++nextMission,region=region,difficulty=difficulty,teams=teams,
+            missions.Add(new ExpeditionMission {id=++nextMission,region=Region(region).id,difficulty=difficulty,teams=teams,
                 remaining=duration,duration=duration,chance=chance,succeeds=random()<chance,
                 species=eligible[Math.Min(eligible.Count-1,(int)(random()*eligible.Count))],quantity=Math.Max(1,d.creaturesFound)});
             Revision++;return true;
@@ -190,7 +193,7 @@ namespace Mythologicum
         }
         public ProgressionSave Capture(IReadOnlyList<ParkBuildingRecord> records)
         {
-            var result=new ProgressionSave {teams=Teams,nextMission=nextMission,time=Inbox.Time};
+            var result=new ProgressionSave {regionVersion=ExpeditionRegionMigration.CurrentVersion,teams=Teams,nextMission=nextMission,time=Inbox.Time};
             result.regions.AddRange(access);result.technologies.AddRange(completed);result.regions.Sort();result.technologies.Sort();
             foreach(var pair in stock)result.inventory.Add(new CreatureStock {species=pair.Key,count=pair.Value});
             foreach(var mission in missions)result.missions.Add(mission.Copy());
@@ -201,18 +204,26 @@ namespace Mythologicum
         }
         public void Validate(ProgressionSave saved,IReadOnlyList<ParkBuildingRecord> records)
         {
+            ValidateCanonical(CanonicalSnapshot(saved),records);
+        }
+        private static ProgressionSave CanonicalSnapshot(ProgressionSave saved)
+        {
             if(saved==null||saved.teams<0||saved.nextMission<0||!Finite(saved.time)||saved.time<0
                 ||saved.regions==null||saved.technologies==null||saved.inventory==null||saved.missions==null||saved.projects==null||saved.notices==null)
                 throw new InvalidDataException(Loc.Text("park.park_progression.invalid_park_progression"));
+            return ExpeditionRegionMigration.CanonicalSnapshot(saved);
+        }
+        private void ValidateCanonical(ProgressionSave saved,IReadOnlyList<ParkBuildingRecord> records)
+        {
             var regions=new HashSet<string>();foreach(string id in saved.regions)if(Region(id)==null||!regions.Add(id))throw new InvalidDataException(Loc.Text("park.park_progression.unknown_or_duplicate_expedition_location"));
             var technologies=new HashSet<string>();foreach(string id in saved.technologies)if(Technology(id)==null||!technologies.Add(id))throw new InvalidDataException(Loc.Text("park.park_progression.unknown_or_duplicate_technology"));
-            var species=new HashSet<string>();foreach(var s in saved.inventory)if(s==null||!ratings.ContainsKey(s.species)||s.count<0||!species.Add(s.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_creature_stock"));
-            var ids=new HashSet<int>();int busy=0;
+            var species=new HashSet<string>();foreach(var s in saved.inventory)if(s==null||s.species==null||!ratings.ContainsKey(s.species)||s.count<0||!species.Add(s.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_creature_stock"));
+            var ids=new HashSet<int>();long busy=0;
             foreach(var m in saved.missions)
             {
                 if(m==null||m.id<1||m.id>saved.nextMission||!ids.Add(m.id)||!regions.Contains(m.region)||Difficulty(m.difficulty)==null||m.teams<1||m.teams>saved.teams
                     ||m.quantity<1||!Finite(m.remaining)||m.remaining<0||!Finite(m.duration)||m.duration<=0||m.remaining>m.duration
-                    ||!Finite(m.chance)||m.chance<0||m.chance>1||!ratings.ContainsKey(m.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_active_expedition"));
+                    ||!Finite(m.chance)||m.chance<0||m.chance>1||m.species==null||!ratings.ContainsKey(m.species))throw new InvalidDataException(Loc.Text("park.park_progression.invalid_active_expedition"));
                 busy+=m.teams;
             }
             if(busy>saved.teams)throw new InvalidDataException(Loc.Text("park.park_progression.expedition_teams_are_double_booked"));
@@ -227,7 +238,7 @@ namespace Mythologicum
         }
         public void Restore(ProgressionSave saved,IReadOnlyList<ParkBuildingRecord> records)
         {
-            Validate(saved,records);Teams=saved.teams;nextMission=saved.nextMission;
+            saved=CanonicalSnapshot(saved);ValidateCanonical(saved,records);Teams=saved.teams;nextMission=saved.nextMission;
             access.Clear();foreach(string id in saved.regions)access.Add(id);
             completed.Clear();foreach(string id in saved.technologies)completed.Add(id);
             stock.Clear();foreach(var s in saved.inventory)stock.Add(s.species,s.count);

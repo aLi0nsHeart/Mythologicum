@@ -4,6 +4,21 @@ using System.IO;
 using UnityEngine;
 namespace Mythologicum
 {
+    [Serializable]
+    public sealed class TerrainVertexChange
+    {
+        public Vector2Int node;
+        public float original, applied;
+    }
+    public sealed class TerrainExcavationPlan
+    {
+        internal GridHeightField Owner;
+        internal int Revision;
+        internal readonly Dictionary<int, float> Heights = new Dictionary<int, float>();
+        internal readonly List<TerrainVertexChange> ChangesList = new List<TerrainVertexChange>();
+        public IReadOnlyList<TerrainVertexChange> Changes => ChangesList;
+        public float CenterHeight(Vector2Int cell) => Owner.PlannedCenterHeight(this, cell);
+    }
     public sealed class TerrainFoundationPlan
     {
         public float Level {get;internal set;}
@@ -230,6 +245,59 @@ namespace Mythologicum
             Recalculate();
             return true;
         }
+        /// <summary>
+        /// Plans a pool bed inside an exact closed cell mask. Shared rim nodes remain
+        /// untouched, so neighbouring paths, ponds and foundation slopes are preserved.
+        /// Surface and depth are relative to the grid origin, like ordinary terrain heights.
+        /// </summary>
+        public bool TryPlanEnclosedBasin(SquareBuildGrid grid, IEnumerable<Vector2Int> selectedCells,
+            float surface, float depth, Predicate<Vector2Int> canExcavate, out TerrainExcavationPlan plan, out string reason)
+        {
+            plan = null; reason = "";
+            if (grid == null || grid.Terrain != this || selectedCells == null || !Finite(surface)
+                || !Finite(depth) || depth <= 0 || depth > 100 || Math.Abs(surface) > 10000)
+            { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            var cells = new HashSet<Vector2Int>(selectedCells);
+            if (cells.Count == 0) { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            foreach (var cell in cells)
+                if (!Contains(cell) || grid.ContentAt(cell) != BuildCellContent.Empty || !(canExcavate?.Invoke(cell) ?? true))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+            var candidate = new TerrainExcavationPlan { Owner = this, Revision = Revision };
+            var visited = new HashSet<Vector2Int>();
+            foreach (var cell in cells) for (int dz = 0; dz <= 1; dz++) for (int dx = 0; dx <= 1; dx++)
+            {
+                var node = cell + new Vector2Int(dx, dz);
+                if (!visited.Add(node)) continue;
+                // Only vertices wholly inside this footprint may move. The boundary is
+                // a dry structural rim, rather than a brush spilling into outside cells.
+                if (!cells.Contains(node) || !cells.Contains(node + Vector2Int.left)
+                    || !cells.Contains(node + Vector2Int.down) || !cells.Contains(node + Vector2Int.left + Vector2Int.down)) continue;
+                int index = Index(node.x, node.y);
+                float target = Math.Min(heights[index], surface - depth);
+                if (!Finite(target) || Math.Abs(target) > 10000 || locks.ContainsKey(index))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+                if (Math.Abs(target - heights[index]) <= .00001f) continue;
+                candidate.Heights[index] = target;
+                candidate.ChangesList.Add(new TerrainVertexChange { node = node, original = heights[index], applied = target });
+            }
+            plan = candidate; return true;
+        }
+        internal float PlannedCenterHeight(TerrainExcavationPlan plan, Vector2Int cell)
+            => ReferenceEquals(plan?.Owner, this) && Contains(cell) ? Bilinear(cell.x, cell.y, .5f, .5f, plan.Heights) : float.NaN;
+
+        public bool TryApplyExcavation(TerrainExcavationPlan plan)
+        {
+            if (!ReferenceEquals(plan?.Owner, this) || plan.Revision != Revision) return false;
+            foreach (var change in plan.ChangesList)
+            {
+                int index = Index(change.node.x, change.node.y);
+                if (locks.ContainsKey(index) || Math.Abs(heights[index] - change.original) > .00001f) return false;
+            }
+            if (plan.ChangesList.Count == 0) return true;
+            foreach (var item in plan.Heights) heights[item.Key] = item.Value;
+            Recalculate(); return true;
+        }
+
         private HashSet<int> FoundationNodes(BuildingFootprint footprint)
         {
             var result=new HashSet<int>();

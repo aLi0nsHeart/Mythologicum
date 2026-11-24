@@ -52,7 +52,8 @@ namespace Mythologicum
             if (!grid.Contains(cell) || grid.ContentAt(cell) != BuildCellContent.Empty || ReservedBuildingAccess(cell)
                 || trees.Occupies(cell) || graves.Occupies(cell) || scarecrows.Occupies(cell) || rocks.Occupies(cell) || HabitatFeatureAt(cell)) return false;
             foreach (var actor in creatureWorld.Agents)
-                if (actor.Alive && (actor.Cell == cell || actor.Route.Contains(cell))) return false;
+                if (actor.Alive && (actor.Cell == cell || actor.Route.Contains(cell)
+                    || actor.WaterHuntActive && actor.WaterHuntReleaseCell == cell)) return false;
             return true;
         }
         private void ApplyWaterTrough(Mouse mouse, Vector2Int cell)

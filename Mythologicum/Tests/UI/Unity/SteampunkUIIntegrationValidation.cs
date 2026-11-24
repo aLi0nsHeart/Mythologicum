@@ -603,6 +603,9 @@ public static class SteampunkUIIntegrationValidation
         Capture("Encyclopedia-Management-Ultrawide", book, 2560, 1080);
         Check(controller.CloseManagementWindow() && !encyclopedia.IsOpen,
             "The normal management-window close route dismisses the encyclopedia");
+        // The research panel defaults to the first species; additions to the roster
+        // must not replace the fully researched profile used by this overflow case.
+        controller.Personnel.SetResearchTarget(records[BuildingKind.ResearchCentre], chupacabra);
         buildingInfo.Select(records[BuildingKind.ResearchCentre]);
         yield return null;
         RefreshResponsiveInspectors();

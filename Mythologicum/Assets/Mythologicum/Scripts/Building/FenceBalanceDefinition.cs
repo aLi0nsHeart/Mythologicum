@@ -31,8 +31,13 @@ namespace Mythologicum
         public FenceTypeRules spiked = new FenceTypeRules { maximumHealth = 220f };
         public FenceTypeRules heavy = new FenceTypeRules { maximumHealth = 800f, resistsCreatureDamage = true, blocksBurrowing = true };
         public FenceTypeRules sanctified = new FenceTypeRules { maximumHealth = 300f, blocksPhasing = true };
+        [Tooltip("A climbable, damageable fence with buried foundations. Heavy fences retain their existing reinforcement and foundation protection.")]
+        public FenceTypeRules deep = new FenceTypeRules { maximumHealth = 400f, allowsClimbing = true, blocksBurrowing = true };
+        public FenceTypeRules aviary = new FenceTypeRules { maximumHealth = 500f };
+        public FenceTypeRules aquarium = new FenceTypeRules { maximumHealth = 650f, blocksBurrowing = true };
 
         public FenceTypeRules For(FenceKind kind) => kind == FenceKind.Heavy ? heavy : kind == FenceKind.Sanctified ? sanctified
+            : kind == FenceKind.Deep ? deep : kind == FenceKind.Aviary ? aviary : kind == FenceKind.Aquarium ? aquarium
             : kind == FenceKind.Spiked ? spiked : wooden;
 
         public void Validate()
@@ -41,7 +46,11 @@ namespace Mythologicum
             if (spiked == null) spiked = new FenceTypeRules { maximumHealth = 220f };
             if (heavy == null) heavy = new FenceTypeRules { maximumHealth = 800f, resistsCreatureDamage = true, blocksBurrowing = true };
             if (sanctified == null) sanctified = new FenceTypeRules { maximumHealth = 300f, blocksPhasing = true };
-            wooden.Validate(); spiked.Validate(); heavy.Validate(); sanctified.Validate();
+            if (deep == null) deep = new FenceTypeRules { maximumHealth = 400f, allowsClimbing = true, blocksBurrowing = true };
+            if (aviary == null) aviary = new FenceTypeRules { maximumHealth = 500f };
+            if (aquarium == null) aquarium = new FenceTypeRules { maximumHealth = 650f, blocksBurrowing = true };
+            wooden.Validate(); spiked.Validate(); heavy.Validate(); sanctified.Validate(); deep.Validate();
+            aviary.Validate(); aquarium.Validate();
         }
     }
 

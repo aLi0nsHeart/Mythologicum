@@ -156,16 +156,19 @@ public static class CreatureBurrowingNativeChecks
             Check(!Field<bool>(f.Actor, "EscapeIntent") && f.Fences.HealthAt(f.Edge) == f.Fences.MaximumHealthAt(f.Edge), "Digging consumes one desire without fence damage");
             f.Advance(2); Check(f.Actor.Cell == V(1), "The same desire cannot dig under a second fence");
         }
-        using (var f = new Fixture(false, FenceKind.Heavy))
+        foreach (var kind in new[] { FenceKind.Heavy, FenceKind.Deep })
+        foreach (bool gate in new[] { false, true })
+        using (var f = new Fixture(false, kind))
         {
-            f.Desire(); Check(f.Until(() => f.Actor.Activity == CreatureActivity.FailedBurrow), "Reinforced foundations still show the failed normal dig attempt");
+            if (gate) Check(f.Fences.TrySetGate(f.Edge), kind + " gate retains its underlying fence kind");
+            f.Desire(); Check(f.Until(() => f.Actor.Activity == CreatureActivity.FailedBurrow), kind + " foundations still show the failed normal dig attempt");
             Check(f.Until(() => !Field<bool>(f.Actor, "EscapeIntent")), "Foundation rejection consumes the desire");
             Check(f.Actor.Cell == V(0) && Field<float>(f.Actor, "EscapeAfter") > f.World.SimulationTime, "Rejected digging retains its safe side and cooldown");
         }
         using (var f = new Fixture(false, FenceKind.Wooden))
         {
             f.Desire(); Check(f.Until(() => f.Actor.Activity == CreatureActivity.BurrowingFence), "Upgrade interruption starts digging");
-            f.Fences.TrySetKind(f.Edge, FenceKind.Heavy); f.Advance(.05f);
+            f.Fences.TrySetKind(f.Edge, FenceKind.Deep); f.Advance(.05f);
             Check(f.Actor.Activity == CreatureActivity.FailedBurrow && f.Actor.Cell == V(0), "Adding foundations during a tunnel rejects crossing before logical movement");
         }
         using (var f = new Fixture(false, FenceKind.Wooden))

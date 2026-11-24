@@ -5,7 +5,8 @@ namespace Mythologicum
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
         SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing, Escaping,
         AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave, Sedated, Carried, FailedPhase,
-        EnteringBurrow, LeavingBurrow, BurrowingFence, FailedBurrow, SeekingWater, Drinking }
+        EnteringBurrow, LeavingBurrow, BurrowingFence, FailedBurrow, SeekingWater, Drinking, DraggingPrey, DrowningPrey,
+        Stalking, Luring, FailedFlight }
 
     /// <summary>Individual runtime state. Species rules live in the shared profile asset.</summary>
     public sealed class CreatureAgent : MonoBehaviour
@@ -26,6 +27,10 @@ namespace Mythologicum
         public readonly float[] NearbyBiomeFractions = new float[5];
         public float BiomeSatisfaction { get; internal set; } = 100;
         public float ShelterSatisfaction { get; internal set; } = 100;
+        public float ReachableWaterArea { get; internal set; }
+        public float WaterSatisfaction { get; internal set; } = 100;
+        internal bool WaterHuntActive;
+        internal Vector2Int WaterHuntWaterCell, WaterHuntReleaseCell;
         public bool InBurrow { get; internal set; }
         public bool IsUnderground => InBurrow || Activity == CreatureActivity.BurrowingFence;
         public bool IsSedated { get; internal set; }
@@ -76,11 +81,14 @@ namespace Mythologicum
         internal Animator BodyAnimator;
         internal string AnimationState;
         internal bool WantsSleep;
+        internal float SleepRetryAfter;
         internal bool ShelterRetreat;
         internal Vector2Int? ShelterCell;
         public bool HasShelter { get; internal set; }
         internal Vector2Int? SleepTree;
         internal float Elevation, TraversalDuration, TraversalStartElevation, AttemptAfter;
+        internal CreatureFlightRuntime FlightState;
+        public bool IsAirborne => FlightState != null && FlightState.Altitude > .05f;
         internal Vector2Int TraversalFrom, TraversalTo;
         internal FenceEdge? AttemptFence;
         internal CreatureAgent SocialPartner;

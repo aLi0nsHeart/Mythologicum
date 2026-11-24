@@ -19,10 +19,17 @@ namespace Mythologicum
         private readonly Predicate<Vector2Int> physicalCellClear;
         private readonly bool canClimbWoodenFences;
         private readonly bool canPhaseFences, canAttackFences, canBurrowFences;
+        private readonly bool canSwim;
+        private readonly bool canWadeShallows;
+        private readonly float minimumSwimDepth;
+        private readonly bool canFly;
+        private readonly Func<Vector2Int, Vector2Int, bool> flightCrossingAllowed;
 
         public CreatureNavigation(SquareBuildGrid grid, FenceLayout fences,
             Predicate<Vector2Int> physicalCellClear = null, bool canClimbWoodenFences = false,
-            bool canPhaseFences = false, bool canAttackFences = false, bool canBurrowFences = false)
+            bool canPhaseFences = false, bool canAttackFences = false, bool canBurrowFences = false,
+            bool canSwim = false, float minimumSwimDepth = .3f, bool canWadeShallows = false,
+            bool canFly = false, Func<Vector2Int, Vector2Int, bool> flightCrossingAllowed = null)
         {
             this.grid = grid ?? throw new ArgumentNullException(nameof(grid));
             this.fences = fences ?? throw new ArgumentNullException(nameof(fences));
@@ -31,16 +38,23 @@ namespace Mythologicum
             this.canPhaseFences = canPhaseFences;
             this.canAttackFences = canAttackFences;
             this.canBurrowFences = canBurrowFences;
+            this.canSwim = canSwim; this.minimumSwimDepth = minimumSwimDepth;
+            this.canWadeShallows = canWadeShallows;
+            this.canFly = canFly; this.flightCrossingAllowed = flightCrossingAllowed;
         }
 
         public bool IsWalkable(Vector2Int cell) => grid.Contains(cell)
-            && grid.GroundWalkable(cell)
+            && (canFly || (grid.Habitat.IsWater(cell) ? canSwim && (grid.Habitat.WaterDepth(cell) >= minimumSwimDepth
+                || canWadeShallows && (grid.Terrain?.Walkable(cell) ?? true)) : grid.GroundWalkable(cell)))
             && grid.ContentAt(cell) != BuildCellContent.Building
             && (physicalCellClear == null || physicalCellClear(cell));
 
         public bool CanCross(Vector2Int from, Vector2Int to)
         {
-            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to) || !grid.CanTraverse(from,to)) return false;
+            if (canFly) return Distance(from, to) == 1 && IsWalkable(from) && IsWalkable(to)
+                && (flightCrossingAllowed == null || flightCrossingAllowed(from, to));
+            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to)
+                || !grid.Habitat.IsWater(from) && !grid.Habitat.IsWater(to) && !grid.CanTraverse(from,to)) return false;
             var edge = from.x != to.x
                 ? new FenceEdge(new Vector2Int(Math.Max(from.x, to.x), from.y), false)
                 : new FenceEdge(new Vector2Int(from.x, Math.Max(from.y, to.y)), true);
@@ -61,7 +75,8 @@ namespace Mythologicum
 
         /// <summary>Returns a cardinal route including both endpoints; empty means unreachable.</summary>
         public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal) =>
-            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance,grid.MovementCost);
+            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance,
+                (from, to) => canFly || canSwim && (grid.Habitat.IsWater(from) || grid.Habitat.IsWater(to)) ? 1f : grid.MovementCost(from, to));
 
         /// <summary>Returns clear cells within the movement budget, including the starting cell.</summary>
         public List<Vector2Int> Reachable(Vector2Int start, int maxSteps)

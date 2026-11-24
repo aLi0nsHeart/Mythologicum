@@ -16,7 +16,7 @@ namespace Mythologicum
         private readonly GameObject buildingMenu;
         private readonly Dictionary<ConstructionCategory, GameObject> groups = new Dictionary<ConstructionCategory, GameObject>();
         private readonly List<KeyValuePair<BuildingDefinition, Button>> buildingButtons = new List<KeyValuePair<BuildingDefinition, Button>>();
-        private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, gateChoice;
+        private readonly Button pathsCategory, fencesCategory, pathChoice, fenceChoice, spikedFenceChoice, heavyFenceChoice, sanctifiedFenceChoice, deepFenceChoice, aviaryChoice, aquariumChoice, gateChoice;
         private readonly Button creaturesCategory;
         private readonly Button windowChoice, windowAttractionChoice, attractionsChoice;
         private Action selectViewingWindow;
@@ -122,6 +122,12 @@ namespace Mythologicum
                 () => { Close(); selectFence(FenceKind.Heavy); }, true);
             sanctifiedFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "park.construction_palette.sanctified_fence", Vector2.zero,
                 () => { Close(); selectFence(FenceKind.Sanctified); }, true);
+            deepFenceChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "park.construction_palette.deep_fence", Vector2.zero,
+                () => { Close(); selectFence(FenceKind.Deep); }, true);
+            aviaryChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "construction.aviary_fence", Vector2.zero,
+                () => { Close(); selectFence(FenceKind.Aviary); }, true);
+            aquariumChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "construction.aquarium_wall", Vector2.zero,
+                () => { Close(); selectFence(FenceKind.Aquarium); }, true);
             gateChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "park.construction_palette.staff_gate", Vector2.zero,
                 () => { Close(); selectGate(); }, true);
             windowChoice = MakeButton(template, groups[ConstructionCategory.Fences].transform, "attraction.window.name", Vector2.zero,
@@ -262,7 +268,7 @@ namespace Mythologicum
             for (int i = 0; i < categoryButtons.Length && i < categoryActions.Length; i++)
                 categoryButtons[i].GetComponentInChildren<Text>().text = Loc.Format("park.construction_palette.format", Loc.Text(categoryNames[i]), GameInput.KeyCaption(categoryActions[i]));
             pathsCategory.interactable = fencesCategory.interactable = pathChoice.interactable = fenceChoice.interactable
-                = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = gateChoice.interactable = hasEntrance;
+                = spikedFenceChoice.interactable = heavyFenceChoice.interactable = sanctifiedFenceChoice.interactable = deepFenceChoice.interactable = aviaryChoice.interactable = aquariumChoice.interactable = gateChoice.interactable = hasEntrance;
             creaturesCategory.interactable = hasEntrance;
             enclosuresCategory.interactable = treeChoice.interactable = gravestoneChoice.interactable = scarecrowChoice.interactable = hasEntrance;
             troughChoice.interactable = hasEntrance && selectTrough != null;
@@ -284,9 +290,15 @@ namespace Mythologicum
             spikedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Spiked) ?? true;
             heavyFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Heavy) ?? true;
             sanctifiedFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Sanctified) ?? true;
+            deepFenceChoice.interactable &= progression?.FenceUnlocked(FenceKind.Deep) ?? true;
+            aviaryChoice.interactable &= progression?.FenceUnlocked(FenceKind.Aviary) ?? true;
+            aquariumChoice.interactable &= progression?.FenceUnlocked(FenceKind.Aquarium) ?? true;
             SetFenceLabel(spikedFenceChoice,"park.construction_palette.spiked_fence",FenceKind.Spiked);
             SetFenceLabel(heavyFenceChoice,"park.construction_palette.reinforced_fence",FenceKind.Heavy);
             SetFenceLabel(sanctifiedFenceChoice,"park.construction_palette.sanctified_fence",FenceKind.Sanctified);
+            SetFenceLabel(deepFenceChoice,"park.construction_palette.deep_fence",FenceKind.Deep);
+            SetFenceLabel(aviaryChoice,"construction.aviary_fence",FenceKind.Aviary);
+            SetFenceLabel(aquariumChoice,"construction.aquarium_wall",FenceKind.Aquarium);
             foreach (var pair in creatureButtons)
             {
                 pair.Value.interactable = hasEntrance && (progression==null || progression.Stock(pair.Key.name)>0);

@@ -17,11 +17,11 @@ public static class FenceCapabilityChecks
         var phasing = new CreatureNavigation(grid, layout, null, false, true);
         var breaking = new CreatureNavigation(grid, layout, null, false, false, true);
         var edge = new FenceEdge(V(2,1), false);
-        foreach (FenceKind kind in new[] { FenceKind.Wooden, FenceKind.Spiked, FenceKind.Heavy, FenceKind.Sanctified })
+        foreach (FenceKind kind in Enum.GetValues(typeof(FenceKind)))
         {
             layout.TryRemove(edge); layout.TryAdd(edge, kind);
             Check(!walking.CanCross(V(1,1), V(2,1)), "Ordinary movement cannot cross " + kind);
-            Check(climbing.CanCross(V(1,1), V(2,1)) == (kind == FenceKind.Wooden), "Climbing respects " + kind);
+            Check(climbing.CanCross(V(1,1), V(2,1)) == (kind == FenceKind.Wooden || kind == FenceKind.Deep), "Climbing respects " + kind);
             Check(phasing.CanCross(V(1,1), V(2,1)) == (kind != FenceKind.Sanctified), "Phasing respects " + kind);
             Check(breaking.CanCross(V(1,1), V(2,1)) == (kind != FenceKind.Heavy), "Attack planning respects " + kind);
             Check(phasing.CanCross(V(2,1), V(1,1)) == (kind != FenceKind.Sanctified), "Phase crossing is symmetric.");

@@ -17,6 +17,7 @@ namespace Mythologicum
         public MapGenerationOptions generation;
         public List<Vector2Int> rocks;
         public ProgressionSave progression;
+        public SavedSpecialEnclosures specialEnclosures;
         public FinanceSnapshot finance;
         public ParkReputationSnapshot reputation;
         public int rejectedAdmissions, expensiveServiceRefusals;
@@ -57,9 +58,14 @@ namespace Mythologicum
         public Vector2Int cell;
         public float hunger, fear, energy, health, happiness, agitation, sedation, age, satisfaction, patience, explored;
         public float thirst;
+        public AquaticHuntSave aquaticHunt;
+        public bool hasAquaticHunt;
+        public bool capturedByAquatic;
+        public int captureHunter;
         public bool hasShelterHome, shelterSleeping, shelterRetreat;
         public Vector2Int shelterHome;
         public float escapeCooldown, fenceRetryCooldown, scareCooldown;
+        public float flightAltitude, lureCooldown;
         public int building = -1;
         public bool retire, sedate, leaving;
         // Optional visitor-only data. Missing fields in older saves remain general visitors.

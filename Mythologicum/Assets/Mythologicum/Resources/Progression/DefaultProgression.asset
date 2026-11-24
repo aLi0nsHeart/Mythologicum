@@ -20,62 +20,169 @@ MonoBehaviour:
     maximumTeams: 12
     regions:
     - id: north-america
-      name: park.progression_definition.north_america
+      name: expedition.region.north_america
+      continent: 0
       accessCost: 350
-      mapPosition: {x: 0.19, y: 0.68}
+      mapPosition: {x: .18, y: .73}
+      species:
+      - Chupacabra
+      - Wendigo
+      - Thunderbird
+      - Kalupelik
+    - id: central-america
+      name: expedition.region.central_america
+      continent: 0
+      accessCost: 350
+      mapPosition: {x: .25, y: .51}
+      species:
+      - Chupacabra
+    - id: caribbean
+      name: expedition.region.caribbean
+      continent: 0
+      accessCost: 350
+      mapPosition: {x: .33, y: .53}
       species:
       - Chupacabra
     - id: south-america
-      name: park.progression_definition.south_america
+      name: expedition.region.south_america
+      continent: 0
       accessCost: 350
-      mapPosition: {x: 0.31, y: 0.27}
+      mapPosition: {x: .31, y: .26}
       species:
       - Chupacabra
-    - id: west-africa
-      name: park.progression_definition.west_africa
+    - id: british-isles
+      name: expedition.region.british_isles
+      continent: 1
       accessCost: 350
-      mapPosition: {x: 0.49, y: 0.43}
+      mapPosition: {x: .45, y: .76}
       species: []
-    - id: east-africa
-      name: park.progression_definition.east_africa
+    - id: northern-europe
+      name: expedition.region.northern_europe
+      continent: 1
       accessCost: 350
-      mapPosition: {x: 0.59, y: 0.36}
-      species: []
-    - id: south-africa
-      name: park.progression_definition.southern_africa
-      accessCost: 350
-      mapPosition: {x: 0.55, y: 0.14}
-      species: []
-    - id: china
-      name: park.progression_definition.china
-      accessCost: 350
-      mapPosition: {x: 0.77, y: 0.65}
-      species: []
-    - id: middle-east
-      name: park.progression_definition.middle_east
-      accessCost: 350
-      mapPosition: {x: 0.62, y: 0.52}
-      species: []
-    - id: japan
-      name: park.progression_definition.japan
-      accessCost: 350
-      mapPosition: {x: 0.92, y: 0.57}
+      mapPosition: {x: .53, y: .86}
       species:
-      - Hitotsume
-      - Yurei
-      - Oni
-    - id: central-europe
-      name: park.progression_definition.central_europe
+      - Nokk
+    - id: western-europe
+      name: expedition.region.western_europe
+      continent: 1
       accessCost: 350
-      mapPosition: {x: 0.49, y: 0.73}
+      mapPosition: {x: .49, y: .70}
       species:
       - Wolpertinger
       - Unicorn
       - Waldschrat
-    - id: northern-europe
-      name: park.progression_definition.northern_europe
+      - Tatzelwurm
+    - id: eastern-europe
+      name: expedition.region.eastern_europe
+      continent: 1
       accessCost: 350
-      mapPosition: {x: 0.56, y: 0.9}
+      mapPosition: {x: .57, y: .72}
+      species: []
+    - id: southern-europe
+      name: expedition.region.southern_europe
+      continent: 1
+      accessCost: 350
+      mapPosition: {x: .52, y: .63}
+      species: []
+    - id: north-africa
+      name: expedition.region.north_africa
+      continent: 2
+      accessCost: 350
+      mapPosition: {x: .51, y: .53}
+      species: []
+    - id: west-africa
+      name: expedition.region.west_africa
+      continent: 2
+      accessCost: 350
+      mapPosition: {x: .46, y: .43}
+      species:
+      - NinkiNanka
+    - id: central-africa
+      name: expedition.region.central_africa
+      continent: 2
+      accessCost: 350
+      mapPosition: {x: .54, y: .36}
+      species:
+      - MokeleMbembe
+      - Abada
+    - id: east-africa
+      name: expedition.region.east_africa
+      continent: 2
+      accessCost: 350
+      mapPosition: {x: .61, y: .36}
+      species:
+      - NandiBear
+      - Dingonek
+      - Marozi
+    - id: south-africa
+      name: expedition.region.south_africa
+      continent: 2
+      accessCost: 350
+      mapPosition: {x: .55, y: .18}
+      species:
+      - Grootslang
+      - Inkanyamba
+      - Aigamuxa
+    - id: west-asia
+      name: expedition.region.west_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .63, y: .57}
+      species:
+      - Manticore
+    - id: central-asia
+      name: expedition.region.central_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .70, y: .72}
+      species: []
+    - id: south-asia
+      name: expedition.region.south_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .72, y: .47}
+      species: []
+    - id: east-asia
+      name: expedition.region.east_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .84, y: .65}
+      species:
+      - Hitotsume
+      - Yurei
+      - Oni
+      - Kappa
+      - AllghoiKhorkhoi
+    - id: southeast-asia
+      name: expedition.region.southeast_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .82, y: .38}
+      species: []
+    - id: north-asia
+      name: expedition.region.north_asia
+      continent: 3
+      accessCost: 350
+      mapPosition: {x: .78, y: .86}
+      species: []
+    - id: australia-new-zealand
+      name: expedition.region.australia_new_zealand
+      continent: 4
+      accessCost: 350
+      mapPosition: {x: .87, y: .18}
+      species: []
+    - id: pacific-islands
+      name: expedition.region.pacific_islands
+      continent: 4
+      accessCost: 350
+      mapPosition: {x: .96, y: .36}
+      species: []
+    - id: antarctica
+      name: expedition.region.antarctica
+      continent: 5
+      accessCost: 350
+      mapPosition: {x: .51, y: .035}
       species: []
     difficulties:
     - id: survey
@@ -157,6 +264,39 @@ MonoBehaviour:
       - spiked-fences
       fences: 03000000
       buildings: 
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: deep-fences
+      name: technology.deep_fences.name
+      description: technology.deep_fences.description
+      cost: 300
+      workSeconds: 55
+      prerequisites: []
+      fences: 04000000
+      buildings:
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: aviaries
+      name: technology.aviaries.name
+      description: technology.aviaries.description
+      cost: 450
+      workSeconds: 60
+      prerequisites: []
+      fences: 05000000
+      buildings:
+      staffEfficiency: 1
+      expeditionSuccessBonus: 0
+      expeditionDurationMultiplier: 1
+    - id: aquariums
+      name: technology.aquariums.name
+      description: technology.aquariums.description
+      cost: 450
+      workSeconds: 60
+      prerequisites: []
+      fences: 06000000
+      buildings:
       staffEfficiency: 1
       expeditionSuccessBonus: 0
       expeditionDurationMultiplier: 1

@@ -116,10 +116,12 @@ namespace Mythologicum
                 selected.Health.Current, selected.Health.Maximum, definition.damage, definition.threat,
                 selected.Wellbeing.Happiness, selected.Wellbeing.Agitation > 0f ? Loc.Text("creature.info.agitated") : "",
                 selected.Vitals.Hunger, selected.Vitals.Fear, selected.Energy.Energy, selected.Energy.Exhaustion)
+                + Loc.Format("creature.info.wellbeing", needs.Happiness, selected.Wellbeing.Agitation * 100f, UnmetNeedsInformation(needs.UnmetNeeds))
                 + (!definition.needsFood ? Loc.Text("creature.info.no_food_needed") : "")
                 + (definition.Thirst.needsWater ? Loc.Format("habitat.creature.thirst", selected.Vitals.Thirst, 100f - selected.Vitals.Thirst)
                     : Loc.Text("habitat.creature.no_water"))
                 + ShelterInformation(definition)
+                + AquaticInformation(definition)
                 + Loc.Format("creature.info.environment", needs.Environment, selected.NearbyTrees, definition.requiredTrees)
                 + BiomeInformation(definition)
                 + (definition.minimumOpenGroundFraction > 0f
@@ -157,6 +159,29 @@ namespace Mythologicum
             UIOverflowScroll.Attach(detailsScroll).Refresh();
         }
 
+        private static string UnmetNeedsInformation(CreatureUnmetNeeds needs)
+        {
+            if (needs == CreatureUnmetNeeds.None) return Loc.Text("creature.needs.none");
+            string result = "";
+            void Add(CreatureUnmetNeeds need, string id)
+            {
+                if ((needs & need) == 0) return;
+                result = result.Length == 0 ? Loc.Text(id) : Loc.Format("creature.needs.list", result, Loc.Text(id));
+            }
+            Add(CreatureUnmetNeeds.Hunger, "creature.needs.hunger");
+            Add(CreatureUnmetNeeds.Thirst, "creature.needs.thirst");
+            Add(CreatureUnmetNeeds.Exhaustion, "creature.needs.exhaustion");
+            Add(CreatureUnmetNeeds.Fear, "creature.needs.fear");
+            Add(CreatureUnmetNeeds.Trees, "creature.needs.trees");
+            Add(CreatureUnmetNeeds.Gravestones, "creature.needs.gravestones");
+            Add(CreatureUnmetNeeds.Ground, "creature.needs.ground");
+            Add(CreatureUnmetNeeds.Shelter, "creature.needs.shelter");
+            Add(CreatureUnmetNeeds.Space, "creature.needs.space");
+            Add(CreatureUnmetNeeds.Herd, "creature.needs.herd");
+            Add(CreatureUnmetNeeds.OpenGround, "creature.needs.open_ground");
+            return result;
+        }
+
         private string ShelterInformation(CreatureDefinition definition)
         {
             var shelter = definition.Shelter;
@@ -164,11 +189,21 @@ namespace Mythologicum
                 : shelter.mode == CreatureShelterMode.TreeShade ? shelter.requiredForSleep ? "habitat.creature.sleep.shade_required" : "habitat.creature.sleep.shade"
                 : shelter.mode == CreatureShelterMode.Gravestone ? "habitat.creature.sleep.grave"
                 : shelter.mode == CreatureShelterMode.Burrow ? "habitat.creature.sleep.burrow"
-                : shelter.mode == CreatureShelterMode.Cave ? "habitat.creature.sleep.cave" : "habitat.creature.sleep.ground";
+                : shelter.mode == CreatureShelterMode.Cave ? "habitat.creature.sleep.cave"
+                : shelter.mode == CreatureShelterMode.Water ? "aquatic.creature.sleep.water" : "habitat.creature.sleep.ground";
             return Loc.Text(description) + Loc.Format("habitat.creature.shelter", Loc.Enum(shelter.mode),
                 Loc.Text(shelter.requiredForSleep ? "habitat.creature.required" : "habitat.creature.preferred"),
                 Loc.Text(selected.HasShelter ? "habitat.creature.available" : "habitat.creature.missing"), selected.ShelterSatisfaction)
                 + (selected.ShelterRetreat ? Loc.Text("habitat.creature.retreating") : "");
+        }
+
+        private string AquaticInformation(CreatureDefinition definition)
+        {
+            var water = definition.Aquatic;
+            if (!water.canSwim) return "";
+            return Loc.Format("aquatic.creature.water_habitat", selected.ReachableWaterArea,
+                water.preferredWaterArea, selected.WaterSatisfaction, water.minimumSwimDepth)
+                + (water.dragPreyToWater ? Loc.Text("aquatic.creature.water_hunting") : "");
         }
 
         private string BiomeInformation(CreatureDefinition definition)

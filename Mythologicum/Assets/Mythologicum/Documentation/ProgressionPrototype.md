@@ -7,7 +7,7 @@ New parks begin with an entrance, expedition centre, research centre, mercenary 
 1. Place the park entrance and connect paths to an expedition centre.
 2. Click the expedition centre to open its world map. Closing the map returns to the building's normal financial information.
 3. Buy a team (first team 250; each additional team costs 100 more). Teams are shared between expedition centres, with a maximum of 12.
-4. Select North America, South America, or Japan and buy its 350 permit. Permits are permanent and shared by the park.
+4. Select a populated region on the large world map, then buy its permit (350 by default). All 23 markers are visible together; hover one to see its name. Permits are permanent and shared by the park. The [world regions guide](World-Regions-Guide.md) lists the fixed regions.
 5. Choose a mission and assign available teams. The screen shows its full price, duration, success chance and possible creatures before dispatch.
 
 | Mission | Base success | Duration | Cost per team | Creature ratings |
@@ -18,7 +18,7 @@ New parks begin with an entrance, expedition centre, research centre, mercenary 
 
 Each additional team adds 12 percentage points to success, capped at 95%. Each successful mission returns two creatures of one eligible species. Teams return on failure too. Multiple missions can run at once, but a team can only join one active mission. Journeys continue if their expedition centre closes or is demolished.
 
-Chupacabra (rating 2) currently appears in the Americas. Japan offers Hitotsume (1), Yurei (3) and Oni (5), depending on mission difficulty. Other map regions are visible but cannot be purchased until they have a creature roster. Rating is separate from combat threat.
+Chupacabra (rating 2) appears across the four American regions. East Asia offers Hitotsume (1), Kappa (2), Yurei (3), Allghoi Khorkhoi (4) and Oni (5), depending on mission difficulty. Europe and Africa also have populated regional pools; West Asia offers Manticore. Empty future regions stay visible but cannot be purchased until they have a creature roster. Rating is separate from combat threat.
 
 A successful return adds stock to the bottom **Creatures** menu. For example, `Chupacabra x2` allows two placements. Invalid placement does not consume stock. Acquiring a creature does not spawn it automatically. Normal goat dispensers remain independent of this inventory.
 

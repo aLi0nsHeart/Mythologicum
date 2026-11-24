@@ -17,6 +17,7 @@ namespace Mythologicum
             public readonly HashSet<ParkBuildingRecord> buildings = new HashSet<ParkBuildingRecord>();
             public SavedTerrain terrain;
             public SavedHabitatTerrain habitat;
+            public SavedSpecialEnclosures specialEnclosures;
             public readonly HashSet<Vector2Int> caves = new HashSet<Vector2Int>();
             public readonly Dictionary<Vector2Int, WaterTroughSave> troughs = new Dictionary<Vector2Int, WaterTroughSave>();
         }
@@ -110,7 +111,8 @@ namespace Mythologicum
 
         private ConstructionSnapshot CaptureConstruction()
         {
-            var result = new ConstructionSnapshot { terrain = grid.Terrain?.Capture(), habitat = grid.Habitat.Capture() };
+            RefreshSpecialEnclosures();
+            var result = new ConstructionSnapshot { terrain = grid.Terrain?.Capture(), habitat = grid.Habitat.Capture(), specialEnclosures = specialEnclosures?.Capture() };
             for (int x = 0; x < grid.Width; x++) for (int y = 0; y < grid.Depth; y++)
             {
                 var cell = new Vector2Int(x, y);
@@ -240,6 +242,7 @@ namespace Mythologicum
         {
             if (!CanUndoLastConstructionKey(out string reason)) { if(!string.IsNullOrEmpty(reason))UndoMessage = reason; UpdateConstructionHistoryUI(); return false; }
             var action = constructionHistory[constructionHistory.Count - 1];
+            if (SpecialPoolChangedAfterAction(action)) { UndoMessage = "special.enclosure.undo.delayed_pool"; return false; }
             if (!ValidateConstructionUndo(action, out var targetTerrain, out reason)) { UndoMessage = reason; return false; }
             SelectTool(Tool.None);
             bool wasRestoring = creatureWorld.RestoringSave; creatureWorld.RestoringSave = true;
@@ -270,6 +273,7 @@ namespace Mythologicum
                         if (building.Footprint.RequiresFoundation) grid.Terrain.RegisterFoundation(building, building.Footprint);
                 }
                 if (action.habitat.Count > 0 && action.habitat.TryRevert(grid.Habitat.Capture(), out var restoredHabitat)) grid.Habitat.Restore(restoredHabitat);
+                RestoreSpecialConstructionUndo(action);
                 if (action.cost > 0) economy.RefundPurchase(action.cost, ParkTransactionCategory.Construction, action.charged, action.purchasedAt, action.receipt);
                 constructionHistory.RemoveAt(constructionHistory.Count - 1);
                 grid.NotifyPhysicalChange(); buildingConstruction.Network.Refresh(); RefreshTerrainAttachments();

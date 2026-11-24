@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum VisitorActivity { Arriving, Walking, Watching, SeekingFood, Eating, SeekingRest, Resting,
-        Fleeing, ReturningToPath, Leaving, Stranded, Captured, SeekingAttraction, EnjoyingAttraction }
+        Fleeing, ReturningToPath, Leaving, Stranded, Captured, SeekingAttraction, EnjoyingAttraction, Lured }
 
     /// <summary>A guest's decisions; the shared actor supplies hunger, energy, fear and predator interactions.</summary>
     public sealed class VisitorAgent : MonoBehaviour
@@ -13,6 +13,10 @@ namespace Mythologicum
         public VisitorMood Mood { get; internal set; } = new VisitorMood();
         public VisitorActivity Activity { get; internal set; }
         public VisitorType Type { get; internal set; }
+        public bool IsLured => LureSource != null;
+        internal CreatureAgent LureSource;
+        internal Vector2Int LureBank;
+        internal float LureUntil;
         public VisitorTypeSettings TypeSettings { get; internal set; } = VisitorTypeSettings.DefaultFor(VisitorType.Legacy);
         public float LastExhibitInterest { get; internal set; }
         public readonly HashSet<string> ObservedSpecies = new HashSet<string>(System.StringComparer.Ordinal);

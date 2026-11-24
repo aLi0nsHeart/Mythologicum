@@ -1,0 +1,137 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: AllghoiKhorkhoi
+  m_EditorClassIdentifier: 
+  displayName: creature.name.allghoi_khorkhoi
+  visitorAppeal:
+    thrill: 0.95
+    wonder: 0.65
+    adventure: 0.95
+    children: 0.1
+  diet: 0
+  tags: 2
+  preyTags: 29
+  fearedTags: 0
+  manuallyPlaceable: 1
+  pettable: 0
+  rating: 4
+  origin: creature.origin.mongolia
+  maximumHealth: 250
+  damage: 65
+  threat: 80
+  feedsOnFear: 0
+  initialHunger: 35
+  hungerPerSecond: 1.8
+  huntThreshold: 50
+  foodRelief: 70
+  grazeSeconds: 3
+  initialEnergy: 90
+  energyDrainPerSecond: 0.35
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 25
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  canClimbWoodenFences: 0
+  canPhaseFences: 0
+  canBreakFences: 0
+  requiresGravestoneForSleep: 0
+  requiresBurrowForSleep: 1
+  canBurrowFences: 1
+  burrowSeconds: 3
+  burrowDepth: 1.6
+  burrowEnergyCost: 7
+  fearGainPerSecond: 35
+  fearRecoveryPerSecond: 10
+  fleeThreshold: 30
+  walkSpeed: 1.2
+  runSpeed: 4
+  visionRange: 16
+  fearRange: 12
+  interactionRange: 1.4
+  decisionInterval: 0.35
+  minimumSpace: 220
+  requiredTrees: 0
+  requiredGravestones: 0
+  environmentRadius: 14
+  minimumOpenGroundFraction: 0
+  prefersTreeShadeForSleep: 0
+  minimumCompanions: 0
+  maximumCompanions: 0
+  herdRange: 14
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 6
+  preyMemorySeconds: 6
+  attackSeconds: 1.1
+  feedingSeconds: 5
+  fleeSafeDistance: 7
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.65, g: 0.18, b: 0.12, a: 1}
+  bodyScale: {x: 0.95, y: 0.55, z: 1.8}
+  placeholderKind: 7
+  placeholderAccentColor: {r: 0.88, g: 0.47, b: 0.25, a: 1}
+  placeholderDetailColor: {r: 0.16, g: 0.045, b: 0.035, a: 1}
+  needsFood: 1
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.05
+    drinkThreshold: 60
+    criticalThirst: 90
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 48
+  habitat:
+    preferences:
+    - biome: 4
+      minimumFraction: 0.60
+      maximumFraction: 1
+      weight: 2
+    - biome: 1
+      minimumFraction: 0.10
+      maximumFraction: 1
+      weight: 1
+    - biome: 0
+      minimumFraction: 0
+      maximumFraction: 0.20
+      weight: 1
+    - biome: 2
+      minimumFraction: 0
+      maximumFraction: 0.10
+      weight: 1
+    - biome: 3
+      minimumFraction: 0
+      maximumFraction: 0.10
+      weight: 1
+  shelter:
+    mode: 5
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 40
+    retreatSafeDistance: 5
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

@@ -173,6 +173,7 @@ namespace Mythologicum
             economy = new ParkEconomy(parkSettings.economy);
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy,
                 new ParkReputation(parkSettings.reputation));
+            creatureWorld.ConfigureLuring(visitorWorld);
             buildingConstruction.AttractionOccupancy = visitorWorld.AttractionOccupancy;
             buildingConstruction.CanDemolish = visitorWorld.CanDemolishAttraction;
             visitorWorld.ConfigureAttractionVisuals(buildingConstruction.AttractionVisualFor);
@@ -194,6 +195,7 @@ namespace Mythologicum
                 mapOptions?.seed??ParkSaveStore.Pending?.terrain?.seed??grid.Terrain.Seed,cell=>trees.Occupies(cell)||graves.Occupies(cell)||scarecrows.Occupies(cell)||HabitatFeatureAt(cell));
             rocks.Changed+=grid.NotifyPhysicalChange;
             CreateHabitatFeatures();
+            CreateSpecialEnclosures();
             SceneTransition.ReportPreparation(.55f,"ui.loading.forests");
             yield return null;
             SeedBorderForest();
@@ -218,6 +220,7 @@ namespace Mythologicum
             visitorWorld.ConfigureAttractions(staffWorld.Research, Progression, PettingEntrance);
             staffWorld.AuthorizedPettingCreature = IsSafePettingCreature;
             enclosurePresentation = new EnclosurePresentation(enclosureMap, grid, SceneTransition.GameplayCanvas, status.font, groundMaterial);
+            enclosurePresentation.ConfigureSpecialEnclosures(specialEnclosureMap, specialEnclosures);
             SelectTool(Tool.None);
             foreach (BuildingDefinition definition in buildingCatalog)
                 if (definition.kind == BuildingKind.ParkEntrance) { SelectBuilding(definition); break; }
@@ -326,6 +329,7 @@ namespace Mythologicum
             economy.Advance(Time.deltaTime);
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
+            specialEnclosures?.Tick(Time.deltaTime);
             using (CreatureTickProfile.Auto()) creatureWorld.Tick(Time.deltaTime);
             using (StaffTickProfile.Auto()) staffWorld.Tick(Time.deltaTime);
             waterTroughs?.Refresh();
@@ -525,9 +529,12 @@ namespace Mythologicum
         private void ApplyCreature(Mouse mouse, Vector2Int cell)
         {
             if (Progression.Stock(selectedCreature.name) < 1) { SelectTool(Tool.None); return; }
-            bool valid = creatureWorld.CanSpawn(cell);
+            bool valid = creatureWorld.CanSpawn(selectedCreature,cell);
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
-            ShowModelPreview(grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
+            var previewPoint = grid.CellCenter(cell);
+            if (selectedCreature.Aquatic.IsSwimmable(grid,cell))
+                previewPoint.y = grid.Habitat.WaterLevel(cell) + selectedCreature.Aquatic.swimmingBodyOffset;
+            ShowModelPreview(previewPoint + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
                 parent => creatureWorld.CreateVisual(parent, selectedCreature, selectedCreature.visualPrefab, out _));
             if (!valid) status.text = Loc.Text("park.build_mode_controller.choose_clear_walkable_ground_away_from_other_creatures_or");
             if (valid && mouse.leftButton.wasPressedThisFrame && Progression.TryPlace(selectedCreature.name,
@@ -666,6 +673,11 @@ namespace Mythologicum
                 node => ConstructionRouteGraph.FenceNeighbors(node, fences.Layout),
                 node => fences.CanPlace(node, selectedFenceKind), ConstructionRouteGraph.EdgeDistance, ShowFencePreview,
                 node => fences.TryPlace(node, selectedFenceKind));
+            if (tool == Tool.Fence && fences.CanPlace(edge, selectedFenceKind))
+            {
+                if (selectedFenceKind == FenceKind.Aviary) status.text += "\n" + Loc.Text("construction.aviary.hint");
+                if (selectedFenceKind == FenceKind.Aquarium) status.text += "\n" + Loc.Text("construction.aquarium.hint");
+            }
         }
 
         private void ApplyRoute<T>(Mouse mouse, T destination, ConstructionRouteSelection<T> selection,
@@ -826,7 +838,7 @@ namespace Mythologicum
 
         private void OnDestroy()
         {
-            DisposeTerrain();fences?.Dispose();
+            specialEnclosures?.Dispose();DisposeTerrain();fences?.Dispose();
             terrainEditing?.Dispose();rocks?.Dispose();
             waterTroughs?.Dispose(); shelters?.Dispose(); habitatSurface?.Dispose();
             if(terrainCursor!=null)Destroy(terrainCursor.gameObject);

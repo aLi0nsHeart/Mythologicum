@@ -1,0 +1,226 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: Wendigo
+  m_EditorClassIdentifier:
+  displayName: creature.name.wendigo
+  diet: 0
+  tags: 2
+  preyTags: 29
+  fearedTags: 0
+  manuallyPlaceable: 1
+  pettable: 0
+  rating: 5
+  origin: creature.origin.algonquian
+  maximumHealth: 240
+  damage: 55
+  threat: 85
+  visitorAppeal:
+    thrill: 1
+    wonder: 0.55
+    adventure: 0.95
+    children: 0.05
+  needsFood: 1
+  feedsOnFear: 0
+  initialHunger: 30
+  hungerPerSecond: 0.8
+  huntThreshold: 50
+  foodRelief: 70
+  grazeSeconds: 3
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.08
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 48
+  habitat:
+    preferences:
+    - biome: 2
+      minimumFraction: 0.55
+      maximumFraction: 1
+      weight: 1
+    - biome: 0
+      minimumFraction: 0.15
+      maximumFraction: 1
+      weight: 1
+    - biome: 3
+      minimumFraction: 0
+      maximumFraction: 0.3
+      weight: 1
+  aquatic:
+    canSwim: 0
+    canWadeShallows: 1
+    preferWater: 0
+    minimumSwimDepth: 0.45
+    swimSpeed: 4
+    waterSearchRadius: 48
+    preferredWaterArea: 0
+    swimmingBodyOffset: -0.65
+    restingBodyOffset: -0.85
+    dragPreyToWater: 0
+    preferredPreyTags: 12
+    captureSeconds: 0.8
+    drowningSeconds: 4
+    dragSpeedMultiplier: 0.7
+  shelter:
+    mode: 6
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 48
+    retreatSafeDistance: 6
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3
+  initialEnergy: 95
+  energyDrainPerSecond: 0.4
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 20
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  requiresGravestoneForSleep: 0
+  requiresBurrowForSleep: 0
+  prefersTreeShadeForSleep: 0
+  canClimbWoodenFences: 1
+  canPhaseFences: 0
+  canBreakFences: 0
+  canBurrowFences: 0
+  fearGainPerSecond: 35
+  fearRecoveryPerSecond: 15
+  fleeThreshold: 25
+  walkSpeed: 1.7
+  runSpeed: 5.8
+  visionRange: 18
+  fearRange: 8
+  interactionRange: 1.5
+  decisionInterval: 0.35
+  minimumSpace: 400
+  requiredTrees: 4
+  requiredGravestones: 0
+  environmentRadius: 24
+  minimumOpenGroundFraction: 0
+  minimumCompanions: 0
+  maximumCompanions: 0
+  herdRange: 20
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 5
+  preyMemorySeconds: 6
+  attackSeconds: 0.7
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.43, g: 0.4, b: 0.34, a: 1}
+  bodyScale: {x: 0.8, y: 1.3, z: 0.7}
+  placeholderKind: 18
+  placeholderAccentColor: {r: 0.69, g: 0.65, b: 0.52, a: 1}
+  placeholderDetailColor: {r: 0.09, g: 0.07, b: 0.05, a: 1}
+  phaseHungerThreshold: 80
+  burrowSeconds: 2
+  burrowDepth: 1
+  burrowEnergyCost: 5
+  treeClimbSeconds: 2
+  fenceClimbSeconds: 2
+  failedClimbSeconds: 1.2
+  climbRetrySeconds: 8
+  climbEnergyCost: 5
+  scareRange: 3
+  scareSeconds: 1.5
+  scareCooldownSeconds: 8
+  scareApproachDistance: 1.5
+  canUseScarecrows: 1
+  scareJumpHeight: 1.4
+  scareJumpForward: 0.65
+  scareJumpSquash: 0.25
+  behaviour:
+    initialHappiness: 75
+    hungerWeight: 0.3
+    thirstWeight: 0.2
+    fearWeight: 0.1
+    environmentWeight: 0.25
+    spaceWeight: 0.2
+    herdWeight: 0.15
+    socialInteractionRange: 3
+    wanderSearchSteps: 4
+    grazingSearchSteps: 5
+    agitatedPauseMultiplier: 0.4
+    needsCheckSeconds: 0.5
+    urgentHunger: 80
+    urgentEnergy: 8
+    escapeHungerStart: 75
+    maximumEscapeChance: 0.95
+    escapeAttemptSeconds: 30
+    crowdingCheckSeconds: 0.5
+    escapeSearchSteps: 6
+    safeEscapeScore: 1000
+    phaseSeconds: 1.5
+    scareFearImpulse: 15
+    attackFearSeconds: 0.25
+    fenceStrikeEnergyCost: 1
+    maximumFenceStrikes: 1
+  flight:
+    canFly: 0
+    cruiseHeight: 4
+    maximumHeight: 14
+    flightSpeed: 4.5
+    pursuitSpeed: 8
+    riseSpeed: 4
+    descentSpeed: 6
+    bodyHeadroom: 1.5
+    roofClearance: 0.35
+    clearanceRadius: 0.35
+    failedEscapeSeconds: 1.4
+    wingBeatFrequency: 2.5
+    wingBeatDegrees: 28
+    wingSweepDegrees: 8
+    lightningAttack: 0
+    lightningSeconds: 0.22
+    lightningWidth: 0.07
+    lightningColor: {r: 0.65, g: 0.9, b: 1, a: 1}
+  stalking:
+    enabled: 1
+    coverSearchSteps: 10
+    coverTreeRadius: 1
+    minimumCoverTrees: 1
+    stalkSpeedMultiplier: 0.45
+    minimumStalkSeconds: 2
+    maximumStalkSeconds: 9
+    ambushRange: 3
+    preferredCoverDistance: 5
+    coverWaitSeconds: 1
+    crouchOffset: 0.28
+  lure:
+    enabled: 0
+    visitorTypes: 04000000
+    range: 14
+    retrySeconds: 5
+    cooldownSeconds: 30
+    durationSeconds: 20
+    shorelineSearchSteps: 10
+    maximumApproachSteps: 24
+    maximumVisitorCandidates: 8
+    submergeOffset: 0.45

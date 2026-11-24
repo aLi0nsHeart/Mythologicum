@@ -8,12 +8,17 @@ namespace Mythologicum
     {
         public ParkSaveData CapturePark()
         {
+            RefreshSpecialEnclosures();
+            creatureWorld.PrepareAquaticSnapshot();
+            var actorSaves = new Dictionary<CreatureAgent, SavedActor>();
+            var savedCreatures = new List<CreatureAgent>();
             var data = new ParkSaveData { width = grid.Width, depth = grid.Depth, cellSize = grid.CellSize,
                 balance = economy.Balance, income = economy.Income, expenses = economy.Expenses,
                 unlimited = economy.UnlimitedFunds, savedAt = DateTime.UtcNow.ToString("O"),
                 departedVisitors = visitorWorld.DepartedCount, lostVisitors = visitorWorld.LostCount };
             data.terrain=grid.Terrain?.Capture();
             data.hasHabitat = true; data.habitat = grid.Habitat.Capture();
+            data.specialEnclosures = specialEnclosures?.Capture();
             data.waterTroughs = waterTroughs?.Capture(); data.shelters = shelters?.Capture();
             data.treeVisuals=trees.CaptureVisuals();
             data.generation=mapOptions?.Clone();data.rocks=rocks.Capture();
@@ -52,10 +57,13 @@ namespace Mythologicum
                 saved.shelterSleeping = home.HasValue && actor.Activity == CreatureActivity.Sleeping && !actor.IsSedated && actor.CarriedBy == null;
                 saved.shelterRetreat = home.HasValue && actor.ShelterRetreat;
                 saved.retire = actor.RetirementRequested; saved.sedate = actor.SedationRequested;
+                saved.aquaticHunt = creatureWorld.CaptureAquaticHunt(actor);
+                saved.hasAquaticHunt = saved.aquaticHunt != null;
+                actorSaves.Add(actor, saved); savedCreatures.Add(actor);
                 data.creatures.Add(saved);
             }
             foreach (var worker in staffWorld.Staff)
-                if (worker.Actor.Alive) { var saved = CaptureActor(worker.Actor); saved.building = IndexOf(records, worker.Home); data.staff.Add(saved); }
+                if (worker.Actor.Alive) { var saved = CaptureActor(worker.Actor); saved.building = IndexOf(records, worker.Home); data.staff.Add(saved); actorSaves.Add(worker.Actor,saved); }
             foreach (var guest in visitorWorld.Visitors)
                 if (guest.Actor.Alive)
                 {
@@ -67,7 +75,9 @@ namespace Mythologicum
                     saved.observedSpecies.Sort(StringComparer.Ordinal); saved.observedOrigins.Sort(StringComparer.Ordinal);
                     saved.attraction = visitorWorld.CaptureAttraction(guest, records);
                     data.visitors.Add(saved);
+                    actorSaves.Add(guest.Actor,saved);
                 }
+            CaptureAquaticLinks(actorSaves,savedCreatures);
             foreach (var species in creatureCatalog) data.research.Add(new SavedResearch { species = species.name, progress = staffWorld.Research.Progress(species) });
             return data;
         }
@@ -95,11 +105,12 @@ namespace Mythologicum
             // immediate fence strike. Ordinary cooldowns keep their remaining duration.
             escapeCooldown = actor.EscapeIntent || actor.Activity == CreatureActivity.AttackingFence
                 || actor.Activity == CreatureActivity.ClimbingFence || actor.Activity == CreatureActivity.PhasingFence
-                || actor.Activity == CreatureActivity.FailedClimb || actor.Activity == CreatureActivity.FailedPhase
+                || actor.Activity == CreatureActivity.FailedClimb || actor.Activity == CreatureActivity.FailedPhase || actor.Activity == CreatureActivity.FailedFlight
                 || actor.Activity == CreatureActivity.BurrowingFence || actor.Activity == CreatureActivity.FailedBurrow
                 ? Mathf.Max(actor.Definition.escapeRetrySeconds, actor.EscapeAfter - creatureWorld.SimulationTime)
                 : Mathf.Max(0f, actor.EscapeAfter - creatureWorld.SimulationTime),
             fenceRetryCooldown = Mathf.Max(0f, actor.AttemptAfter - creatureWorld.SimulationTime),
+            flightAltitude = creatureWorld.FlightAltitude(actor), lureCooldown = creatureWorld.CaptureLureCooldown(actor),
             scareCooldown = Mathf.Max(actor.Activity == CreatureActivity.Scaring ? actor.Definition.scareCooldownSeconds : 0f,
                 actor.ScareAfter - creatureWorld.SimulationTime) };
         private void RestoreActor(CreatureAgent actor, SavedActor saved)
@@ -107,7 +118,7 @@ namespace Mythologicum
             // Traversals resume on their saved logical safe-side cell. Persistent
             // shelter homes and settled sleep poses are restored after all features.
             actor.Cell = saved.cell;
-            actor.transform.position = grid.ActorPosition(saved.cell,actor.Definition.bodyScale.y);
+            actor.transform.position = creatureWorld.ProjectAquaticPosition(actor,grid.CellCenter(saved.cell));
             actor.Vitals.Restore(actor.Definition.needsFood ? saved.hunger : actor.Definition.StartingHunger, saved.fear,
                 actor.Definition.Thirst.needsWater ? saved.thirst : 0);
             actor.Energy = new CreatureEnergy(saved.energy);
@@ -117,6 +128,8 @@ namespace Mythologicum
             actor.EscapeAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.escapeCooldown);
             actor.AttemptAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.fenceRetryCooldown);
             actor.ScareAfter = creatureWorld.SimulationTime + Mathf.Max(0f, saved.scareCooldown);
+            creatureWorld.RestoreFlightAltitude(actor, saved.flightAltitude);
+            creatureWorld.RestoreLureCooldown(actor, saved.lureCooldown);
         }
         public void ValidateSave(ParkSaveData data)
         {
@@ -131,6 +144,7 @@ namespace Mythologicum
             var checkGrid = new SquareBuildGrid(grid.Origin, data.cellSize, data.width, data.depth,checkTerrain);
             if (data.hasHabitat && data.habitat == null) throw new InvalidDataException(Loc.Text("habitat.terrain.invalid_save"));
             checkGrid.Habitat.Restore(data.hasHabitat ? data.habitat : null);
+            SpecialEnclosureConstruction.ValidateSave(data.specialEnclosures, data.width, data.depth);
             var checkFences = new FenceLayout(checkGrid, fences.Layout.Rules);
             var network = new ParkBuildingNetwork(checkGrid, checkFences);
             network.RestoringSave = true;
@@ -214,14 +228,16 @@ namespace Mythologicum
             foreach (var saved in data.creatures)
             {
                 var species = saved == null ? null : Species(saved.species);
-                if (species == null || !ValidActor(saved, checkGrid) || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell))
+                if (species == null || !ValidActor(saved, checkGrid, allowWater: saved.capturedByAquatic || species.Aquatic.canSwim || species.Flight.canFly)
+                    || !saved.capturedByAquatic && checkGrid.Habitat.IsWater(saved.cell) && !species.Flight.canFly && !species.Aquatic.CanOccupy(checkGrid,saved.cell)
+                    || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell))
                     throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.a_saved_creature_is_unavailable_or_invalid"));
                 ValidateShelterHome(saved, species, checkGrid, shelterKinds, data.trees, data.graves);
             }
             var hired = new Dictionary<int,int>();
             foreach (var saved in data.staff)
             {
-                if (!ValidActor(saved, checkGrid) || saved.building < 0 || saved.building >= data.buildings.Count
+                if (!ValidActor(saved, checkGrid, allowWater: saved?.capturedByAquatic == true) || saved.building < 0 || saved.building >= data.buildings.Count
                     ||rockCells.Contains(saved.cell)||troughCells.Contains(saved.cell)|| saved.hasShelterHome || saved.shelterSleeping || saved.shelterRetreat
                     || !SavedDefinition(data.buildings[saved.building],data.width,data.depth).IsEmployeeBuilding) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_staff_home_or_employee"));
                 hired.TryGetValue(saved.building, out int count); hired[saved.building] = count + 1;
@@ -236,7 +252,7 @@ namespace Mythologicum
                 VisitorWorld.ValidateAttractionSave(saved.attraction, network.Records, checkGrid, checkFences);
                 bool insideRoom = (saved.attraction?.insideViewingRoom == true || saved.attraction?.insideInterior == true) && saved.attraction.building >= 0;
                 if (insideRoom && saved.cell != saved.attraction.interior
-                    || !ValidActor(saved, checkGrid, insideRoom) || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell)
+                    || !ValidActor(saved, checkGrid, insideRoom, saved.capturedByAquatic) || rockCells.Contains(saved.cell) || troughCells.Contains(saved.cell)
                     || saved.hasShelterHome || saved.shelterSleeping || saved.shelterRetreat
                     || !Enum.IsDefined(typeof(VisitorType), saved.visitorType)
                     || !ValidInterestHistory(saved.observedSpecies) || !ValidInterestHistory(saved.observedOrigins))
@@ -246,6 +262,7 @@ namespace Mythologicum
                     throw new InvalidDataException(Loc.Text("attraction.save.invalid"));
             }
             foreach (var saved in data.research) if (Species(saved.species) == null || !Finite(saved.progress)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_species_research"));
+            ValidateAquaticLinks(data,checkGrid,checkFences);
             if (!Finite(data.balance) || !Finite(data.income) || !Finite(data.expenses) || !Finite(data.zoom) || !Finite(data.yaw)
                 || !Finite(data.focus.x) || !Finite(data.focus.y) || !Finite(data.focus.z)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.invalid_saved_finances_or_camera"));
             if(data.version>=2)Progression.Validate(data.progression,network.Records);
@@ -266,12 +283,13 @@ namespace Mythologicum
                 return;
             }
             var home = actor.shelterHome; var mode = species.Shelter.mode;
-            bool valid = checkGrid.Contains(home) && !checkGrid.Habitat.IsWater(home)
+            bool valid = checkGrid.Contains(home) && (mode == CreatureShelterMode.Water || !checkGrid.Habitat.IsWater(home))
                 && (mode == CreatureShelterMode.TreeCanopy || mode == CreatureShelterMode.TreeShade ? trees.Contains(home)
                     : mode == CreatureShelterMode.Gravestone ? graves.Contains(home)
                     : mode == CreatureShelterMode.Cave ? constructed.TryGetValue(home, out var cave) && cave == ConstructedShelterKind.Cave
-                    : mode == CreatureShelterMode.Burrow && constructed.TryGetValue(home, out var burrow) && burrow == ConstructedShelterKind.Burrow
-                        && CreatureBurrowing.CanDigGround(checkGrid, home));
+                    : mode == CreatureShelterMode.Burrow ? constructed.TryGetValue(home, out var burrow) && burrow == ConstructedShelterKind.Burrow
+                        && CreatureBurrowing.CanDigGround(checkGrid, home)
+                    : mode == CreatureShelterMode.Water && species.Aquatic.IsSwimmable(checkGrid,home));
             if (actor.shelterSleeping)
             {
                 bool legacyShade = mode == CreatureShelterMode.TreeShade && (species.shelter == null || species.shelter.mode == CreatureShelterMode.Legacy);
@@ -292,14 +310,16 @@ namespace Mythologicum
             }
             return true;
         }
-        private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid, bool allowBuilding = false) => saved != null && checkGrid.Contains(saved.cell)
-            && !checkGrid.Habitat.IsWater(saved.cell) && Finite(saved.thirst) && saved.thirst >= 0f && saved.thirst <= 100f
+        private static bool ValidActor(SavedActor saved, SquareBuildGrid checkGrid, bool allowBuilding = false, bool allowWater = false) => saved != null && checkGrid.Contains(saved.cell)
+            && (allowWater || !checkGrid.Habitat.IsWater(saved.cell)) && Finite(saved.thirst) && saved.thirst >= 0f && saved.thirst <= 100f
             && (allowBuilding || checkGrid.ContentAt(saved.cell) != BuildCellContent.Building) && Finite(saved.health) && saved.health > 0f
             && Finite(saved.hunger) && Finite(saved.fear) && Finite(saved.energy) && Finite(saved.sedation)
             && Finite(saved.happiness) && Finite(saved.agitation) && Finite(saved.age) && Finite(saved.satisfaction) && Finite(saved.patience) && Finite(saved.explored)
             && Finite(saved.escapeCooldown) && saved.escapeCooldown >= 0f
             && Finite(saved.fenceRetryCooldown) && saved.fenceRetryCooldown >= 0f
-            && Finite(saved.scareCooldown) && saved.scareCooldown >= 0f;
+            && Finite(saved.scareCooldown) && saved.scareCooldown >= 0f
+            && Finite(saved.flightAltitude) && saved.flightAltitude >= 0f
+            && Finite(saved.lureCooldown) && saved.lureCooldown >= 0f;
         private CreatureDefinition Species(string name) => Array.Find(creatureCatalog, d => d.name == name);
         private BuildingDefinition SavedDefinition(SavedBuilding saved,int mapWidth=-1,int mapDepth=-1)
         {
@@ -329,6 +349,8 @@ namespace Mythologicum
                 grid.Habitat.Restore(data.hasHabitat ? data.habitat : null);
                 SelectTool(Tool.None);
                 var restored = new List<ParkBuildingRecord>();
+                var restoredCreatures = new List<CreatureAgent>();
+                var restoredActors = new Dictionary<SavedActor,CreatureAgent>();
                 foreach (var saved in data.buildings)
                 {
                     if (!buildingConstruction.TryPlace(new BuildingFootprint(SavedDefinition(saved), saved.cell, saved.rotation, saved.fenceMounted))) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_building"));
@@ -352,6 +374,8 @@ namespace Mythologicum
                 if (data.waterTroughs != null) foreach (var trough in data.waterTroughs)
                     if (!waterTroughs.Restore(trough)) throw new InvalidDataException(Loc.Text("habitat.save.restore_trough_failed"));
                 buildingConstruction.Network.Refresh();
+                specialEnclosures?.Restore(data.specialEnclosures);
+                RefreshSpecialEnclosures();
                 // Restore all saved actors even if the designer has since lowered the shared population cap.
                 creatureWorld.PopulationLimit = Math.Max(creatureWorld.PopulationLimit, data.creatures.Count + data.staff.Count + data.visitors.Count);
                 // Restore staff without charging hiring fees, including temporarily disconnected homes.
@@ -362,12 +386,14 @@ namespace Mythologicum
                     var worker = staffWorld.RestoreEmployee(home, saved.cell);
                     if (worker == null) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_employee"));
                     RestoreActor(worker.Actor, saved);
+                    restoredActors.Add(saved,worker.Actor);
                 }
                 foreach (var saved in data.creatures)
                 {
                     var dispenser = saved.building >= 0 && saved.building < restored.Count ? restored[saved.building] : null;
                     if (!creatureWorld.TrySpawn(Species(saved.species), saved.cell, dispenser)) throw new InvalidDataException(Loc.Text("park.build_mode_controller__saving.could_not_restore_creature"));
                     var actor = creatureWorld.Agents[creatureWorld.Agents.Count - 1]; RestoreActor(actor, saved);
+                    restoredCreatures.Add(actor); restoredActors.Add(saved,actor);
                     if (!creatureWorld.RestoreShelterState(actor, saved.hasShelterHome ? saved.shelterHome : (Vector2Int?)null, saved.shelterSleeping, saved.shelterRetreat))
                         throw new InvalidDataException(Loc.Text("habitat.save.restore_home_failed"));
                     if (saved.retire) staffWorld.RequestRetire(actor);
@@ -385,7 +411,9 @@ namespace Mythologicum
                     guest.LeavingPark = saved.leaving;
                     guest.RestoreInterests(saved.observedSpecies, saved.observedOrigins);
                     visitorWorld.RestoreAttraction(guest, saved.attraction, restored);
+                    restoredActors.Add(saved,guest.Actor);
                 }
+                RestoreAquaticLinks(data,restoredActors,restoredCreatures);
                 foreach (var saved in data.research) staffWorld.Research.Study(Species(saved.species), saved.progress);
                 for (int i = 0; i < restored.Count; i++)
                 {
@@ -401,6 +429,7 @@ namespace Mythologicum
                 else Progression.AdoptLegacyPark(restored,fences.Layout.Edges,fences.Layout);
                 GetComponent<IsometricCameraController>()?.RestorePose(data.focus, data.yaw, data.zoom);
                 RefreshTerrainAttachments();groundVegetation.Refresh();
+                creatureWorld.RefreshWellbeing();
                 alerts?.ResetBaseline();
                 ResetConstructionHistory("park.build_mode_controller__saving.game_loaded_construction_history_starts_here");
                 GameSaveMenu.ShowMessage(Loc.Text("park.build_mode_controller__saving.game_loaded"));

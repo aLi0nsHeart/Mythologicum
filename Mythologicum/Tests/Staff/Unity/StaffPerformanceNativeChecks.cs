@@ -149,6 +149,7 @@ public static class StaffPerformanceNativeChecks
             }
             tuning.offPathApproachPenalty = .5f;
             foreach (var edge in fences.Edges.ToArray()) fences.TryRemove(edge);
+            CheckApproachReuse(staff, grid, fences, navigation, tuning, worker, target, species);
             Position(worker.Actor, new Vector2Int(6, 5)); Position(target, new Vector2Int(6, 6));
             var ring = new[] { new FenceEdge(new Vector2Int(6, 6), true), new FenceEdge(new Vector2Int(6, 7), true),
                 new FenceEdge(new Vector2Int(6, 6), false), new FenceEdge(new Vector2Int(7, 6), false) };
@@ -207,5 +208,119 @@ public static class StaffPerformanceNativeChecks
         Check(original.isLoaded && original.isDirty == dirty && SceneManager.GetActiveScene() == original, "the original scene and dirty flag are unchanged");
         Check(Object.FindObjectsByType<CreatureAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length == beforeActors, "all temporary actors are removed");
         return checks;
+    }
+
+    private static void CheckApproachReuse(StaffWorld staff, SquareBuildGrid grid, FenceLayout fences,
+        StaffNavigation navigation, StaffDefinition tuning, StaffAgent worker, CreatureAgent target, CreatureDefinition species)
+    {
+        Vector2Int V(int x, int y) => new Vector2Int(x, y);
+        void Position(CreatureAgent actor, Vector2Int cell)
+        { Set(actor, "Cell", cell); actor.transform.position = grid.ActorPosition(cell, actor.Definition.bodyScale.y); }
+        void AdvanceRetry() => Set(staff, "workQueryTime", Field<float>(staff, "workQueryTime") + tuning.decisionInterval + .01f);
+        int RangedSearches() => Field<int>(staff, "rangedSearchCount");
+        Vector2Int? Goal() => Field<Vector2Int?>(worker.Actor, "Goal");
+        var route = Field<List<Vector2Int>>(worker.Actor, "Route");
+        float originalStudyRange = tuning.studyRange;
+        var changedGround = new List<Vector2Int>();
+        try
+        {
+            tuning.studyRange = 3;
+            Position(worker.Actor, V(1, 5)); Position(target, V(6, 6));
+            Check(staff.SetResearchTarget(worker.Home, species), "an actual research assignment can select its specimen");
+            var expected = ReferencePosition(navigation, grid, tuning, worker, target, tuning.studyRange, false);
+            int initial = RangedSearches();
+            Call(staff, "Assign", worker);
+            Check(worker.Target == target && worker.Task == StaffTask.Researching && RangedSearches() == initial + 1,
+                "assignment makes one exact ranged search and retains its result");
+            Call(staff, "Work", worker, .01f);
+            Check(Goal() == expected && route.Count > 0 && RangedSearches() == initial + 1,
+                "the first working frame reuses the assignment search and its original BFS winner");
+            for (int frame = 0; frame < 120; frame++) Call(staff, "Work", worker, .01f);
+            Check(RangedSearches() == initial + 1 && Goal() == expected,
+                "120 unchanged travelling frames do not flood the map again");
+            target.transform.position = Vector3.MoveTowards(target.transform.position, grid.CellCenter(expected.Value), .1f);
+            for (int frame = 0; frame < 60; frame++) Call(staff, "Work", worker, .01f);
+            Check(RangedSearches() == initial + 1, "a moving target keeps its still-valid ranged approach");
+            bool observed = false;
+            for (int step = 0; step < 300 && !observed; step++)
+            {
+                observed = (bool)Call(staff, "ApproachRanged", worker, target, tuning.studyRange, false);
+                if (!observed) Call(staff, "Move", worker, .05f);
+            }
+            Check(observed && navigation.HasLineOfSight(worker.Actor.Cell, target.Cell) && RangedSearches() == initial + 1,
+                "the retained approach still physically reaches a valid observation position");
+
+            Call(staff, "ClearJob", worker); Position(worker.Actor, V(1, 5)); Position(target, V(6, 6));
+            Check(!(bool)Call(staff, "ApproachRanged", worker, target, 3f, false), "a new distant target first requires travel");
+            var previousGoal = Goal();
+            Position(target, V(15, 7)); AdvanceRetry(); initial = RangedSearches();
+            Call(staff, "ApproachRanged", worker, target, 3f, false);
+            Check(RangedSearches() == initial + 1 && Goal().HasValue && Goal() != previousGoal
+                && Distance(grid.CellCenter(Goal().Value), target.transform.position) <= 3,
+                "a target moving outside the retained goal's range causes a fresh valid approach");
+
+            for (int y = 0; y < grid.Depth; y++) Check(fences.TryAdd(new FenceEdge(V(12, y), false)), "the retry fixture closes a physical boundary");
+            initial = RangedSearches();
+            Check(!(bool)Call(staff, "ApproachRanged", worker, target, 3f, false)
+                && RangedSearches() == initial + 1 && route.Count == 0,
+                "a new closed fence invalidates the retained route immediately even within the retry interval");
+            initial = RangedSearches();
+            for (int frame = 0; frame < 180; frame++)
+            {
+                Set(staff, "workQueryTime", Field<float>(staff, "workQueryTime") + 1f / 60);
+                Call(staff, "ApproachRanged", worker, target, 3f, false);
+            }
+            Check(RangedSearches() > initial && RangedSearches() - initial <= Mathf.CeilToInt(3 / tuning.decisionInterval) + 1,
+                "180 blocked frames perform only the retries allowed by the staff decision interval");
+            initial = RangedSearches();
+            AdvanceRetry(); Call(staff, "ApproachRanged", worker, target, 3f, false);
+            Check(RangedSearches() == initial + 1, "a blocked approach retries at the existing staff decision interval");
+            var gate = new FenceEdge(V(12, 7), false);
+            Check(fences.TrySetGate(gate), "the boundary can receive an actual staff gate");
+            initial = RangedSearches(); Call(staff, "ApproachRanged", worker, target, 3f, true);
+            Check(RangedSearches() == initial + 1 && route.Contains(V(12, 7))
+                && !navigation.HasClearShot(worker.Actor.Cell, target.Cell),
+                "a newly available gate immediately replans entry instead of permitting shots through the fence");
+            var occupiedGoal = Goal().Value;
+            Check(grid.TryOccupy(occupiedGoal, BuildCellContent.Building), "a construction edit can occupy the retained destination");
+            changedGround.Add(occupiedGoal); initial = RangedSearches();
+            Call(staff, "ApproachRanged", worker, target, 3f, true);
+            Check(RangedSearches() == initial + 1 && !route.Contains(occupiedGoal),
+                "grid edits immediately invalidate an obstructed cached approach");
+            grid.TryRemove(occupiedGoal, BuildCellContent.Building); changedGround.Remove(occupiedGoal);
+
+            Call(staff, "ClearJob", worker); Position(worker.Actor, V(11, 7)); Position(target, V(12, 7));
+            Check(creaturesVisible() && !navigation.HasClearShot(worker.Actor.Cell, target.Cell),
+                "the close-range specimen is visible through a closed staff gate but cannot be shot through it");
+            Check(!(bool)Call(staff, "ApproachRanged", worker, target, 5f, true) && route.Contains(V(12, 7)),
+                "a mercenary must still physically enter despite being within shooting range");
+            bool clearShot = false;
+            for (int step = 0; step < 100 && !clearShot; step++)
+            {
+                clearShot = (bool)Call(staff, "ApproachRanged", worker, target, 5f, true);
+                if (!clearShot) Call(staff, "Move", worker, .05f);
+            }
+            Check(clearShot && worker.Actor.Cell.x >= 12 && navigation.HasClearShot(worker.Actor.Cell, target.Cell),
+                "the retained shooting approach only succeeds after crossing the gate and acquiring a clear shot");
+
+            Call(staff, "ClearJob", worker); Position(worker.Actor, V(10, 7));
+            int repairs = Field<int>(staff, "fenceApproachSearchCount");
+            var repairGoal = (Vector2Int?)Call(staff, "FenceApproach", worker, gate);
+            for (int frame = 0; frame < 120; frame++) Call(staff, "FenceApproach", worker, gate);
+            Check(repairGoal.HasValue && Field<int>(staff, "fenceApproachSearchCount") == repairs + 1,
+                "repeated repair work retains its reachable fence side instead of doing two A-star searches per frame");
+            Check(grid.TryOccupy(repairGoal.Value, BuildCellContent.Building), "the cached repair approach can be obstructed");
+            changedGround.Add(repairGoal.Value); Call(staff, "FenceApproach", worker, gate);
+            Check(Field<int>(staff, "fenceApproachSearchCount") == repairs + 2,
+                "a physical grid edit immediately invalidates a cached repair approach");
+
+            bool creaturesVisible() => Field<CreatureWorld>(staff, "creatures").CanSee(worker.Actor, target, 5f);
+        }
+        finally
+        {
+            foreach (var cell in changedGround) grid.TryRemove(cell, BuildCellContent.Building);
+            foreach (var edge in fences.Edges.ToArray()) fences.TryRemove(edge);
+            Call(staff, "ClearJob", worker); tuning.studyRange = originalStudyRange;
+        }
     }
 }

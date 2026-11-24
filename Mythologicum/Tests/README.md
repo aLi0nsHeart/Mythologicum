@@ -138,6 +138,39 @@ The [13 November 2026 comparison](Performance/Baselines/2026-11-13/README.md)
 contains three before/after simulation runs, calibrated UI measurements and their
 limits. Unsupported native allocation counters must not be read as zero garbage.
 
+For recurring spikes in a saved park, copy
+`Tests/Performance/Unity/SavedParkPerformanceValidation.cs` into the disposable
+project's `Assets/Editor`. Place a **copy** of the save at
+`LocalCache/PerformanceInvestigation/LatestPark.json` inside that project. Never
+point the fixture at the original save directory. Run
+`-executeMethod SavedParkPerformanceValidation.Start` with the same real-graphics,
+self-exit setup. `MYTHOLOGICUM_PERF_FIXTURE` selects `LatestPark` or `HabitatPark`;
+`MYTHOLOGICUM_PERF_TAG` labels reports, for example `Baseline` or `After`.
+
+The fixture loads the production scene under its own validation save identity,
+checks initial actor counts and measures 1,800 updates at 1/30 simulation second
+each. JSON, CSV and text results go to `LocalCache/PerformanceInvestigation` in
+the disposable project; `SavedParkPerformanceResults.txt` reports completion.
+Timings separate creatures, staff, visitors and other ordinary reports. They
+exclude rendering, GPU/frame scheduling, input and autosave. Unity Random is
+seeded, while new visitor appearance/type choices retain their normal separate
+random generator; compare populations and multiple statistics, not exact ticks.
+Keep private saves and raw replay data in ignored local storage. The compact
+[20 November comparison](Performance/Baselines/2026-11-20-SavedParks/Comparison.json)
+records timing summaries without the saves.
+
+The pure `..\Performance\CreatureLocalSamplingChecks` suite compares bounded
+habitat samples against the original map-wide filter, including sub-tile
+positions, distant origins and boundary radii. For native route/cache checks,
+copy `CreatureSpikeNativeChecks.cs` and `SimulationSpikeValidation.cs` from
+`Tests/Performance/Unity` into the disposable project's `Assets/Editor`, then run
+`-executeMethod SimulationSpikeValidation.Start`. It exits itself and writes
+`SimulationSpikeResults.txt`. The existing
+`Tests/Staff/Unity/StaffPerformanceNativeChecks.cs` fixture runs separately through
+`-executeMethod StaffPerformanceNativeChecks.Run` in Edit mode; it now also checks
+retained approaches, bounded failed retries, moved targets, changed gates,
+construction and repair access. Run these Editors sequentially.
+
 For the separate UI maintenance benchmark, copy
 `Tests/Performance/Unity/UIPerformanceValidation.cs` to the disposable project's
 `Assets/Editor` and use `-executeMethod UIPerformanceValidation.Start` with the
@@ -436,3 +469,123 @@ files. Use fresh result files, logs and editor exit codes as validation evidence
 
 Designer settings and manual checks are described in the
 [habitat guide](../Assets/Mythologicum/Documentation/Habitat-Guide.md).
+
+## Aquatic creatures
+
+The default model runner includes `AquaticNavigationChecks`,
+`AquaticHuntingChecks` and `..\Progression\AquaticProgressionChecks`.
+These cover species-specific swimming depth, shallow-water wading, fence and
+bank access, optional capture data and expedition inventory compatibility.
+
+Copy these sources into the disposable project's `Assets/Editor` alongside
+current runtime scripts and resources:
+
+- `Tests/Creatures/Unity/AquaticIntegrationValidation.cs`
+- `Tests/Creatures/Unity/AquaticNavigationNativeChecks.cs`
+- `Tests/Creatures/Unity/AquaticHuntingNativeChecks.cs`
+- `Tests/Creatures/Unity/AquaticDataNativeChecks.cs`
+
+Run `-executeMethod AquaticIntegrationValidation.Start` with the sequential,
+real-graphics, self-exit setup above. It uses the isolated
+`MythologicumValidation/AquaticIntegrationValidation` identity and writes
+`AquaticIntegrationResults.txt`. The fixture checks imported species and
+research data, swimming/wading/land graphs, stable water sleep, pond drainage,
+live capture and physical dragging, interrupted captures, natural bank drinking
+and production scene save/load with both goat and visitor captives. It passes
+snapshots through Unity JSON without writing a user save slot. Each helper is
+called through `RunChecks()` from the prepared Play-mode fixture.
+
+## Burrowing species and deep fences
+
+The default model runner includes `CreatureBurrowingChecks`,
+`FenceCapabilityChecks` and `..\Progression\BurrowingProgressionChecks`. These
+cover one-attempt tunnelling, independent fence capabilities, expedition
+eligibility and inventory, and saving an active or completed deep-fence project.
+
+Copy `Tests/Creatures/Unity/BurrowingExpansionValidation.cs` and
+`Tests/Creatures/Unity/BurrowingSpeciesNativeChecks.cs` into the disposable
+project's `Assets/Editor` alongside current runtime scripts and resources.
+Run `-executeMethod BurrowingExpansionValidation.Start` using the sequential,
+real-graphics, self-exit setup above. It uses the isolated
+`MythologicumValidation/BurrowingExpansionValidation` identity and writes
+`BurrowingExpansionValidationResults.txt`. It checks imported profiles and
+placeholder bodies, research and expedition unlocks, digging and reusing sleep
+burrows, successful wooden-fence tunnelling, a failed Deep attempt and cooldown,
+staff-gate protection, fence damage, and production disk save/load with both
+species and persistent homes. Cleanup removes only its own unique manual slot.
+
+For broader fence regressions, copy `CreatureBurrowingNativeChecks.cs` and
+`FenceAssetValidation.cs` from the same directory. Run their standalone entry
+points `CreatureBurrowingNativeChecks.Run` and `FenceAssetValidation.Start`
+sequentially. They write `CreatureBurrowingValidationResults.txt` and
+`FenceValidationResult.txt`, respectively, and cover imported fence models,
+terrain meshes, buried foundations, staff gates, viewing windows and lifecycle
+cleanup. Use fresh result files, logs and editor exit codes as evidence.
+
+## African roster and Persian Manticore
+
+The default model runner includes `..\Progression\AfricanProgressionChecks`.
+It covers the populated African pools plus West Asia, rarity filtering,
+selecting and completing missions for every new species, active-mission and
+completed-stock restoration, placement consumption and loading pre-expansion
+progress without granting unearned specimens. West Africa and Central Africa
+have separate pools; the world-region migration tests preserve their old combined
+permit's paid access.
+The model fixture also guards contiguous species YAML: blank separators caused
+Unity's importer to discard later fields despite their presence in source.
+Native checks verify the actual imported fields rather than only reading YAML.
+
+Copy these helpers into the disposable project's `Assets/Editor` alongside
+current runtime scripts and resources:
+
+- `Tests/Creatures/Unity/AfricanExpansionValidation.cs`
+- `Tests/Creatures/Unity/AfricanSpeciesNativeChecks.cs`
+
+Run `-executeMethod AfricanExpansionValidation.Start` with the sequential,
+real-graphics, self-exit setup above. The fixture uses its own
+`MythologicumValidation/AfricanExpansionValidation` identity and writes
+`AfricanExpansionValidationResults.txt`. The species helper is called through
+`RunChecks()` from Play mode. It checks actual imported profiles and procedural
+bodies, Mokele-Mbembe's swim-to-bank grazing and water sleep, Abada grazing and
+shade sleep, aquatic capture, cave shelter and ordinary fence abilities. The
+production fixture acquires the new specimens through expeditions and saves
+and loads their live needs, research, shelter homes and remaining inventory.
+Cleanup removes only its uniquely named manual save slot.
+
+The full `SteampunkUIIntegrationValidation.Start` harness checks the expanded
+catalogue and regional menus at the existing screen sizes. Check fresh results,
+logs and editor exit codes. Designer settings, a manual test sequence and regional
+references are in the [African creatures guide](../Assets/Mythologicum/Documentation/African-Creatures-Guide.md).
+
+## Permanent world regions
+
+`..\Progression\WorldRegionCatalogChecks` and
+`..\Progression\RegionMigrationChecks` run in the default model suite. They
+verify the fixed 23 IDs and six map groups, full species coverage, localization,
+independent editable defaults and backward-compatible permits and missions.
+Migration checks retain paid access when Asian locations merge and the old
+combined African area splits, without changing the input snapshot or duplicating
+stock, rewards or assigned teams. New captures use the regional schema marker.
+
+Copy these helpers into the disposable project's `Assets/Editor`:
+
+- `Tests/Progression/Unity/WorldRegionsUIValidation.cs`
+- `Tests/Progression/Unity/WorldRegionMigrationNativeChecks.cs`
+
+Run `-executeMethod WorldRegionsUIValidation.Start` with the sequential,
+real-graphics setup above. The fixture uses its own
+`MythologicumValidation/WorldRegionsUIValidation` identity and writes
+`WorldRegionsUIValidationResults.txt`. It verifies actual imported region data,
+all 23 simultaneously visible map pins through real pointer events, localized
+hover names and details, text fit, empty-region actions and mission purchases.
+Four GPU captures cover 1280x720, 1920x1080, 1024x768 and ultrawide layouts,
+including actual map size, clipping and unobstructed region hitboxes. The companion helper
+tests native JSON with the regional schema field absent, then canonical JSON
+round-trips, mission rewards and split-permit idempotence.
+
+The existing `AfricanExpansionValidation.Start` fixture covers whole-park disk
+and scene restoration with the updated regions. The broader
+`SteampunkUIIntegrationValidation.Start` fixture covers the remaining menus,
+pause/settings and production save/load. The
+[world regions guide](../Assets/Mythologicum/Documentation/World-Regions-Guide.md)
+is the designer-facing reference for all future creature assignments.

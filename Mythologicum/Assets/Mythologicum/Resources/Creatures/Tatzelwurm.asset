@@ -1,0 +1,129 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: Tatzelwurm
+  m_EditorClassIdentifier: 
+  displayName: creature.name.tatzelwurm
+  visitorAppeal:
+    thrill: 0.65
+    wonder: 0.7
+    adventure: 0.8
+    children: 0.3
+  diet: 0
+  tags: 2
+  preyTags: 29
+  fearedTags: 0
+  manuallyPlaceable: 1
+  pettable: 0
+  rating: 2
+  origin: creature.origin.central_europe
+  maximumHealth: 120
+  damage: 28
+  threat: 35
+  feedsOnFear: 0
+  initialHunger: 30
+  hungerPerSecond: 1.1
+  huntThreshold: 50
+  foodRelief: 65
+  grazeSeconds: 3
+  initialEnergy: 90
+  energyDrainPerSecond: 0.3
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 25
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  canClimbWoodenFences: 0
+  canPhaseFences: 0
+  canBreakFences: 0
+  requiresGravestoneForSleep: 0
+  requiresBurrowForSleep: 1
+  canBurrowFences: 1
+  burrowSeconds: 2.4
+  burrowDepth: 1.2
+  burrowEnergyCost: 5
+  fearGainPerSecond: 40
+  fearRecoveryPerSecond: 12
+  fleeThreshold: 25
+  walkSpeed: 1.5
+  runSpeed: 4.6
+  visionRange: 14
+  fearRange: 10
+  interactionRange: 1.2
+  decisionInterval: 0.35
+  minimumSpace: 100
+  requiredTrees: 0
+  requiredGravestones: 0
+  environmentRadius: 12
+  minimumOpenGroundFraction: 0
+  prefersTreeShadeForSleep: 0
+  minimumCompanions: 0
+  maximumCompanions: 1
+  herdRange: 12
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 5
+  preyMemorySeconds: 5
+  attackSeconds: 0.8
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.35, g: 0.4, b: 0.25, a: 1}
+  bodyScale: {x: 0.7, y: 0.45, z: 1.2}
+  placeholderKind: 6
+  placeholderAccentColor: {r: 0.72, g: 0.62, b: 0.38, a: 1}
+  placeholderDetailColor: {r: 0.12, g: 0.1, b: 0.07, a: 1}
+  needsFood: 1
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.08
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences:
+    - biome: 1
+      minimumFraction: 0.35
+      maximumFraction: 1
+      weight: 1
+    - biome: 2
+      minimumFraction: 0.20
+      maximumFraction: 1
+      weight: 1
+    - biome: 3
+      minimumFraction: 0.15
+      maximumFraction: 0.40
+      weight: 1
+  shelter:
+    mode: 5
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 32
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

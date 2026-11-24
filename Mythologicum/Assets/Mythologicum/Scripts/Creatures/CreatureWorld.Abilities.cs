@@ -18,6 +18,8 @@ namespace Mythologicum
             | (CanPhase(agent) ? 2 : 0) | (CanAttackFences(agent) ? 4 : 0) | (CanBurrow(agent) ? 8 : 0);
         private CreatureNavigation AbilityNavigation(CreatureAgent agent)
         {
+            if (agent.Definition.Flight.canFly) return FlyingNavigation(agent);
+            if (agent.Definition.Aquatic.canSwim) return SwimmingNavigation(agent, true);
             int key = AbilityKey(agent);
             if (key == 0) return navigation;
             if (!abilityNavigation.TryGetValue(key, out var nav))
@@ -25,14 +27,18 @@ namespace Mythologicum
                     (key & 1) != 0, (key & 2) != 0, (key & 4) != 0, (key & 8) != 0);
             return nav;
         }
-        private HashSet<Vector2Int> AbilityRegion(CreatureAgent agent)
+        private HashSet<Vector2Int> AbilityRegion(CreatureAgent agent) => AbilityRegion(agent, agent.Cell);
+        private HashSet<Vector2Int> AbilityRegion(CreatureAgent agent, Vector2Int start)
         {
+            if (agent.Definition.Flight.canFly) return FlyingRegion(agent, start);
+            if (agent.Definition.Aquatic.canSwim) return SwimmingRegion(agent, start, true);
             int key = AbilityKey(agent);
-            if (key == 0) return ReachableRegion(agent.Cell);
+            if (key == 0) return ReachableRegion(start);
             if (!abilityRegions.TryGetValue(key, out var regions))
                 abilityRegions[key] = regions = new Dictionary<Vector2Int, HashSet<Vector2Int>>();
-            if (regions.TryGetValue(agent.Cell, out var result)) return result;
-            result = new HashSet<Vector2Int>(Navigation(agent).Reachable(agent.Cell, grid.Width * grid.Depth));
+            if (regions.TryGetValue(start, out var result)) return result;
+            using var profile = Profiles.RegionSearch.Auto();
+            result = new HashSet<Vector2Int>(Navigation(agent).Reachable(start, grid.Width * grid.Depth));
             foreach (Vector2Int cell in result) regions[cell] = result;
             return result;
         }
@@ -41,6 +47,7 @@ namespace Mythologicum
         {
             switch (agent.Definition.Shelter.mode)
             {
+                case CreatureShelterMode.Water: return agent.Definition.Aquatic.IsSwimmable(grid, cell) ? 1 : 0;
                 case CreatureShelterMode.Gravestone: return environment.GravestonesAt(cell);
                 case CreatureShelterMode.TreeCanopy:
                 case CreatureShelterMode.TreeShade: return environment.TreesAt(cell);
@@ -71,7 +78,10 @@ namespace Mythologicum
             {
                 if (other == observer || !other.Alive || other.IsSedated || other.Definition.threat <= observer.Definition.threat
                     || AuthorizedPettingGuest(observer, other)
-                    || !CanSee(observer, other, range) || !ReachableRegion(observer.Cell).Contains(other.Cell)) continue;
+                    || !CanSee(observer, other, range)) continue;
+                bool exposed = observer.Definition.Aquatic.canSwim || other.Definition.Aquatic.canSwim
+                    ? StrictRegion(other).Contains(observer.Cell) : StrictRegion(observer).Contains(other.Cell);
+                if (!exposed) continue;
                 float distance = HorizontalDistance(observer.transform.position, other.transform.position);
                 if (distance < best) { best = distance; closest = other; }
             }
@@ -103,6 +113,7 @@ namespace Mythologicum
         private void BeginBarrierAttempt(CreatureAgent agent, FenceEdge edge, Vector2Int next)
         {
             agent.AttemptFence = edge;
+            if (TryBlockedFlight(agent, edge, next)) return;
             if (CanBurrow(agent))
             {
                 if (fences.CanBurrow(edge) && CanDigAt(agent.Cell) && CanDigAt(next)

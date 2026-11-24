@@ -60,9 +60,42 @@ cache is invalidated by the existing grid/fence revision checks and continues to
 treat intact fences and closed staff gates as containment. Actual work routes
 still permit authorized staff gates. No per-worker map-sized caches were added.
 
+Travelling employees also retain a valid observation or firing approach instead
+of searching the entire map every frame. Current visibility and firing safety
+are still checked every frame. Moving targets, obstructions and construction
+changes can invalidate an approach; unsuccessful searches retry at the existing
+staff decision interval. Repair jobs retain their reachable fence side.
+
 Unused visitor/staff status formatting left over from the removed floating labels
 has been removed. Selected-object panels continue to read their live localized
 status messages, so changing language and opening those panels still work.
+
+## Recurring creature search spikes
+
+A hungry predator looking for prey behind an impassable fence previously flooded
+the far side of every fence segment separately. Long stretches of the same
+enclosure could therefore trigger dozens of identical map searches in a single
+decision. Far-side connectivity now shares the existing cache for the creature's
+current fence abilities. Building, physical-obstacle, fence, biome, water and
+terrain changes invalidate that connectivity normally.
+
+Route planning also skips ordinary walking searches when existing connectivity
+already proves the destination is disconnected. It still considers permitted
+climbing, phasing, breaking and burrowing routes. Local habitat and meadow
+measurements scan nearby cells and test their reachability; whole reachable area
+still supplies space requirements. Shelter reservation checks run only for cells
+that actually contain a suitable shelter. Species settings and decision timers
+are unchanged.
+
+In a 20 November 2026 CPU replay of a 72-by-72 saved park with nine creatures,
+including two hungry Chupacabras, 92 updates after the first update exceeded
+50 ms during 60 simulation seconds. After the fix there were none. The 95th
+percentile fell from 235.5 ms to 1.6 ms, and the slowest update after the first
+fell from 427.1 ms to 11.8 ms. A second save with two Wolpertingers was already
+smooth and remained so. These measure simulation and reports, not rendered FPS;
+initial loading/JIT work, graphics and autosave have different costs. Ordinary
+visitor arrivals remain stochastic. See the comparison data in
+`Tests/Performance/Baselines/2026-11-20-SavedParks/Comparison.json`.
 
 ## Measuring your park
 
@@ -74,6 +107,13 @@ samples separate the main runtime costs:
 - `Mythologicum.Staff`
 - `Mythologicum.InterfaceReports`
 - `Mythologicum.InterfaceMaintenance`
+
+For creature search spikes, inspect these nested samples:
+
+- `Mythologicum.CreatureRegionSearch`
+- `Mythologicum.CreatureBlockedFenceSearch`
+- `Mythologicum.CreatureRouteSearch`
+- `Mythologicum.CreatureNeeds`
 
 For an arrival hitch, compare these more specific samples:
 

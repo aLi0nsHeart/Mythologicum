@@ -28,10 +28,12 @@ public static class CreatureBurrowingChecks
             var ordinary = new CreatureNavigation(grid, fences);
             var burrowing = new CreatureNavigation(grid, fences, canBurrowFences: true);
             Check(!ordinary.CanCross(V(0), V(1)), "Ordinary ground movement stays fenced: " + kind);
-            Check(fences.CanBurrow(edge) == (kind != FenceKind.Heavy), "Default buried protection matches type: " + kind);
-            Check(burrowing.CanCross(V(0), V(1)) == (kind != FenceKind.Heavy), "Burrow route obeys foundation protection: " + kind);
+            bool hasFoundation = kind == FenceKind.Heavy || kind == FenceKind.Deep || kind == FenceKind.Aquarium;
+            Check(fences.CanBurrow(edge) == !hasFoundation, "Default buried protection matches type: " + kind);
+            Check(burrowing.CanCross(V(0), V(1)) == !hasFoundation, "Burrow route obeys foundation protection: " + kind);
+            Check(burrowing.CanCross(V(1), V(0)) == !hasFoundation, "Foundation crossing is symmetric: " + kind);
             fences.TrySetGate(edge);
-            Check(burrowing.CanCross(V(0), V(1)) == (kind != FenceKind.Heavy), "Staff gates retain buried protection: " + kind);
+            Check(burrowing.CanCross(V(0), V(1)) == !hasFoundation, "Staff gates retain buried protection: " + kind);
             fences.TryRemove(edge);
         }
         fences.TryAdd(edge);
@@ -48,6 +50,46 @@ public static class CreatureBurrowingChecks
         Check(!new CreatureNavigation(grid, customFence, canBurrowFences: true).CanCross(V(0), V(1)), "Designer can give wood buried protection");
         customFence.TrySetKind(edge, FenceKind.Heavy);
         Check(new CreatureNavigation(grid, customFence, canBurrowFences: true).CanCross(V(0), V(1)), "Designer can remove heavy buried protection");
+        customFence.TrySetKind(edge, FenceKind.Deep);
+        var customDig = new CreatureNavigation(grid, customFence, canBurrowFences: true);
+        Check(!customDig.CanCross(V(0), V(1)), "Deep has its own foundation rule independent of heavy");
+        custom.deep.blocksBurrowing = false;
+        Check(customDig.CanCross(V(0), V(1)), "Designer can independently change Deep foundation protection");
+        custom.deep = null; custom.Validate();
+        Check(!customDig.CanCross(V(0), V(1)), "Missing Deep data restores its safe default foundation rules");
+
+        Check((int)FenceKind.Wooden == 0 && (int)FenceKind.Spiked == 1 && (int)FenceKind.Heavy == 2
+            && (int)FenceKind.Sanctified == 3 && (int)FenceKind.Deep == 4,
+            "Appending Deep preserves all historical saved fence kind values");
+        var lifecycle = new FenceLayout(grid); lifecycle.TryAdd(edge);
+        var tunneller = new CreatureNavigation(grid, lifecycle, canBurrowFences: true);
+        Check(tunneller.CanCross(V(0), V(1)), "Wood is tunnelable before installing a foundation");
+        int revision = lifecycle.Revision;
+        Check(lifecycle.TrySetKind(edge, FenceKind.Deep) && lifecycle.Revision > revision
+            && !tunneller.CanCross(V(0), V(1)), "An in-place Deep upgrade immediately invalidates a planned tunnel");
+        Check(lifecycle.CanClimb(edge) && lifecycle.CanPhase(edge) && lifecycle.CanBreak(edge),
+            "Deep foundations do not grant spike, spirit or reinforcement protection");
+        float health = lifecycle.HealthAt(edge);
+        Check(lifecycle.TrySetWindow(edge, 5) && !tunneller.CanCross(V(0), V(1)), "Viewing windows retain Deep foundations");
+        Check(lifecycle.TryDamage(edge, 30) == 30 && !tunneller.CanCross(V(0), V(1)), "Partial damage does not open a tunnel through Deep");
+        Check(lifecycle.TryRepair(edge, 100) == 30 && lifecycle.HealthAt(edge) == health
+            && !tunneller.CanCross(V(0), V(1)), "Repairs preserve Deep health limits and foundation protection");
+        var saved = new SavedFence { cell = edge.Start, alongX = edge.AlongX, kind = lifecycle.KindAt(edge),
+            health = lifecycle.HealthAt(edge), window = lifecycle.HasWindow(edge), windowPrice = 5 };
+        var restored = new FenceLayout(grid);
+        Check(restored.TryAdd(new FenceEdge(saved.cell, saved.alongX), saved.kind) && restored.RestoreHealth(edge, saved.health)
+            && restored.TrySetWindow(edge, saved.windowPrice) && restored.KindAt(edge) == FenceKind.Deep && !restored.CanBurrow(edge),
+            "Saved Deep type, health and window restore through the shared save representation");
+        Check(lifecycle.TryDamage(edge, 10000) == health && !lifecycle.HasFence(edge) && !lifecycle.HasWindow(edge)
+            && tunneller.CanCross(V(0), V(1)), "A fully breached Deep segment releases its foundation and window");
+        Check(lifecycle.TryAdd(edge, FenceKind.Deep) && lifecycle.TrySetGate(edge) && !tunneller.CanCross(V(0), V(1)),
+            "Rebuilt Deep staff gates protect their underground opening");
+        saved.gate = true; saved.window = false; saved.health = 175;
+        restored.TryRemove(edge);
+        Check(restored.TryAdd(edge, saved.kind) && restored.TrySetGate(edge) && restored.RestoreHealth(edge, saved.health)
+            && restored.HealthAt(edge) == 175 && !restored.CanBurrow(edge), "Damaged Deep gates restore with their foundation intact");
+        Check(lifecycle.TryRemove(edge) && !lifecycle.IsGate(edge) && tunneller.CanCross(V(0), V(1)),
+            "Demolishing a Deep gate removes both physical and foundation protection");
         var heights = new GridHeightField(3, 1, 2, maximumWalkSlope: 20);
         heights.ImportHeights(new float[] { 0, 0, 0, 10, 0, 0, 0, 10 });
         var terrain = new SquareBuildGrid(Vector3.zero, 2, 3, 1, heights);

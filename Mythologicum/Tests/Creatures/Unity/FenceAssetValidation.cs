@@ -46,6 +46,18 @@ public static class FenceAssetValidation
         Debug.Log("FENCE CHECK PASS: " + message);
     }
     private static GameObject Root(FenceConstruction construction, FenceEdge edge) => Field<Dictionary<FenceEdge, GameObject>>(construction, "objects")[edge];
+    private static void ViewDeep(FenceConstruction construction, FenceEdge edge)
+    {
+        GameObject root = Root(construction, edge);
+        Transform foundation = root.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Deep foundation");
+        Check(foundation != null && foundation.GetComponent<MeshRenderer>() != null, "Deep fence, gate and window render their foundation");
+        Check(foundation.GetComponentsInChildren<Collider>().All(c => !c.enabled), "Foundation visual does not obstruct staff gate access");
+        Bounds bounds = foundation.GetComponent<MeshRenderer>().bounds;
+        Check(bounds.min.y < root.transform.position.y && bounds.max.y > root.transform.position.y,
+            "Deep foundation extends below the terrain with a visible surface lip");
+        Check(!construction.Layout.CanBurrow(edge) && construction.Layout.CanBreak(edge) && construction.Layout.CanPhase(edge),
+            "Foundation visuals retain Deep's independent burrow, damage and spirit rules");
+    }
     private static Bounds View(FenceConstruction construction, FenceEdge edge, float cellSize, float height, GameObject expected)
     {
         GameObject root = Root(construction, edge);
@@ -89,8 +101,9 @@ public static class FenceAssetValidation
                 Check(pair.Item1.GetComponentsInChildren<MonoBehaviour>(true).Length == 0, "No demo or missing scripts");
             }
             Check(catalog.heavy != catalog.normal && catalog.sanctified != catalog.spiked, "Protective fence types retain distinct imported prefabs");
-            Check(Enum.GetValues(typeof(FenceKind)).Length == 4 && (int)FenceKind.Wooden == 0 && (int)FenceKind.Spiked == 1,
-                "Four active fence types preserve original serialized kind values");
+            Check(Enum.GetValues(typeof(FenceKind)).Length == 5 && (int)FenceKind.Wooden == 0 && (int)FenceKind.Spiked == 1
+                && (int)FenceKind.Heavy == 2 && (int)FenceKind.Sanctified == 3 && (int)FenceKind.Deep == 4,
+                "Deep appends a fifth fence type while preserving original serialized kind values");
             var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
             foreach (float cellSize in new[] { 1f, 2f, 3.5f })
             {
@@ -154,7 +167,41 @@ public static class FenceAssetValidation
                     "Sanctified gate does not create a phasing loophole");
                 View(construction,heavyEdge,cellSize,FenceConstruction.HeightFor(FenceKind.Heavy),catalog.gate);
                 View(construction,sanctifiedEdge,cellSize,FenceConstruction.HeightFor(FenceKind.Sanctified),catalog.gate);
+                var deepEdge = new FenceEdge(new Vector2Int(3, 7), true);
+                Check(construction.TryPlace(deepEdge, FenceKind.Deep), "Deep fence builds with a dedicated optional model or procedural fallback");
+                ViewDeep(construction, deepEdge);
+                var burrower = new CreatureNavigation(grid, construction.Layout, canBurrowFences: true);
+                Check(!burrower.CanCross(deepEdge.CellA, deepEdge.CellB), "Deep foundation blocks a live tunnel route");
+                Check(construction.TryPlaceWindow(deepEdge, 4), "Deep fence accepts a viewing window");
+                ViewDeep(construction, deepEdge);
+                Check(Root(construction, deepEdge).GetComponent<DemolitionTarget>().Demolish()
+                    && construction.TryPlace(deepEdge, FenceKind.Deep) && construction.TryPlaceGate(deepEdge),
+                    "Deep viewing window can be demolished and rebuilt as a Deep staff gate");
+                ViewDeep(construction, deepEdge);
+                construction.Layout.TryDamage(deepEdge, 17);
+                var saved = new SavedFence { cell = deepEdge.Start, alongX = deepEdge.AlongX, kind = construction.Layout.KindAt(deepEdge),
+                    gate = construction.Layout.IsGate(deepEdge), health = construction.Layout.HealthAt(deepEdge) };
+                var roundTrip = JsonUtility.FromJson<SavedFence>(JsonUtility.ToJson(saved));
+                Check(roundTrip.kind == FenceKind.Deep && roundTrip.gate && Mathf.Approximately(roundTrip.health, saved.health),
+                    "JSON saves preserve Deep's appended kind, gate and damaged health");
+                Check(Root(construction, deepEdge).GetComponent<DemolitionTarget>().Demolish()
+                    && (bool)typeof(FenceConstruction).GetMethod("RestoreSegment",BindingFlags.Instance|BindingFlags.NonPublic)
+                        .Invoke(construction,new object[]{new FenceEdge(roundTrip.cell,roundTrip.alongX),roundTrip.kind,roundTrip.gate,roundTrip.health}),
+                    "Shared save restoration accepts a Deep gate");
+                Check(construction.Layout.IsGate(deepEdge) && !burrower.CanCross(deepEdge.CellA, deepEdge.CellB),
+                    "Restored Deep gate keeps its foundation protection");
+                ViewDeep(construction, deepEdge);
             }
+            var slopingField = new GridHeightField(4, 4, 2f);
+            slopingField.ImportHeights(Enumerable.Range(0, 25).Select(i => i % 5 * .15f).ToArray());
+            var sloping = new FenceConstruction(new SquareBuildGrid(new Vector3(5000, 0, 5000), 2f, 4, 4, slopingField),
+                new GameObject("Sloping Deep fence").transform, material, material, catalog);
+            var slopingEdge = new FenceEdge(new Vector2Int(1, 2), true);
+            Check(sloping.TryPlace(slopingEdge, FenceKind.Deep), "Deep fence conforms to sloping terrain");
+            ViewDeep(sloping, slopingEdge);
+            Check(sloping.TryPlaceWindow(slopingEdge, 4), "Deep viewing window conforms to sloping terrain");
+            ViewDeep(sloping, slopingEdge);
+            sloping.Dispose();
             var controller = UnityEngine.Object.FindFirstObjectByType<BuildModeController>();
             var actual = Field<FenceConstruction>(controller, "fences");
             Check(Field<FenceVisualCatalog>(actual, "visuals") == catalog, "Actual game construction loads visual catalog");
@@ -165,11 +212,33 @@ public static class FenceAssetValidation
             var actualSanctified = new FenceEdge(new Vector2Int(12,4), false);
             Check(actual.TryPlace(xEdge) && actual.TryPlace(zEdge, FenceKind.Spiked) && actual.TryPlace(gateEdge) && actual.TryPlaceGate(gateEdge)
                 && actual.TryPlace(actualHeavy, FenceKind.Heavy) && actual.TryPlace(actualSanctified, FenceKind.Sanctified), "All active fence models place in actual game scene");
-            View(actual, xEdge, 2f, FenceConstruction.Height, catalog.normal);
-            View(actual, zEdge, 2f, FenceConstruction.SpikedHeight, catalog.spiked);
-            View(actual, gateEdge, 2f, FenceConstruction.Height, catalog.gate);
-            View(actual, actualHeavy, 2f, FenceConstruction.HeightFor(FenceKind.Heavy), catalog.heavy);
-            View(actual, actualSanctified, 2f, FenceConstruction.HeightFor(FenceKind.Sanctified), catalog.sanctified);
+            if(Field<SquareBuildGrid>(actual,"grid").Terrain!=null)
+            {
+                foreach(var edge in new[]{xEdge,zEdge,gateEdge,actualHeavy,actualSanctified})
+                {
+                    var root=Root(actual,edge);
+                    var conforming=root.GetComponentInChildren<GroundConformingVisual>();
+                    Check(conforming!=null && conforming.GetComponent<MeshFilter>().sharedMesh.vertexCount>0,
+                        "Actual terrain fences generate a ground-conforming visual");
+                    Check(Field<FenceKind>(conforming,"kind")==actual.Layout.KindAt(edge)
+                        && Field<bool>(conforming,"gate")==actual.Layout.IsGate(edge),
+                        "Generated fences retain the selected fence and gate identity");
+                    var physical=root.transform.Find("Closed barrier").GetComponent<MeshCollider>();
+                    Check(physical.enabled && physical.sharedMesh!=null && physical.sharedMesh.vertexCount>0,
+                        "Generated terrain fences retain their physical barrier");
+                }
+                var actualDeep=new FenceEdge(new Vector2Int(14,4),true);
+                Check(actual.TryPlace(actualDeep,FenceKind.Deep),"Actual terrain construction can build the new Deep fence");
+                ViewDeep(actual,actualDeep);
+            }
+            else
+            {
+                View(actual, xEdge, 2f, FenceConstruction.Height, catalog.normal);
+                View(actual, zEdge, 2f, FenceConstruction.SpikedHeight, catalog.spiked);
+                View(actual, gateEdge, 2f, FenceConstruction.Height, catalog.gate);
+                View(actual, actualHeavy, 2f, FenceConstruction.HeightFor(FenceKind.Heavy), catalog.heavy);
+                View(actual, actualSanctified, 2f, FenceConstruction.HeightFor(FenceKind.Sanctified), catalog.sanctified);
+            }
             var fallback = new FenceConstruction(new SquareBuildGrid(Vector3.zero, 2f, 4, 4), new GameObject("Fallback fence").transform, material);
             Check(fallback.TryPlace(new FenceEdge(new Vector2Int(1, 1), true)), "Unconfigured callers retain primitive fallback");
             File.WriteAllText("FenceValidationResult.txt", "PASS: " + checks + " checks");

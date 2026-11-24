@@ -85,7 +85,10 @@ namespace Mythologicum
         public bool GroundLineOfSight(Vector2Int from,Vector2Int to,float eyeHeight=1.5f)
         {
             if(Terrain==null)return true;
-            Vector3 a=CellCenter(from)+Vector3.up*eyeHeight,b=CellCenter(to)+Vector3.up*eyeHeight;
+            Vector3 a=CellCenter(from),b=CellCenter(to);
+            if(Habitat.IsWater(from))a.y=Mathf.Max(a.y,Habitat.WaterLevel(from));
+            if(Habitat.IsWater(to))b.y=Mathf.Max(b.y,Habitat.WaterLevel(to));
+            a+=Vector3.up*eyeHeight;b+=Vector3.up*eyeHeight;
             int samples=Math.Max(Math.Abs(from.x-to.x),Math.Abs(from.y-to.y))*4;
             for(int i=1;i<samples;i++)
             {var p=Vector3.Lerp(a,b,(float)i/samples);if(GroundHeight(p)>p.y+.01f)return false;}

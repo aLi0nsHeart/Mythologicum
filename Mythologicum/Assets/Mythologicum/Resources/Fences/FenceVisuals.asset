@@ -20,3 +20,14 @@ MonoBehaviour:
   gateYaw: 0
   heavy: {fileID: 187280, guid: ac1f0ef7b8bec92458549c915b3114b7, type: 3}
   sanctified: {fileID: 102524, guid: da8e893168526164591f81d60c0e06b1, type: 3}
+  deep: {fileID: 0}
+  deepYaw: 0
+  aviary: {fileID: 0}
+  aquarium: {fileID: 0}
+  aviaryYaw: 0
+  aquariumYaw: 0
+  deepFoundation:
+    width: 0.32
+    buriedDepth: 0.6
+    visibleHeight: 0.18
+    color: {r: 0.42, g: 0.43, b: 0.39, a: 1}

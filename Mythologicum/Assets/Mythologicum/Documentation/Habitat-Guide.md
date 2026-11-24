@@ -36,9 +36,9 @@ water surface. Adjust **Radius** and **Water depth** in the terrain controls.
 
 The first click establishes the surface level for that stroke. Starting inside
 an existing pond retains its surface level, so it can be extended. Water surfaces
-are stored separately from the ground, and depth is derived from both, ready for
-swimming species such as Kappa or Nokk in a later step. Current species stay on
-land and drink from the banks.
+are stored separately from the ground, and depth is derived from both. Kappa and
+Nokk can swim where the water meets their minimum depth; ordinary land creatures
+stay on the banks to drink.
 
 Water placement protects buildings, paths, entrances, enclosure objects and
 creatures. Nearby protected cells can also prevent excavation because terrain
@@ -76,6 +76,8 @@ environment requirements when happiness is evaluated.
 | Unicorn | Requires a clear sleeping spot beside a reachable tree. | At least 60% Grass, at most 20% Stone. |
 | Waldschrat | Requires tree shade. | At least 50% Thicket and 15% Grass. |
 | Wolpertinger | Digs or reuses a burrow. | At least 40% Grass and 20% Dirt, at most 20% Stone. |
+| Kappa | Requires reachable water. | No ground mix required; wants 40 m² of water at least 0.4 m deep. |
+| Nokk | Requires reachable water. | No ground mix required; wants 96 m² of water at least 0.65 m deep. |
 
 Place caves through **Building > Enclosures > Cave**. Caves start with room for
 three compatible occupants. Give each species enough reachable shelter capacity
@@ -98,7 +100,7 @@ in the Project window and expand its fields in the Inspector.
 
 | Asset | Editable settings |
 | --- | --- |
-| Species assets in `Assets/Mythologicum/Resources/Creatures` | **Thirst** rates, thresholds, drinking duration and relief; **Habitat > Preferences** ground minimums, maximums and weights; **Shelter** mode, required status, search radius, retreat rules, canopy height and fear recovery. |
+| Species assets in `Assets/Mythologicum/Resources/Creatures` | **Thirst** rates, thresholds, drinking duration and relief; **Habitat > Preferences** ground minimums, maximums and weights; **Shelter** mode, required status, search radius, retreat rules, canopy height and fear recovery; **Aquatic** movement, depth, area, prey preference and water hunting settings. |
 | `Assets/Mythologicum/Resources/Environment/WaterTrough.asset` | Purchase cost, capacity, water used per thirst point, refill threshold, refill duration, refill cost, height and colours. |
 | `Assets/Mythologicum/Resources/Environment/Shelters.asset` | Cave cost, cave and burrow capacity, cave height, mound height and colours. |
 | `Assets/Mythologicum/Resources/Terrain/DefaultTerrain.asset` | Terrain brush defaults and limits, including water depth. |
@@ -131,3 +133,49 @@ Newly added water-free creatures can disable **Thirst > Needs Water**.
 
 The models remain simple placeholders. Water depth and shelter data are separate
 from their appearance, so later art changes can keep these gameplay rules.
+
+## Kappa and Nökk: water predators
+
+Kappa is a Yokai species found by expeditions in **Japan**. Nökk is Nordic and
+found in **Northern Europe**. Both start with zero specimens and use the existing
+expedition reward and creature placement menu. Their stable internal IDs are
+`Kappa` and `Nokk`; translated display names can use accented characters.
+
+Both species swim, wade along shallow banks and walk on land. They prefer reachable ponds, use water for
+sleep and fear retreats, and need enough swimming area for good environmental
+satisfaction. The creature panel reports reachable water area, its target area,
+suitability and minimum swimming depth. A trough can supply drinking water to
+land animals but cannot replace a pond as an aquatic habitat or shelter.
+
+| Starting setting | Kappa | Nökk |
+| --- | --- | --- |
+| Origin | Yokai | Nordic |
+| Expedition rating | 2 | 3 |
+| Total group | 2-3 | 1 |
+| Minimum reachable space per animal | 120 m² | 220 m² |
+| Preferred swimming area | 40 m² | 96 m² |
+| Minimum swimming depth | 0.4 m | 0.65 m |
+
+These predators prefer people when available and otherwise hunt matching meat
+prey, including goats. They grab living prey, drag it along a valid route into
+water, then subdue it before feeding. They do not gain a meal from attacking on
+dry land. Fences still block ordinary swimming and bank crossings, so protect
+water routes as carefully as land routes.
+
+Other creatures retain their ordinary thirst behaviour: they approach a reachable
+pond bank to drink, which can put them close to a waiting predator. Fear and
+fences continue to affect that encounter. No special goat-delivery rule forces
+prey toward these species.
+
+Select `Resources/Creatures/Kappa.asset` or `Nokk.asset` to balance **Aquatic**
+settings: swimming ability and speed, minimum depth, search radius, desired water
+area, shallow-water wading, water preference, preferred prey tags, capture time, dragging speed and
+subduing time. **Shelter** uses Water mode; group, space, hunger, damage, threat
+and visitor appeal remain ordinary species settings. The Kappa turtle and Nökk
+horse bodies are procedural placeholders and can later receive visual prefabs.
+
+To test, make a sufficiently deep pond with a clear, reachable bank, place an
+aquatic predator and a thirsty goat nearby, and watch drinking and hunting
+interact. Try a fence across the bank, interrupt a capture with staff, then save
+and load during both swimming and a capture. Keep public paths away from an
+unprotected pond if visitors should remain safe.

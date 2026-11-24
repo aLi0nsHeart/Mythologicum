@@ -54,6 +54,26 @@ public static class CreatureBalanceChecks
         Check(exploration.WillClimb(45, 0, 15, false, 80, 20), "Higher urgent energy seeks shelter sooner");
         Check(!exploration.WillClimb(45, 0, 15, false, 80, 10), "Lower urgent energy keeps a rested creature cautious");
 
+        var crisisTuning = new CreatureBehaviourSettings { criticalNeedThreshold = 25,
+            criticalHappinessCap = 33, criticalAgitation = .4f,
+            agitationBuildPerSecond = .5f, agitationRecoveryPerSecond = .25f };
+        var crisis = CreatureWellbeing.Evaluate(100, 0, 100, 0, 0, 0, 0, 0, -1, crisisTuning);
+        Equal(33, crisis.Happiness, "Designer critical happiness cap overrides the otherwise high weighted average");
+        Equal(.4f, crisis.Distress, "Designer critical agitation strength applies independently of old happiness");
+        var emotion = new CreatureWellbeing(100);
+        emotion.Update(crisis, 1, 0, 50, crisisTuning);
+        Equal(.4f, emotion.Agitation, "Custom buildup reacts to the direct crisis while happiness stays fixed");
+        var healthy = CreatureWellbeing.Evaluate(0, 0, 100, 0, 0, 0, 0, 0, -1, crisisTuning);
+        emotion.Update(healthy, 1, 0, 50, crisisTuning);
+        Equal(.15f, emotion.Agitation, "Custom recovery rate controls emotional recovery");
+        var restOnly = new CreatureBehaviourSettings { hungerWeight = 0, thirstWeight = 0, fearWeight = 0,
+            environmentWeight = 0, spaceWeight = 0, herdWeight = 0, energyWeight = 4, criticalNeedThreshold = 0 };
+        Equal(25, CreatureWellbeing.Evaluate(0, 0, 100, 0, 0, 0, 0, 0, -1, restOnly,
+            energy: 25, needsRest: true).Happiness, "Energy has its own adjustable happiness weight");
+        restOnly.energyWeight = 0;
+        Equal(100, CreatureWellbeing.Evaluate(0, 0, 100, 0, 0, 0, 0, 0, -1, restOnly,
+            energy: 0, needsRest: true).Happiness, "Zero energy weight disables rest pressure cleanly");
+
         Console.WriteLine("PASS: " + checks + " creature balance data checks.");
     }
 }

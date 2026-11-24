@@ -210,10 +210,11 @@ namespace Mythologicum
                 VisitorAgent guest = visitors[i];
                 CreatureAgent actor = guest == null ? null : guest.Actor;
                 if (actor == null || !actor.Alive)
-                { visitors.RemoveAt(i); LostCount++; Reputation.ReportDeath(); continue; }
+                { CancelLure(guest); visitors.RemoveAt(i); LostCount++; Reputation.ReportDeath(); continue; }
                 var settings = guest.TypeSettings;
                 if (actor.CapturedBy != null && actor.CapturedBy.Alive)
                 {
+                    CancelLure(guest);
                     CancelAttraction(guest, false);
                     guest.LeavingPark = true;
                     ReleaseService(guest); actor.Route.Clear(); actor.Goal = null;
@@ -249,6 +250,7 @@ namespace Mythologicum
                     && Distance(actor.transform.position, guest.LastDanger) < Definition.fleeSafeDistance);
                 if (danger)
                 {
+                    CancelLure(guest);
                     InterruptAttraction(guest);
                     ReleaseService(guest);
                     if (guest.Activity != VisitorActivity.Fleeing || guest.DecisionTimer <= 0f || actor.Route.Count == 0)
@@ -257,6 +259,7 @@ namespace Mythologicum
                         Flee(guest);
                     }
                 }
+                else if (TickVisitorLure(guest)) { }
                 else if (guest.Attraction != null) TickAttraction(guest);
                 else if (guest.DecisionTimer <= 0f)
                 {
@@ -364,7 +367,8 @@ namespace Mythologicum
             {
                 if (!other.Alive || other.IsSedated || (other.Definition.tags & CreatureTags.Staff) != 0 || other.Definition.threat <= guest.Actor.Definition.threat
                     || !creatures.CanSee(guest.Actor, other, Definition.fearRange)) continue;
-                if (!GroundRegion(guest.Actor.Cell).Contains(other.Cell)) continue;
+                if (!GroundRegion(guest.Actor.Cell).Contains(other.Cell)
+                    && !(other.Definition.Aquatic.canSwim && creatures.CanApproach(other,guest.Actor.Cell))) continue;
                 float distance = Distance(guest.Actor.transform.position, other.transform.position);
                 if (distance < nearest) { nearest = distance; best = other; }
             }
@@ -604,6 +608,7 @@ namespace Mythologicum
 
         private void CompleteActivity(VisitorAgent guest)
         {
+            if (guest.Activity == VisitorActivity.Lured) return;
             CreatureAgent actor = guest.Actor;
             if (actor.Route.Count > 0) return;
             if (CompleteAttractionMovement(guest)) return;
@@ -690,7 +695,11 @@ namespace Mythologicum
         private static float Distance(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
         public void Dispose()
         {
-            foreach (VisitorAgent guest in visitors) if (guest != null && guest.Actor != null) creatures.RemoveExternal(guest.Actor);
+            foreach (VisitorAgent guest in visitors)
+            {
+                CancelLure(guest);
+                if (guest != null && guest.Actor != null) creatures.RemoveExternal(guest.Actor);
+            }
             visitors.Clear();
             foreach (var profile in actorProfiles.Values) UnityEngine.Object.Destroy(profile);
             actorProfiles.Clear(); speciesIds.Clear();

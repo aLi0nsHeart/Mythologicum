@@ -60,9 +60,10 @@ public static class CentralEuropeSpeciesNativeChecks
             && waldschrat.hungerPerSecond >= 3 && waldschrat.damage >= 50,
             "Waldschrat is a large hungry forest herbivore with an agitated physical strike");
         var settings = Resources.Load<ProgressionDefinition>("Progression/DefaultProgression");
-        Check(settings != null && settings.rules.regions.Single(region => region.id == "central-europe").species.SequenceEqual(ids),
-            "The actual Central Europe expedition region contains all three stable species IDs");
-        Check(new ProgressionRules().regions.Single(region => region.id == "central-europe").species.SequenceEqual(ids),
+        string[] regionalIds = { "Wolpertinger", "Unicorn", "Waldschrat", "Tatzelwurm" };
+        Check(settings != null && settings.rules.regions.Single(region => region.id == "western-europe").species.SequenceEqual(regionalIds),
+            "The actual Western Europe expedition region preserves the three herbivores and Tatzelwurm in their stable order");
+        Check(new ProgressionRules().regions.Single(region => region.id == "western-europe").species.SequenceEqual(regionalIds),
             "The code fallback matches the expedition asset");
         foreach (var species in profiles)
         {

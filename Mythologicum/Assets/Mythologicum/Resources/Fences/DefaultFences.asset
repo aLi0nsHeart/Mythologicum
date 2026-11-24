@@ -34,3 +34,21 @@ MonoBehaviour:
       allowsClimbing: 0
       blocksPhasing: 1
       resistsCreatureDamage: 0
+    deep:
+      maximumHealth: 400
+      allowsClimbing: 1
+      blocksPhasing: 0
+      resistsCreatureDamage: 0
+      blocksBurrowing: 1
+    aviary:
+      maximumHealth: 500
+      allowsClimbing: 0
+      blocksPhasing: 0
+      resistsCreatureDamage: 0
+      blocksBurrowing: 0
+    aquarium:
+      maximumHealth: 650
+      allowsClimbing: 0
+      blocksPhasing: 0
+      resistsCreatureDamage: 0
+      blocksBurrowing: 1

@@ -1,0 +1,129 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: Kappa
+  m_EditorClassIdentifier:
+  displayName: creature.name.kappa
+  diet: 0
+  tags: 2
+  preyTags: 29
+  fearedTags: 0
+  manuallyPlaceable: 1
+  pettable: 0
+  rating: 2
+  origin: creature.origin.yokai
+  maximumHealth: 100
+  damage: 45
+  threat: 45
+  visitorAppeal:
+    thrill: 0.7
+    wonder: 0.8
+    adventure: 0.8
+    children: 0.45
+  needsFood: 1
+  feedsOnFear: 0
+  initialHunger: 35
+  hungerPerSecond: 0.45
+  huntThreshold: 55
+  foodRelief: 70
+  grazeSeconds: 3
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.06
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences: []
+  aquatic:
+    canSwim: 1
+    canWadeShallows: 1
+    minimumSwimDepth: 0.4
+    swimSpeed: 3.4
+    waterSearchRadius: 40
+    preferredWaterArea: 40
+    preferWater: 1
+    dragPreyToWater: 1
+    preferredPreyTags: 12
+    captureSeconds: 0.8
+    dragSpeedMultiplier: 0.7
+    drowningSeconds: 4
+    swimmingBodyOffset: -0.5
+    restingBodyOffset: -0.65
+  shelter:
+    mode: 7
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 40
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3
+  initialEnergy: 90
+  energyDrainPerSecond: 0.3
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 20
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  requiresGravestoneForSleep: 0
+  requiresBurrowForSleep: 0
+  prefersTreeShadeForSleep: 0
+  canClimbWoodenFences: 0
+  canPhaseFences: 0
+  canBreakFences: 0
+  canBurrowFences: 0
+  fearGainPerSecond: 50
+  fearRecoveryPerSecond: 15
+  fleeThreshold: 20
+  walkSpeed: 1.8
+  runSpeed: 3.2
+  visionRange: 16
+  fearRange: 4
+  interactionRange: 1.3
+  decisionInterval: 0.35
+  minimumSpace: 120
+  requiredTrees: 0
+  requiredGravestones: 0
+  environmentRadius: 14
+  minimumOpenGroundFraction: 0
+  minimumCompanions: 1
+  maximumCompanions: 2
+  herdRange: 16
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 5
+  preyMemorySeconds: 5
+  attackSeconds: 0.8
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.28, g: 0.57, b: 0.32, a: 1}
+  bodyScale: {x: 0.7, y: 0.7, z: 0.7}
+  placeholderKind: 4
+  placeholderAccentColor: {r: 0.35, g: 0.3, b: 0.15, a: 1}
+  placeholderDetailColor: {r: 0.1, g: 0.55, b: 0.75, a: 1}

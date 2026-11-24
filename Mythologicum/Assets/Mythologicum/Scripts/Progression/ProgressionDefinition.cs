@@ -5,6 +5,8 @@ namespace Mythologicum
     [Serializable] public sealed class ExpeditionRegion
     {
         public string id, name;
+        [Tooltip("Geographic group used by the expedition map. Country and cultural origin labels belong to the creature instead.")]
+        public ExpeditionContinent continent;
         public string DisplayName => Loc.Resolve(name);
         [Min(0), Tooltip("One-time price to unlock this location.")] public float accessCost = 350f;
         public Vector2 mapPosition;
@@ -71,6 +73,9 @@ namespace Mythologicum
             new TechnologyDefinition { id="spiked-fences", name="park.progression_definition.spiked_fences", description="park.progression_definition.prevent_creatures_climbing_out_over_wooden_barriers", cost=250,workSeconds=45,fences=new[]{FenceKind.Spiked} },
             new TechnologyDefinition { id="reinforced-fences", name="park.progression_definition.reinforced_fences", description="park.progression_definition.heavy_barriers_resist_creature_attacks", cost=600,workSeconds=90,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Heavy} },
             new TechnologyDefinition { id="sanctified-fences", name="park.progression_definition.sanctified_fences", description="park.progression_definition.block_a_spirit_s_ability_to_phase_through_barriers", cost=700,workSeconds=100,prerequisites=new[]{"spiked-fences"},fences=new[]{FenceKind.Sanctified} },
+            new TechnologyDefinition { id="deep-fences", name="technology.deep_fences.name", description="technology.deep_fences.description", cost=300,workSeconds=55,fences=new[]{FenceKind.Deep} },
+            new TechnologyDefinition { id="aviaries", name="technology.aviaries.name", description="technology.aviaries.description", cost=450,workSeconds=60,fences=new[]{FenceKind.Aviary} },
+            new TechnologyDefinition { id="aquariums", name="technology.aquariums.name", description="technology.aquariums.description", cost=450,workSeconds=60,fences=new[]{FenceKind.Aquarium} },
             new TechnologyDefinition { id="staff-training", name="park.progression_definition.staff_training", description="park.progression_definition.research_healing_and_fence_repairs_are_25_faster",cost=450,workSeconds=60,staffEfficiency=1.25f },
             new TechnologyDefinition { id="field-equipment", name="park.progression_definition.expedition_equipment", description="park.progression_definition.add_10_percentage_points_to_expedition_success_chances",cost=350,workSeconds=45,expeditionSuccessBonus=.1f },
             new TechnologyDefinition { id="field-logistics", name="park.progression_definition.expedition_logistics", description="park.progression_definition.expeditions_take_25_less_time",cost=500,workSeconds=60,prerequisites=new[]{"field-equipment"},expeditionDurationMultiplier=.75f },
@@ -85,18 +90,7 @@ namespace Mythologicum
             new TechnologyDefinition { id="expedition-pavilion", name="technology.expedition_pavilion.name", description="technology.expedition_pavilion.description", cost=250,workSeconds=35,prerequisites=new[]{"attractions"},buildings=new[]{BuildingKind.ExpeditionPavilion} },
             new TechnologyDefinition { id="clockwork-carousel", name="technology.clockwork_carousel.name", description="technology.clockwork_carousel.description", cost=250,workSeconds=35,prerequisites=new[]{"attractions"},buildings=new[]{BuildingKind.ClockworkCarousel} }
         };
-        private static ExpeditionRegion[] DefaultRegions() => new[] {
-            new ExpeditionRegion {id="north-america",name="park.progression_definition.north_america",mapPosition=new Vector2(.19f,.68f),species=new[]{"Chupacabra"}},
-            new ExpeditionRegion {id="south-america",name="park.progression_definition.south_america",mapPosition=new Vector2(.31f,.27f),species=new[]{"Chupacabra"}},
-            new ExpeditionRegion {id="west-africa",name="park.progression_definition.west_africa",mapPosition=new Vector2(.49f,.43f)},
-            new ExpeditionRegion {id="east-africa",name="park.progression_definition.east_africa",mapPosition=new Vector2(.59f,.36f)},
-            new ExpeditionRegion {id="south-africa",name="park.progression_definition.southern_africa",mapPosition=new Vector2(.55f,.14f)},
-            new ExpeditionRegion {id="china",name="park.progression_definition.china",mapPosition=new Vector2(.77f,.65f)},
-            new ExpeditionRegion {id="middle-east",name="park.progression_definition.middle_east",mapPosition=new Vector2(.62f,.52f)},
-            new ExpeditionRegion {id="japan",name="park.progression_definition.japan",mapPosition=new Vector2(.92f,.57f),species=new[]{"Hitotsume","Yurei","Oni"}},
-            new ExpeditionRegion {id="central-europe",name="park.progression_definition.central_europe",mapPosition=new Vector2(.49f,.73f),species=new[]{"Wolpertinger","Unicorn","Waldschrat"}},
-            new ExpeditionRegion {id="northern-europe",name="park.progression_definition.northern_europe",mapPosition=new Vector2(.56f,.9f)}
-        };
+        private static ExpeditionRegion[] DefaultRegions() => WorldRegionCatalog.CreateDefaults();
     }
     [CreateAssetMenu(menuName="Mythologicum/Progression settings",fileName="DefaultProgression")]
     public sealed class ProgressionDefinition : ScriptableObject

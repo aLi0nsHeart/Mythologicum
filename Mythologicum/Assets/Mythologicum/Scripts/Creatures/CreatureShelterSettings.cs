@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum CreatureShelterMode { Legacy, Ground, TreeCanopy, TreeShade, Gravestone, Burrow, Cave }
+    public enum CreatureShelterMode { Legacy, Ground, TreeCanopy, TreeShade, Gravestone, Burrow, Cave, Water }
 
     /// <summary>Species preferences, independent of enclosure identity and individual sleep state.</summary>
     [Serializable]

@@ -145,6 +145,7 @@ namespace Mythologicum
         public void Tick(float dt)
         {
             if (dt <= 0f || float.IsNaN(dt) || float.IsInfinity(dt)) return;
+            workQueryTime += dt;
             Buildings.Refresh(); RefreshRoutes(); TickShots(dt);
             for (int i = workers.Count - 1; i >= 0; i--)
             {
@@ -225,6 +226,7 @@ namespace Mythologicum
         }
         private void ClearJob(StaffAgent worker)
         {
+            workApproaches.Remove(worker);
             if (worker.Target != null && worker.Target.CarriedBy == worker.Actor) creatures.CancelCarry(worker.Target);
             worker.Target = null; worker.Fence = null; worker.Feeder = null; worker.Destination = null; worker.MeetingPoint = null;
             worker.WaterTrough = null;

@@ -64,6 +64,12 @@ try {
     $checks += @('..\Buildings\AttractionRideCycleChecks')
     $checks += @('CreatureHabitatChecks', 'CreatureThirstChecks', 'CreatureShelterChecks', '..\Terrain\HabitatTerrainChecks')
     $checks += @('..\Terrain\HabitatWaterGeometryChecks')
+    $checks += @('..\Performance\CreatureLocalSamplingChecks')
+    $checks += @('AquaticNavigationChecks','AquaticHuntingChecks','..\Progression\AquaticProgressionChecks')
+    $checks += @('..\Progression\BurrowingProgressionChecks')
+    $checks += @('..\Progression\AfricanProgressionChecks')
+    $checks += @('..\Progression\WorldRegionCatalogChecks', '..\Progression\RegionMigrationChecks')
+    $checks += @('FlightNavigationChecks', 'PredatorIntentSettingsChecks', '..\Enclosures\SpecialEnclosureChecks')
     if ($CheckNames.Count -gt 0) { $checks = $CheckNames }
     $outputFolder = Join-Path $projectRoot 'Temp\CreatureChecks'
     $null = New-Item -ItemType Directory -Path $outputFolder -Force

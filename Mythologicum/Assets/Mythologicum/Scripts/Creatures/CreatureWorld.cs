@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Mythologicum
@@ -7,6 +8,13 @@ namespace Mythologicum
     /// <summary>Shared perception, feeding and movement; no enclosure ownership or species-specific AI branches.</summary>
     public sealed partial class CreatureWorld
     {
+        private static class Profiles
+        {
+            internal static readonly ProfilerMarker RegionSearch = new ProfilerMarker("Mythologicum.CreatureRegionSearch");
+            internal static readonly ProfilerMarker Needs = new ProfilerMarker("Mythologicum.CreatureNeeds");
+            internal static readonly ProfilerMarker BlockedFence = new ProfilerMarker("Mythologicum.CreatureBlockedFenceSearch");
+            internal static readonly ProfilerMarker Route = new ProfilerMarker("Mythologicum.CreatureRouteSearch");
+        }
         private readonly SquareBuildGrid grid;
         private readonly FenceLayout fences;
         private readonly ParkBuildingNetwork buildings;
@@ -24,6 +32,7 @@ namespace Mythologicum
         private readonly HashSet<ParkBuildingRecord> activeDispensers = new HashSet<ParkBuildingRecord>();
         private readonly List<ParkBuildingRecord> obsoleteDispensers = new List<ParkBuildingRecord>();
         private readonly MaterialPropertyBlock bodyProperties = new MaterialPropertyBlock();
+        private readonly Dictionary<CreatureAgent,bool> capturedAnimatorStates = new Dictionary<CreatureAgent,bool>();
         private readonly CreatureDefinition defaultGoat;
         private readonly CreatureSimulationDefinition simulation;
         private int gridRevision = -1, fenceRevision = -1;
@@ -87,10 +96,11 @@ namespace Mythologicum
             }
         }
 
-        public bool CanSpawn(Vector2Int cell)
+        public bool CanSpawn(Vector2Int cell) => CanSpawn(null, cell);
+        public bool CanSpawn(CreatureDefinition definition, Vector2Int cell)
         {
             RefreshNavigation();
-            if (Population >= PopulationLimit || !navigation.IsWalkable(cell)) return false;
+            if (Population >= PopulationLimit || (definition == null ? !navigation.IsWalkable(cell) : !CanOccupy(definition, cell))) return false;
             Vector3 point = grid.CellCenter(cell);
             foreach (CreatureAgent other in agents)
                 if (other.Alive && HorizontalDistance(other.transform.position, point) < grid.CellSize * simulation.placementSpacingTiles) return false;
@@ -108,6 +118,7 @@ namespace Mythologicum
             if (observer == null || target == null || !observer.Alive || !target.Alive || range < 0f) return false;
             if (observer.CarriedBy != null || target.CarriedBy != null) return false;
             if (observer.IsUnderground || target.IsUnderground || IsHiddenInShelter(observer) || IsHiddenInShelter(target)) return false;
+            if (IsConcealedPredator(target)) return false;
             RefreshNavigation();
             return HorizontalDistance(observer.transform.position, target.transform.position) <= range
                 && navigation.HasLineOfSight(observer.Cell, target.Cell);
@@ -116,9 +127,8 @@ namespace Mythologicum
         /// <summary>Registers a visible, huntable actor whose decisions and movement belong to another controller.</summary>
         public CreatureAgent SpawnExternal(CreatureDefinition definition, Vector2Int cell, GameObject visualPrefab = null)
         {
-            if (!TrySpawn(definition, cell, null, visualPrefab)) return null;
+            if (!TrySpawnActor(definition, cell, null, visualPrefab, true)) return null;
             CreatureAgent actor = agents[agents.Count - 1];
-            actor.ExternallyControlled = true;
             return actor;
         }
 
@@ -161,13 +171,18 @@ namespace Mythologicum
         {
             foreach (CreatureAgent agent in agents)
                 if (agent.Alive && (footprint.Contains(agent.Cell)
+                    || agent.WaterHuntActive && footprint.Contains(agent.WaterHuntReleaseCell)
                     || footprint.Contains(grid.WorldToCell(agent.transform.position)))) return true;
             return false;
         }
 
         public bool TrySpawn(CreatureDefinition definition, Vector2Int cell, ParkBuildingRecord dispenser = null, GameObject visualPrefab = null)
+            => TrySpawnActor(definition, cell, dispenser, visualPrefab, false);
+
+        private bool TrySpawnActor(CreatureDefinition definition, Vector2Int cell, ParkBuildingRecord dispenser,
+            GameObject visualPrefab, bool externallyControlled)
         {
-            if (definition == null || (RestoringSave ? !grid.Contains(cell) : !CanSpawn(cell))) return false;
+            if (definition == null || (RestoringSave ? !grid.Contains(cell) : !CanSpawn(definition, cell))) return false;
             var go = new GameObject(Loc.InternalName(definition.displayName));
             go.name = Loc.InternalName(definition.displayName);
             go.transform.SetParent(root.transform);
@@ -186,12 +201,16 @@ namespace Mythologicum
             agent.Energy = new CreatureEnergy(definition.initialEnergy);
             agent.Wellbeing = new CreatureWellbeing(definition.Behaviour.initialHappiness);
             agent.Health = new CreatureHealth(definition.maximumHealth);
+            agent.ExternallyControlled = externallyControlled;
             agent.Cell = cell; agent.SourceDispenser = dispenser;
             agent.Activity = CreatureActivity.Resting;
             agent.StateTimer = PauseDuration(agent);
             agent.DecisionTimer = UnityEngine.Random.Range(0f, definition.decisionInterval);
             go.transform.position = GroundPosition(agent, cell);
             agents.Add(agent);
+            // Inspection must work even when placement happens while paused. People
+            // use their own needs system; restore refreshes all creatures together.
+            if (!externallyControlled && !RestoringSave) UpdateWellbeing(agent, 0f);
             return true;
         }
 
@@ -229,23 +248,31 @@ namespace Mythologicum
             if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) return;
             float dt = Mathf.Max(0f, deltaTime);
             time += dt;
+            TickPredatorIntents();
             RefreshNavigation();
             TickDispensers(dt);
             // Consumption marks prey dead immediately; cleanup happens after this stable iteration.
             foreach (CreatureAgent agent in agents)
             {
+                TickFlightMotion(agent, dt);
                 if (!agent.Alive)
                 { agent.CorpseTimer -= dt; RefreshVisual(agent); continue; }
                 if (!agent.Definition.needsFood && agent.Vitals.Hunger != 0f)
                     agent.Vitals.Restore(0f, agent.Vitals.Fear);
-                if (!agent.ExternallyControlled) agent.Vitals.TickThirst(dt, agent.Definition.Thirst);
-                if (TickStaffControl(agent, dt)) continue;
+                if (!agent.ExternallyControlled)
+                { agent.Vitals.TickThirst(dt, agent.Definition.Thirst); TickAquaticHydration(agent, dt); }
+                if (TickStaffControl(agent, dt))
+                {
+                    if (!agent.ExternallyControlled) UpdateWellbeing(agent, dt);
+                    continue;
+                }
                 if (agent.CapturedBy != null && agent.CapturedBy.Alive)
                 {
                     agent.Vitals.Tick(dt, agent.Definition.HungerRate, agent.Definition.fearGainPerSecond,
                         agent.Definition.fearRecoveryPerSecond, true);
                     agent.Energy.Tick(dt, agent.Definition.energyDrainPerSecond, agent.Definition.strenuousEnergyMultiplier,
                         false, agent.Definition.sleepRecoveryPerSecond);
+                    if (!agent.ExternallyControlled) UpdateWellbeing(agent, dt);
                     RefreshVisual(agent); continue;
                 }
                 if (agent.ExternallyControlled) { RefreshVisual(agent); continue; }
@@ -253,7 +280,7 @@ namespace Mythologicum
                 if (agent.Activity != CreatureActivity.Sleeping) agent.Exploration.Tick(dt);
                 agent.DecisionTimer -= dt;
                 agent.WanderTimer -= dt;
-                bool traversing = TickTraversal(agent, dt);
+                bool traversing = TickAquaticHunt(agent, dt) || TickTraversal(agent, dt);
                 if (!traversing && agent.DecisionTimer <= 0f)
                 {
                     agent.DecisionTimer = agent.Definition.decisionInterval;
@@ -267,8 +294,10 @@ namespace Mythologicum
                     && HasSleepSite(agent);
                 float energyMultiplier = agent.Activity == CreatureActivity.Socializing ? definition.socializingEnergyMultiplier
                     : agent.Activity == CreatureActivity.Hunting || agent.Activity == CreatureActivity.Fleeing
-                        || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.ClimbingFence
+                        || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.DraggingPrey
+                        || agent.Activity == CreatureActivity.DrowningPrey || agent.Activity == CreatureActivity.ClimbingFence
                         || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.FailedClimb
+                        || agent.Activity == CreatureActivity.FailedFlight
                         || agent.Activity == CreatureActivity.FailedPhase
                         || BurrowTraversal(agent.Activity)
                         || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
@@ -283,6 +312,7 @@ namespace Mythologicum
                 if (!agents[i].Alive && agents[i].CorpseTimer <= 0f)
                 {
                     CreatureAgent dead = agents[i]; agents.RemoveAt(i);
+                    capturedAnimatorStates.Remove(dead);
                     UnityEngine.Object.Destroy(dead.gameObject);
                 }
         }
@@ -308,7 +338,13 @@ namespace Mythologicum
             if ((agent.Vitals.Thirst >= definition.Thirst.criticalThirst || HasWaterJourney(agent)) && TrySeekWater(agent)) return;
             if (agent.Energy.Energy <= definition.sleepThreshold) agent.WantsSleep = true;
             if (agent.Activity == CreatureActivity.Sleeping || agent.WantsSleep)
-            { SeekSleep(agent); return; }
+            {
+                // A failed shelter search must not indefinitely suppress eating, drinking or escape.
+                // Finish real sleep/traversal; an awake starving animal can secure food first.
+                if (agent.Activity != CreatureActivity.Sleeping && !agent.InBurrow && Mathf.Abs(agent.Elevation) <= .01f
+                    && agent.Vitals.Hunger >= definition.Behaviour.urgentHunger && TrySeekFood(agent)) return;
+                if (TrySleepForNeeds(agent)) return;
+            }
             if (TrySeekWater(agent)) return;
             if (agent.EscapeIntent && Escape(agent)) return;
             if (agent.Activity == CreatureActivity.Fleeing)
@@ -317,22 +353,8 @@ namespace Mythologicum
             if (agent.Activity == CreatureActivity.Socializing && agent.StateTimer > 0f && agent.SocialPartner != null
                 && agent.SocialPartner.Alive && HorizontalDistance(agent.transform.position, agent.SocialPartner.transform.position) <= definition.Behaviour.socialInteractionRange
                 && agent.Vitals.Hunger < definition.huntThreshold) return;
-            if (agent.Vitals.Hunger >= definition.huntThreshold)
-            {
-                if (definition.feedsOnFear && SeekScare(agent)) return;
-                if (definition.diet == CreatureDiet.Carnivore && Hunt(agent)) return;
-                if (definition.diet == CreatureDiet.Herbivore)
-                {
-                    if (grass.HasFood(agent.Cell, time) && agent.Route.Count == 0)
-                    { agent.Activity = CreatureActivity.Grazing; agent.Goal = null; return; }
-                    if (agent.Activity == CreatureActivity.Searching && agent.Route.Count > 0 && agent.Goal.HasValue
-                        && grass.HasFood(agent.Goal.Value, time)) return;
-                    foreach (Vector2Int candidate in navigation.Reachable(agent.Cell, definition.Behaviour.grazingSearchSteps))
-                        if (grass.HasFood(candidate, time) && SetGoal(agent, candidate))
-                        { agent.Activity = CreatureActivity.Searching; return; }
-                }
-            }
-            else ReleaseClaim(agent);
+            if (TrySeekFood(agent)) return;
+            if (!definition.needsFood || agent.Vitals.Hunger < definition.huntThreshold) ReleaseClaim(agent);
             agent.GrazeTimer = 0f;
             if (agent.Route.Count > 0) { agent.Activity = CreatureActivity.Wandering; return; }
             if (agent.Activity != CreatureActivity.Resting)
@@ -342,12 +364,13 @@ namespace Mythologicum
                 foreach (CreatureAgent other in agents)
                     if (other != agent && other.Alive && other.Definition == definition
                         && HorizontalDistance(other.transform.position, agent.transform.position) <= definition.Behaviour.socialInteractionRange
-                        && ReachableRegion(agent.Cell).Contains(other.Cell))
+                        && StrictRegion(agent).Contains(other.Cell))
                     {
                         agent.SocialPartner = other; agent.Activity = CreatureActivity.Socializing;
                         agent.StateTimer = definition.socializingSeconds; return;
                     }
-            List<Vector2Int> choices = navigation.Reachable(agent.Cell, definition.Behaviour.wanderSearchSteps);
+            if (TryPreferWater(agent)) return;
+            List<Vector2Int> choices = StrictNavigation(agent).Reachable(agent.Cell, definition.Behaviour.wanderSearchSteps);
             if (choices.Count > 1 && SetGoal(agent, choices[UnityEngine.Random.Range(1, choices.Count)], true))
                 agent.Activity = CreatureActivity.Wandering;
             else agent.StateTimer = PauseDuration(agent);
@@ -363,7 +386,7 @@ namespace Mythologicum
             if (agent.EscapeCheckTimer <= 0f)
             {
                 agent.EscapeCheckTimer = agent.Definition.Behaviour.crowdingCheckSeconds;
-                var ground = ReachableRegion(agent.Cell);
+                var ground = StrictRegion(agent);
                 float required = 0f;
                 foreach (CreatureAgent other in agents)
                     if (other.Alive && !other.ExternallyControlled && ground.Contains(other.Cell))
@@ -375,15 +398,18 @@ namespace Mythologicum
                 agent.Crowding, data.randomEscapeChance, data.hungryEscapeChance, data.agitatedEscapeChance, data.crowdedEscapeChance,
                 data.Behaviour.escapeHungerStart, data.Behaviour.maximumEscapeChance);
             if (agent.EscapeIntent || time < agent.EscapeAfter || agent.Elevation > .01f
-                || agent.Activity == CreatureActivity.Sleeping || agent.Activity == CreatureActivity.SeekingSleep
+                || agent.Activity == CreatureActivity.Sleeping
+                || agent.Activity == CreatureActivity.SeekingSleep && SleepAttemptHasProgress(agent)
                 || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
                 || agent.Activity == CreatureActivity.ClimbingFence || agent.Activity == CreatureActivity.FailedClimb
+                || agent.Activity == CreatureActivity.FailedFlight
                 || agent.Activity == CreatureActivity.FailedPhase
                 || BurrowTraversal(agent.Activity)
                 || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
                 || agent.Activity == CreatureActivity.EnteringGrave || agent.Activity == CreatureActivity.LeavingGrave
                 || agent.Activity == CreatureActivity.Scaring
                 || agent.Activity == CreatureActivity.Attacking || agent.Activity == CreatureActivity.Feeding
+                || agent.Activity == CreatureActivity.DraggingPrey || agent.Activity == CreatureActivity.DrowningPrey
                 || agent.Activity == CreatureActivity.Fleeing) return;
             if (UnityEngine.Random.value >= CreatureEscape.Probability(agent.EscapeChancePerMinute, dt)) return;
             agent.EscapeIntent = true; agent.EscapeUntil = time + data.Behaviour.escapeAttemptSeconds;
@@ -423,7 +449,7 @@ namespace Mythologicum
                 { agent.Activity = CreatureActivity.Escaping; return true; }
                 EndEscape(agent, "creature.escape.escape_route_blocked"); return false;
             }
-            var ground = ReachableRegion(agent.Cell);
+            var ground = StrictRegion(agent);
             Vector2Int? goal = null; FenceEdge? obstruction = null;
             float best = float.MaxValue;
             // Explore physical barriers, independent of enclosure identity. Goats cannot acquire climbing abilities.
@@ -432,7 +458,7 @@ namespace Mythologicum
                 bool a = ground.Contains(edge.CellA), b = ground.Contains(edge.CellB);
                 if (a == b) continue;
                 Vector2Int near = a ? edge.CellA : edge.CellB, far = a ? edge.CellB : edge.CellA;
-                if (!navigation.IsWalkable(far)) continue;
+                if (!StrictNavigation(agent).IsWalkable(far)) continue;
                 bool cross = Navigation(agent).CanCross(near, far);
                 float distance = ConstructionRouteGraph.CellDistance(agent.Cell, near) + (cross ? 0f : grid.Width * grid.Depth);
                 if (distance >= best) continue;
@@ -442,7 +468,7 @@ namespace Mythologicum
             {
                 // With a gap or no fence, seek room away from the current group using ordinary ground travel.
                 int distance = 0;
-                foreach (Vector2Int cell in navigation.Reachable(agent.Cell, agent.Definition.Behaviour.escapeSearchSteps))
+                foreach (Vector2Int cell in StrictNavigation(agent).Reachable(agent.Cell, agent.Definition.Behaviour.escapeSearchSteps))
                 {
                     int candidate = ConstructionRouteGraph.CellDistance(agent.Cell, cell);
                     if (candidate > distance) { distance = candidate; goal = cell; }
@@ -474,6 +500,7 @@ namespace Mythologicum
 
         private void SeekSleep(CreatureAgent agent)
         {
+            if (TryLandBeforeSleep(agent)) return;
             if (agent.Definition.shelter != null && agent.Definition.shelter.mode != CreatureShelterMode.Legacy)
             { SeekShelterSleep(agent); return; }
             // Preserve the original fallback for older, flag-based profiles.
@@ -527,6 +554,7 @@ namespace Mythologicum
 
         private void BeginTreeTraversal(CreatureAgent agent, bool upward)
         {
+            if (upward && TryLandForTreeTraversal(agent)) return;
             agent.Route.Clear(); agent.Goal = null;
             agent.Activity = agent.Definition.Shelter.mode == CreatureShelterMode.Gravestone
                 ? (upward ? CreatureActivity.EnteringGrave : CreatureActivity.LeavingGrave)
@@ -571,6 +599,7 @@ namespace Mythologicum
             CreatureActivity activity = agent.Activity;
             if (activity != CreatureActivity.ClimbingTree && activity != CreatureActivity.DescendingTree
                 && activity != CreatureActivity.ClimbingFence && activity != CreatureActivity.FailedClimb
+                && activity != CreatureActivity.FailedFlight
                 && activity != CreatureActivity.FailedPhase) return false;
             float progress = 1f - Mathf.Clamp01(agent.StateTimer / Mathf.Max(0.1f, agent.TraversalDuration));
             if (activity == CreatureActivity.ClimbingTree || activity == CreatureActivity.DescendingTree)
@@ -627,7 +656,8 @@ namespace Mythologicum
 
         private bool TryBlockedFence(CreatureAgent agent, List<CreatureAgent> candidates)
         {
-            if ((!CanClimbForNeeds(agent) && !CanAttackFences(agent) && !CanPhase(agent) && !CanBurrow(agent)) || candidates.Count == 0 || time < agent.AttemptAfter) return false;
+            if ((!CanClimbForNeeds(agent) && !CanAttackFences(agent) && !CanPhase(agent) && !CanBurrow(agent) && !CanAttemptFlightEscape(agent)) || candidates.Count == 0 || time < agent.AttemptAfter) return false;
+            using var profile = Profiles.BlockedFence.Auto();
             HashSet<Vector2Int> region = AbilityRegion(agent);
             FenceEdge? best = null;
             Vector2Int approach = agent.Cell;
@@ -639,7 +669,9 @@ namespace Mythologicum
                 if (a == b) continue;
                 Vector2Int near = a ? edge.CellA : edge.CellB, far = a ? edge.CellB : edge.CellA;
                 if (!climbingNavigation.IsWalkable(far)) continue;
-                HashSet<Vector2Int> beyond = new HashSet<Vector2Int>(Navigation(agent).Reachable(far, grid.Width * grid.Depth));
+                // Adjacent segments often share the same far-side region. Reuse
+                // its connectivity instead of flooding the whole map per edge.
+                HashSet<Vector2Int> beyond = AbilityRegion(agent, far);
                 foreach (CreatureAgent candidate in candidates)
                 {
                     if (candidate.CapturedBy != null || !beyond.Contains(candidate.Cell)) continue;
@@ -664,7 +696,7 @@ namespace Mythologicum
             float safe = agent.Definition.fleeSafeDistance;
             int budget = Mathf.Max(3, Mathf.CeilToInt(safe / grid.CellSize) + 2);
             Vector2Int? safeGround = null; int shortest = int.MaxValue;
-            foreach (Vector2Int candidate in navigation.Reachable(agent.Cell, budget))
+            foreach (Vector2Int candidate in StrictNavigation(agent).Reachable(agent.Cell, budget))
             {
                 if (HorizontalDistance(grid.CellCenter(candidate), agent.LastDanger) < safe) continue;
                 int distance = ConstructionRouteGraph.CellDistance(agent.Cell, candidate);
@@ -687,6 +719,14 @@ namespace Mythologicum
 
         private bool Hunt(CreatureAgent agent)
         {
+            if (TryLurePrey(agent)) return true;
+            if (agent.Definition.Stalking.enabled) return HuntStalking(agent);
+            return HuntDirect(agent);
+        }
+
+        private bool HuntDirect(CreatureAgent agent)
+        {
+            if (UsesAquaticHunt(agent)) return HuntAquatic(agent);
             CreatureAgent prey = agent.Prey;
             if (prey != null && prey.CarriedBy != null) { ReleaseClaim(agent); prey = null; }
             if (prey != null && prey.Alive && (prey.CapturedBy == null || prey.CapturedBy == agent))
@@ -723,8 +763,18 @@ namespace Mythologicum
 
         private void ReleaseClaim(CreatureAgent agent)
         {
+            ClearStalking(agent); CancelLureFor(agent);
+            ReleaseAquaticCapture(agent);
             if (agent.Prey != null && agent.Prey.CapturedBy == agent) agent.Prey.CapturedBy = null;
             agent.Prey = null; agent.LastSeenPreyCell = null;
+        }
+
+        public void RefreshWellbeing()
+        {
+            RefreshNavigation();
+            foreach (var agent in agents)
+                if (agent.Alive && !agent.ExternallyControlled)
+                { agent.NeedsTimer = 0f; UpdateWellbeing(agent, 0f); }
         }
 
         private void UpdateWellbeing(CreatureAgent agent, float dt)
@@ -733,24 +783,31 @@ namespace Mythologicum
             agent.NeedsTimer -= dt;
             if (agent.NeedsTimer <= 0f)
             {
+                using var profile = Profiles.Needs.Auto();
                 agent.NeedsTimer = definition.Behaviour.needsCheckSeconds;
-                HashSet<Vector2Int> accessible = ReachableRegion(agent.Cell);
+                HashSet<Vector2Int> accessible = StrictRegion(agent);
                 agent.AccessibleArea = accessible.Count * grid.CellSize * grid.CellSize;
                 int trees = 0, graves = 0, ground = 0;
                 Array.Clear(agent.NearbyBiomeFractions, 0, agent.NearbyBiomeFractions.Length);
-                foreach (Vector2Int cell in accessible)
-                    if (HorizontalDistance(grid.CellCenter(cell), agent.transform.position) <= definition.environmentRadius)
+                TryLocalSampleBounds(grid, agent.transform.position, definition.environmentRadius, out var minimum, out var maximum);
+                for (int z = minimum.y; z <= maximum.y; z++)
+                for (int x = minimum.x; x <= maximum.x; x++)
+                {
+                    var cell = new Vector2Int(x, z);
+                    if (accessible.Contains(cell) && HorizontalDistance(grid.CellCenter(cell), agent.transform.position) <= definition.environmentRadius)
                     {
                         trees += environment.TreesAt(cell);
                         graves += environment.GravestonesAt(cell);
                         if (grid.ContentAt(cell) == BuildCellContent.Empty && !grid.Habitat.IsWater(cell))
                         { agent.NearbyBiomeFractions[(int)grid.Habitat.BiomeAt(cell)]++; ground++; }
                     }
+                }
                 if (ground > 0) for (int i = 0; i < agent.NearbyBiomeFractions.Length; i++) agent.NearbyBiomeFractions[i] /= ground;
                 agent.NearbyTrees = trees;
                 agent.NearbyGravestones = graves;
                 agent.BiomeSatisfaction = definition.Habitat.Evaluate(agent.NearbyBiomeFractions);
                 agent.ShelterSatisfaction = ShelterSatisfaction(agent);
+                agent.WaterSatisfaction = WaterSatisfaction(agent);
                 if (definition.minimumOpenGroundFraction > 0f) agent.NearbyOpenGroundFraction = MeasureOpenGround(agent, accessible);
                 int companions = 0;
                 foreach (CreatureAgent other in agents)
@@ -763,8 +820,10 @@ namespace Mythologicum
                 definition.minimumCompanions, definition.maximumCompanions, definition.Behaviour,
                 agent.NearbyGravestones, definition.requiredGravestones, agent.NearbyOpenGroundFraction, definition.minimumOpenGroundFraction,
                 agent.Vitals.Thirst, definition.Thirst.needsWater, definition.Habitat.HasPreferences ? agent.BiomeSatisfaction : -1,
-                definition.Shelter.requiredForSleep ? agent.ShelterSatisfaction : -1), dt,
-                definition.happinessChangePerSecond, definition.happinessThreshold);
+                definition.Shelter.requiredForSleep ? Mathf.Min(agent.ShelterSatisfaction, agent.WaterSatisfaction)
+                    : definition.Aquatic.canSwim && definition.Aquatic.preferredWaterArea > 0 ? agent.WaterSatisfaction : -1,
+                agent.Energy.Energy, definition.needsFood, needsRest: true), dt,
+                definition.happinessChangePerSecond, definition.happinessThreshold, definition.Behaviour);
         }
 
         private List<CreatureAgent> Visible(CreatureAgent observer, CreatureTags tags, float range)
@@ -781,6 +840,7 @@ namespace Mythologicum
         {
             var cache = climbing ? climbingRegions : reachableRegions;
             if (cache.TryGetValue(start, out var known)) return known;
+            using var profile = Profiles.RegionSearch.Auto();
             var region = new HashSet<Vector2Int>((climbing ? climbingNavigation : navigation).Reachable(start, grid.Width * grid.Depth));
             foreach (Vector2Int cell in region) cache[cell] = region;
             return region;
@@ -793,20 +853,29 @@ namespace Mythologicum
 
         private bool SetGoal(CreatureAgent agent, Vector2Int goal, bool walkingOnly = false)
         {
+            var ordinary = StrictNavigation(agent);
             if (agent.Goal == goal && agent.Route.Count > 0)
             {
                 bool reusable = true; Vector2Int previous = agent.Cell;
                 if (walkingOnly)
                     foreach (Vector2Int step in agent.Route)
-                    { if (!navigation.CanCross(previous, step)) { reusable = false; break; } previous = step; }
+                    { if (!ordinary.CanCross(previous, step)) { reusable = false; break; } previous = step; }
                 if (reusable) return true;
             }
             // Preserve the current movement segment when replanning toward moving prey.
-            bool moving = agent.Route.Count > 0 && (!walkingOnly || navigation.CanCross(agent.Cell, agent.Route[0]));
+            bool moving = agent.Route.Count > 0 && (!walkingOnly || ordinary.CanCross(agent.Cell, agent.Route[0]));
             Vector2Int start = moving ? agent.Route[0] : agent.Cell;
-            List<Vector2Int> route = navigation.FindPath(start, goal);
-            if (route.Count == 0 && !walkingOnly) route = Navigation(agent).FindPath(start, goal);
-            if (route.Count == 0) return false;
+            using var profile = Profiles.Route.Auto();
+            // Only consult connectivity already built for other needs. A short
+            // ordinary walk must never cause a new map-sized flood just to plan.
+            bool ordinaryDisconnected = !agent.Definition.Aquatic.canSwim && reachableRegions.TryGetValue(start, out var region) && !region.Contains(goal);
+            List<Vector2Int> route = ordinaryDisconnected ? null : ordinary.FindPath(start, goal);
+            if ((route == null || route.Count == 0) && !walkingOnly)
+            {
+                var alternate = Navigation(agent);
+                if (!ordinaryDisconnected || !ReferenceEquals(alternate, ordinary)) route = alternate.FindPath(start, goal);
+            }
+            if (route == null || route.Count == 0) return false;
             agent.Route.Clear(); agent.Goal = goal;
             for (int i = moving ? 0 : 1; i < route.Count; i++) agent.Route.Add(route[i]);
             return true;
@@ -818,6 +887,7 @@ namespace Mythologicum
                 || agent.Activity == CreatureActivity.Grazing || agent.Activity == CreatureActivity.Sleeping
                 || agent.Activity == CreatureActivity.ClimbingTree || agent.Activity == CreatureActivity.DescendingTree
                 || agent.Activity == CreatureActivity.ClimbingFence || agent.Activity == CreatureActivity.FailedClimb
+                || agent.Activity == CreatureActivity.FailedFlight
                 || agent.Activity == CreatureActivity.FailedPhase
                 || BurrowTraversal(agent.Activity)
                 || agent.Activity == CreatureActivity.AttackingFence || agent.Activity == CreatureActivity.PhasingFence
@@ -825,14 +895,15 @@ namespace Mythologicum
                 || agent.Activity == CreatureActivity.Scaring
                 || agent.Activity == CreatureActivity.Socializing) return;
             if (agent.Route.Count == 0) return;
+            if (PauseForFlightTakeoff(agent)) return;
             Vector2Int next = agent.Route[0];
-            if (!navigation.CanCross(agent.Cell, next))
+            if (!StrictNavigation(agent).CanCross(agent.Cell, next))
             {
                 if (Navigation(agent).CanCross(agent.Cell, next))
                 {
                     Vector3 origin = GroundPosition(agent, agent.Cell);
                     agent.transform.position = Vector3.MoveTowards(agent.transform.position, origin, agent.Definition.walkSpeed * dt);
-                    if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,agent.Definition.bodyScale.y);
+                    agent.transform.position=ProjectAquaticPosition(agent,agent.transform.position);
                     if ((agent.transform.position - origin).sqrMagnitude < 0.0001f)
                     {
                         FenceEdge edge = CrossingEdge(agent.Cell, next);
@@ -849,14 +920,18 @@ namespace Mythologicum
             if (direction.sqrMagnitude > 0.001f) agent.transform.rotation = Quaternion.LookRotation(direction);
             float speed = running ? agent.Definition.runSpeed : agent.Definition.walkSpeed
                 * Mathf.Lerp(1f, agent.Definition.agitatedSpeedMultiplier, agent.Wellbeing.Agitation);
+            if (IsSwimming(agent) || grid.Habitat.IsWater(next)) speed = agent.Definition.Aquatic.swimSpeed;
+            speed = FlightSpeed(agent, running, speed);
+            speed = StalkingSpeed(agent, speed);
             agent.transform.position = Vector3.MoveTowards(agent.transform.position, goal, speed * dt);
-            if(grid.Terrain!=null)agent.transform.position=grid.ProjectToGround(agent.transform.position,agent.Definition.bodyScale.y);
+            agent.transform.position=ProjectAquaticPosition(agent,agent.transform.position);
             if ((agent.transform.position - goal).sqrMagnitude < 0.0001f)
             { agent.Cell = next; agent.Route.RemoveAt(0); }
         }
 
         private void Feed(CreatureAgent agent, float dt)
         {
+            if (FeedAquaticHunter(agent)) return;
             if (agent.Threat != null || agent.Activity == CreatureActivity.Fleeing) return;
             CreatureAgent prey = agent.Prey;
             if (agent.Activity == CreatureActivity.Attacking)
@@ -864,6 +939,7 @@ namespace Mythologicum
                 if (prey == null || !prey.Alive || prey.CapturedBy != agent || !CanInteract(agent, prey))
                 { ReleaseClaim(agent); agent.Activity = CreatureActivity.Resting; agent.StateTimer = PauseDuration(agent); return; }
                 if (agent.StateTimer > 0f) return;
+                TriggerFlightAttack(agent, prey);
                 prey.Health.Damage(agent.Definition.damage);
                 prey.CapturedBy = null;
                 if (prey.Health.Alive)
@@ -911,13 +987,14 @@ namespace Mythologicum
         private bool CanInteract(CreatureAgent agent, CreatureAgent target) =>
             HorizontalDistance(agent.transform.position, target.transform.position) <= agent.Definition.interactionRange
             && target.CarriedBy == null && agent.CarriedBy == null
+            && FlightCanInteract(agent, target)
             && Mathf.Abs(target.Elevation) <= 0.01f && Mathf.Abs(agent.Elevation) <= 0.01f
             && target.Activity != CreatureActivity.ClimbingFence && agent.Activity != CreatureActivity.ClimbingFence
             && target.Activity != CreatureActivity.PhasingFence && agent.Activity != CreatureActivity.PhasingFence
             && !target.IsUnderground && !agent.IsUnderground && !IsHiddenInShelter(target) && !IsHiddenInShelter(agent)
-            && (agent.Cell == target.Cell || navigation.CanCross(agent.Cell, target.Cell));
+            && (agent.Cell == target.Cell || StrictNavigation(agent).CanCross(agent.Cell, target.Cell));
 
-        private void RefreshVisual(CreatureAgent agent) => Animate(agent);
+        private void RefreshVisual(CreatureAgent agent) { Animate(agent); AnimateFlight(agent); AnimatePredatorIntent(agent); }
 
         private void Animate(CreatureAgent agent)
         {
@@ -969,7 +1046,7 @@ namespace Mythologicum
             }
             else if (agent.Activity == CreatureActivity.ClimbingFence)
                 rotation = Quaternion.Euler(-25f + wave * 14f, 0f, 0f);
-            else if (agent.Activity == CreatureActivity.FailedClimb)
+            else if (agent.Activity == CreatureActivity.FailedClimb || agent.Activity == CreatureActivity.FailedFlight)
             {
                 float progress = 1f - Mathf.Clamp01(agent.StateTimer / Mathf.Max(0.1f, agent.TraversalDuration));
                 float reach = Mathf.Sin(progress * Mathf.PI);
@@ -1004,11 +1081,27 @@ namespace Mythologicum
             agent.BodyRenderer.SetPropertyBlock(bodyProperties);
         }
 
-        private static void AnimateModel(CreatureAgent agent)
+        private void AnimateModel(CreatureAgent agent)
         {
             // The model's origin is at its feet; the simulation origin is at body height.
             agent.Body.localPosition = Vector3.down * agent.Definition.bodyScale.y;
             agent.Body.localRotation = Quaternion.identity;
+            if (agent.CapturedBy != null && agent.CapturedBy.Definition.Aquatic.dragPreyToWater)
+            {
+                if (agent.BodyAnimator != null)
+                {
+                    if (!capturedAnimatorStates.ContainsKey(agent)) capturedAnimatorStates.Add(agent,agent.BodyAnimator.enabled);
+                    agent.BodyAnimator.enabled=false;
+                }
+                agent.Body.localRotation=Quaternion.Euler(Mathf.Sin(time*9)*10,0,65+Mathf.Sin(time*7)*10);
+                agent.Body.localPosition+=Vector3.up*.15f;
+                return;
+            }
+            if (capturedAnimatorStates.TryGetValue(agent,out bool wasEnabled))
+            {
+                if (agent.BodyAnimator != null) agent.BodyAnimator.enabled=wasEnabled;
+                capturedAnimatorStates.Remove(agent);
+            }
             if (agent.BodyAnimator == null) return;
             string state = !agent.Alive ? "death"
                 : agent.Activity == CreatureActivity.Sleeping || agent.IsSedated ? "stand_to_sit"
@@ -1078,18 +1171,19 @@ namespace Mythologicum
         }
 
         private Vector3 GroundPosition(CreatureAgent agent, Vector2Int cell) =>
-            grid.ActorPosition(cell,agent.Definition.bodyScale.y);
+            ProjectAquaticPosition(agent,grid.CellCenter(cell));
         private void GroundActor(CreatureAgent actor)
         {
-            if(grid.Terrain==null||actor.AttractionPoseControlled||actor.CarriedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence
+            if(actor.AttractionPoseControlled||actor.CarriedBy!=null||actor.CapturedBy!=null||actor.Activity==CreatureActivity.ClimbingFence||actor.Activity==CreatureActivity.PhasingFence
                 || actor.Activity == CreatureActivity.BurrowingFence)return;
-            actor.transform.position=grid.ProjectToGround(actor.transform.position,actor.Definition.bodyScale.y+actor.Elevation);
+            actor.transform.position=ProjectAquaticPosition(actor,actor.transform.position)+Vector3.up*actor.Elevation;
         }
         public void RefreshGroundPositions(){foreach(var actor in agents)GroundActor(actor);}
         private static float HorizontalDistance(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
 
         public void Dispose()
         {
+            DisposeFlight();
             if (root != null) UnityEngine.Object.Destroy(root);
         }
     }
