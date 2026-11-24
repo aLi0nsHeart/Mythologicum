@@ -18,11 +18,18 @@ namespace Mythologicum
         private readonly FenceLayout fences;
         private readonly Predicate<Vector2Int> physicalCellClear;
         private readonly bool canClimbWoodenFences;
-        private readonly bool canPhaseFences, canAttackFences;
+        private readonly bool canPhaseFences, canAttackFences, canBurrowFences;
+        private readonly bool canSwim;
+        private readonly bool canWadeShallows;
+        private readonly float minimumSwimDepth;
+        private readonly bool canFly;
+        private readonly Func<Vector2Int, Vector2Int, bool> flightCrossingAllowed;
 
         public CreatureNavigation(SquareBuildGrid grid, FenceLayout fences,
             Predicate<Vector2Int> physicalCellClear = null, bool canClimbWoodenFences = false,
-            bool canPhaseFences = false, bool canAttackFences = false)
+            bool canPhaseFences = false, bool canAttackFences = false, bool canBurrowFences = false,
+            bool canSwim = false, float minimumSwimDepth = .3f, bool canWadeShallows = false,
+            bool canFly = false, Func<Vector2Int, Vector2Int, bool> flightCrossingAllowed = null)
         {
             this.grid = grid ?? throw new ArgumentNullException(nameof(grid));
             this.fences = fences ?? throw new ArgumentNullException(nameof(fences));
@@ -30,22 +37,31 @@ namespace Mythologicum
             this.canClimbWoodenFences = canClimbWoodenFences;
             this.canPhaseFences = canPhaseFences;
             this.canAttackFences = canAttackFences;
+            this.canBurrowFences = canBurrowFences;
+            this.canSwim = canSwim; this.minimumSwimDepth = minimumSwimDepth;
+            this.canWadeShallows = canWadeShallows;
+            this.canFly = canFly; this.flightCrossingAllowed = flightCrossingAllowed;
         }
 
         public bool IsWalkable(Vector2Int cell) => grid.Contains(cell)
-            && grid.GroundWalkable(cell)
+            && (canFly || (grid.Habitat.IsWater(cell) ? canSwim && (grid.Habitat.WaterDepth(cell) >= minimumSwimDepth
+                || canWadeShallows && (grid.Terrain?.Walkable(cell) ?? true)) : grid.GroundWalkable(cell)))
             && grid.ContentAt(cell) != BuildCellContent.Building
             && (physicalCellClear == null || physicalCellClear(cell));
 
         public bool CanCross(Vector2Int from, Vector2Int to)
         {
-            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to) || !grid.CanTraverse(from,to)) return false;
+            if (canFly) return Distance(from, to) == 1 && IsWalkable(from) && IsWalkable(to)
+                && (flightCrossingAllowed == null || flightCrossingAllowed(from, to));
+            if (Distance(from, to) != 1 || !IsWalkable(from) || !IsWalkable(to)
+                || !grid.Habitat.IsWater(from) && !grid.Habitat.IsWater(to) && !grid.CanTraverse(from,to)) return false;
             var edge = from.x != to.x
                 ? new FenceEdge(new Vector2Int(Math.Max(from.x, to.x), from.y), false)
                 : new FenceEdge(new Vector2Int(from.x, Math.Max(from.y, to.y)), true);
             return !fences.HasFence(edge) || (canClimbWoodenFences && fences.CanClimb(edge))
                 || (canPhaseFences && fences.CanPhase(edge))
-                || (canAttackFences && fences.CanBreak(edge));
+                || (canAttackFences && fences.CanBreak(edge))
+                || (canBurrowFences && fences.CanBurrow(edge) && CreatureBurrowing.CanDigGround(grid, from) && CreatureBurrowing.CanDigGround(grid, to));
         }
 
         public IEnumerable<Vector2Int> Neighbors(Vector2Int cell)
@@ -59,7 +75,8 @@ namespace Mythologicum
 
         /// <summary>Returns a cardinal route including both endpoints; empty means unreachable.</summary>
         public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal) =>
-            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance,grid.MovementCost);
+            ConstructionRouteFinder.Find(start, goal, Neighbors, IsWalkable, Distance,
+                (from, to) => canFly || canSwim && (grid.Habitat.IsWater(from) || grid.Habitat.IsWater(to)) ? 1f : grid.MovementCost(from, to));
 
         /// <summary>Returns clear cells within the movement budget, including the starting cell.</summary>
         public List<Vector2Int> Reachable(Vector2Int start, int maxSteps)
@@ -94,8 +111,20 @@ namespace Mythologicum
         /// Cells touched at a corner are tested too, preventing sight through building corners.
         /// </summary>
         public bool HasLineOfSight(Vector2Int start, Vector2Int end)
+            => HasLineOfSightCore(start, end, null);
+
+        // Only a paid viewing experience can see through its own glazing.
+        // Ordinary perception and all movement keep buildings solid.
+        internal bool HasLineOfSightFromRoom(Vector2Int start, Vector2Int end, BuildingFootprint room)
+            => HasLineOfSightCore(start, end, room);
+
+        private bool ClearForSight(Vector2Int cell, BuildingFootprint? room)
+            => IsWalkable(cell) || grid.Contains(cell) && (grid.Habitat.IsWater(cell) && grid.ContentAt(cell) != BuildCellContent.Building
+                || room.HasValue && room.Value.Contains(cell));
+
+        private bool HasLineOfSightCore(Vector2Int start, Vector2Int end, BuildingFootprint? room)
         {
-            if (!IsWalkable(start) || !IsWalkable(end) || !grid.GroundLineOfSight(start,end)) return false;
+            if (!ClearForSight(start, room) || !ClearForSight(end, room) || !grid.GroundLineOfSight(start,end)) return false;
             int dx = end.x - start.x, dy = end.y - start.y;
             int nx = Math.Abs(dx), ny = Math.Abs(dy);
             int sx = Math.Sign(dx), sy = Math.Sign(dy);
@@ -107,8 +136,8 @@ namespace Mythologicum
                 long decision = (1L + 2L * ix) * ny - (1L + 2L * iy) * nx;
                 if (decision == 0)
                 {
-                    if (!IsWalkable(cell + new Vector2Int(sx, 0))
-                        || !IsWalkable(cell + new Vector2Int(0, sy))) return false;
+                    if (!ClearForSight(cell + new Vector2Int(sx, 0), room)
+                        || !ClearForSight(cell + new Vector2Int(0, sy), room)) return false;
                     cell += new Vector2Int(sx, sy);
                     ix++;
                     iy++;
@@ -123,7 +152,7 @@ namespace Mythologicum
                     cell += new Vector2Int(0, sy);
                     iy++;
                 }
-                if (!IsWalkable(cell)) return false;
+                if (!ClearForSight(cell, room)) return false;
             }
             return true;
         }

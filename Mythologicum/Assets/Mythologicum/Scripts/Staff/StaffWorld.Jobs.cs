@@ -8,6 +8,19 @@ namespace Mythologicum
         private sealed class ShotEffect { public GameObject Object; public float Remaining; }
         private readonly List<ShotEffect> shots = new List<ShotEffect>();
         private Material shotMaterial;
+        private sealed class WorkApproachQuery
+        {
+            public CreatureAgent Target;
+            public FenceEdge? Fence;
+            public float Range, RetryAfter;
+            public bool ClearShot;
+            public int GridRevision, FenceRevision;
+            public Vector2Int? Goal;
+        }
+        private readonly Dictionary<StaffAgent, WorkApproachQuery> workApproaches = new Dictionary<StaffAgent, WorkApproachQuery>();
+        private float workQueryTime;
+        // Counts expensive searches separately from inexpensive checks of an existing approach.
+        private int rangedSearchCount, fenceApproachSearchCount;
 
         private void Assign(StaffAgent worker)
         {
@@ -24,7 +37,7 @@ namespace Mythologicum
                         if (ValidCreature(creature)) { species = creature.Definition; researchTargets[worker.Home] = species; break; }
                 if (species != null && Research.Progress(species) < 100f)
                     foreach (CreatureAgent creature in creatures.Agents)
-                        if (ValidCreature(creature) && creature.Definition == species && FindRangedPosition(worker, creature, tuning.studyRange).HasValue)
+                        if (ValidCreature(creature) && creature.Definition == species && RangedPosition(worker, creature, tuning.studyRange).HasValue)
                         { worker.Target = creature; SetStatus(worker, StaffTask.Researching, "staff.status.travelling_to_observe", species.displayName); return; }
                 ReturnHome(worker, species == null ? "staff.status.choose_a_species_to_research" : Research.Progress(species) >= 100f
                     ? "staff.status.research_complete_choose_another_species" : "staff.status.no_visible_reachable_specimen_to_study");
@@ -53,8 +66,9 @@ namespace Mythologicum
                 { worker.Target = creature; SetStatus(worker, StaffTask.FetchingCreature, "staff.status.going_to_collect", creature.Definition.displayName); return; }
             foreach (CreatureAgent creature in creatures.Agents)
                 if (ValidCreature(creature) && creature.Health.Current < creature.Health.Maximum && !creature.RetirementRequested
-                    && !Claimed(creature,worker) && FindRangedPosition(worker, creature, tuning.shootingRange).HasValue)
+                    && !Claimed(creature,worker) && RangedPosition(worker, creature, tuning.shootingRange).HasValue)
                 { worker.Target = creature; SetStatus(worker, StaffTask.Healing, "staff.status.going_to_treat", creature.Definition.displayName); return; }
+            if (TryAssignWaterRefill(worker)) return;
             foreach (ParkBuildingRecord feeder in Buildings.Records)
             {
                 if (feeder.Footprint.Definition.kind != BuildingKind.GoatDispenser || feeder.FeedStock > tuning.feederRestockThreshold) continue;
@@ -68,7 +82,8 @@ namespace Mythologicum
                 bool reserved = false; foreach (StaffAgent other in workers) if (other.Fence.HasValue && other.Fence.Value.Equals(edge)) reserved = true;
                 if (reserved) continue;
                 Vector2Int? approach = FenceApproach(worker,edge);
-                if (!approach.HasValue || !SetGoal(worker,approach.Value)) continue;
+                if (!approach.HasValue) continue;
+                if (!SetGoal(worker,approach.Value)) { RetryWorkApproach(worker); continue; }
                 worker.Fence = edge; SetStatus(worker, StaffTask.Repairing, "staff.status.going_to_repair_a_damaged_fence"); return;
             }
             ReturnHome(worker, "staff.status.no_care_tasks_waiting");
@@ -76,6 +91,7 @@ namespace Mythologicum
 
         private void Work(StaffAgent worker, float dt)
         {
+            if (WorkWaterRefill(worker, dt)) return;
             if (worker.Task == StaffTask.TechnologyResearch)
             {
                 var project = Progression?.ActiveProject(worker.Home);
@@ -127,7 +143,8 @@ namespace Mythologicum
                 if (!worker.Fence.HasValue || !fences.HasFence(worker.Fence.Value)
                     || fences.HealthAt(worker.Fence.Value) >= fences.MaximumHealthAt(worker.Fence.Value)) { ClearJob(worker); return; }
                 Vector2Int? approach = FenceApproach(worker,worker.Fence.Value);
-                if (!approach.HasValue || !SetGoal(worker,approach.Value)) { Block(worker,"staff.status.fence_cannot_be_reached_add_staff_access"); return; }
+                if (!approach.HasValue || !SetGoal(worker,approach.Value))
+                { if (approach.HasValue) RetryWorkApproach(worker); Block(worker,"staff.status.fence_cannot_be_reached_add_staff_access"); return; }
                 if (AtNode(worker) && worker.Actor.Route.Count == 0)
                 { fences.TryRepair(worker.Fence.Value, tuning.repairPerSecond * dt * Efficiency); worker.Status = "staff.status.repairing_fence"; }
             }
@@ -177,13 +194,20 @@ namespace Mythologicum
 
         private bool IsExposed(CreatureAgent target)
         {
-            if (!groundRegions.TryGetValue(target.Cell,out var region))
+            if (target.Definition.pettable && AuthorizedPettingCreature?.Invoke(target) == true) return false;
+            if (target.Definition.Aquatic.canSwim && Buildings.Entrance != null)
+                return creatures.CanApproach(target,Buildings.Entrance.Footprint.AccessCell);
+            foreach (Vector2Int cell in GroundRegion(target.Cell)) if (Buildings.IsPathConnected(cell)) return true;
+            return false;
+        }
+        private HashSet<Vector2Int> GroundRegion(Vector2Int start)
+        {
+            if (!groundRegions.TryGetValue(start,out var region))
             {
-                region = new HashSet<Vector2Int>(groundNavigation.Reachable(target.Cell,grid.Width * grid.Depth));
+                region = new HashSet<Vector2Int>(groundNavigation.Reachable(start,grid.Width * grid.Depth));
                 foreach (Vector2Int cell in region) groundRegions[cell] = region;
             }
-            foreach (Vector2Int cell in region) if (Buildings.IsPathConnected(cell)) return true;
-            return false;
+            return region;
         }
         private void JoinGroup(StaffAgent leader, CreatureAgent target)
         {
@@ -207,7 +231,7 @@ namespace Mythologicum
         private Vector2Int MeetingPoint(StaffAgent worker, CreatureAgent target)
         {
             Vector2Int best = worker.Home.Footprint.AccessCell; int score = int.MaxValue;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
                 if (!Buildings.IsPathConnected(cell) || Distance(grid.CellCenter(cell),target.transform.position) < tuning.shootingRange + tuning.regroupSafetyMargin) continue;
                 int distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell);
@@ -244,15 +268,53 @@ namespace Mythologicum
 
         private Vector2Int? FindRangedPosition(StaffAgent worker, CreatureAgent target, float range, bool clearShot = false)
         {
+            rangedSearchCount++;
             Vector2Int? best = null; float score = float.MaxValue;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
+                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : tuning.offPathApproachPenalty);
+                // Equal scores retain the original BFS winner. Avoid sight tests for
+                // candidates that cannot beat it, including nonfinite tuning values.
+                if (!(distance < score)) continue;
                 if (Distance(grid.CellCenter(cell),target.transform.position) > range || !navigation.HasLineOfSight(cell,target.Cell)) continue;
                 if (clearShot && !navigation.HasClearShot(cell,target.Cell)) continue;
-                float distance = ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) + (grid.ContentAt(cell) == BuildCellContent.Path ? 0f : tuning.offPathApproachPenalty);
-                if (distance < score) { score = distance; best = cell; }
+                score = distance; best = cell;
             }
             return best;
+        }
+
+        private WorkApproachQuery WorkApproach(StaffAgent worker, CreatureAgent target, FenceEdge? fence, float range, bool clearShot)
+        {
+            if (workApproaches.TryGetValue(worker, out var query) && query.Target == target
+                && System.Nullable.Equals(query.Fence, fence) && query.Range.Equals(range) && query.ClearShot == clearShot
+                && query.GridRevision == grid.Revision && query.FenceRevision == fences.Revision) return query;
+            query = new WorkApproachQuery { Target = target, Fence = fence, Range = range, ClearShot = clearShot,
+                GridRevision = grid.Revision, FenceRevision = fences.Revision };
+            workApproaches[worker] = query; return query;
+        }
+
+        private void RetryWorkApproach(StaffAgent worker)
+        {
+            if (!workApproaches.TryGetValue(worker, out var query)) return;
+            query.Goal = null;
+            query.RetryAfter = workQueryTime + Mathf.Max(.05f, tuning.decisionInterval);
+        }
+
+        private Vector2Int? RangedPosition(StaffAgent worker, CreatureAgent target, float range, bool clearShot = false)
+        {
+            var query = WorkApproach(worker, target, null, range, clearShot);
+            if (query.Goal.HasValue)
+            {
+                var goal = query.Goal.Value;
+                // Keep travelling to a valid approach while the specimen moves. Actual observation or
+                // firing is still checked at the employee's current position on every frame.
+                if (navigation.IsWalkable(goal) && Distance(grid.CellCenter(goal), target.transform.position) <= range
+                    && navigation.HasLineOfSight(goal, target.Cell) && (!clearShot || navigation.HasClearShot(goal, target.Cell))) return goal;
+            }
+            if (workQueryTime < query.RetryAfter) return null;
+            query.Goal = FindRangedPosition(worker, target, range, clearShot);
+            query.RetryAfter = workQueryTime + Mathf.Max(.05f, tuning.decisionInterval);
+            return query.Goal;
         }
         private bool ApproachRanged(StaffAgent worker, CreatureAgent target, float range, bool clearShot = false)
         {
@@ -260,11 +322,15 @@ namespace Mythologicum
                 && (!clearShot || navigation.HasClearShot(worker.Actor.Cell,target.Cell)))
             {
                 if (!AtNode(worker)) { FinishSegment(worker); return false; }
+                workApproaches.Remove(worker);
                 worker.Actor.Route.Clear(); worker.Actor.Goal = null; return true;
             }
-            Vector2Int? goal = FindRangedPosition(worker,target,range,clearShot);
+            Vector2Int? goal = RangedPosition(worker,target,range,clearShot);
             if (!goal.HasValue || !SetGoal(worker,goal.Value))
-            { Block(worker,clearShot ? "staff.status.shot_blocked_add_a_staff_gate_or_clear_the_approach" : "staff.status.no_clear_approach_or_line_of_sight"); return false; }
+            {
+                if (goal.HasValue) RetryWorkApproach(worker);
+                Block(worker,clearShot ? "staff.status.shot_blocked_add_a_staff_gate_or_clear_the_approach" : "staff.status.no_clear_approach_or_line_of_sight"); return false;
+            }
             return false;
         }
         private bool ApproachHandsOn(StaffAgent worker, CreatureAgent target)
@@ -274,10 +340,16 @@ namespace Mythologicum
         }
         private Vector2Int? FenceApproach(StaffAgent worker, FenceEdge edge)
         {
+            var query = WorkApproach(worker, null, edge, 0, false);
+            if (query.Goal.HasValue && navigation.IsWalkable(query.Goal.Value)) return query.Goal;
+            if (workQueryTime < query.RetryAfter) return null;
+            fenceApproachSearchCount++;
             var a = navigation.FindPath(worker.Actor.Cell,edge.CellA);
             var b = navigation.FindPath(worker.Actor.Cell,edge.CellB);
-            if (a.Count == 0 && b.Count == 0) return null;
-            return a.Count > 0 && (b.Count == 0 || a.Count <= b.Count) ? edge.CellA : edge.CellB;
+            query.Goal = a.Count == 0 && b.Count == 0 ? (Vector2Int?)null
+                : a.Count > 0 && (b.Count == 0 || a.Count <= b.Count) ? edge.CellA : edge.CellB;
+            query.RetryAfter = workQueryTime + Mathf.Max(.05f, tuning.decisionInterval);
+            return query.Goal;
         }
         private bool ShootSedative(StaffAgent worker, CreatureAgent target)
         {
@@ -313,7 +385,7 @@ namespace Mythologicum
         private void Patrol(StaffAgent worker)
         {
             if (worker.Actor.Route.Count > 0) { SetStatus(worker,StaffTask.Patrolling,"staff.status.patrolling_visitor_paths"); return; }
-            var paths = navigation.Reachable(worker.Actor.Cell,true);
+            var paths = ReachableWorkCells(worker.Actor.Cell,true);
             if (paths.Count == 0) { SetGoal(worker,worker.Home.Footprint.AccessCell); SetStatus(worker,StaffTask.Returning,"staff.status.returning_to_visitor_paths"); return; }
             SetGoal(worker,paths[UnityEngine.Random.Range(0,paths.Count)],true);
             SetStatus(worker,StaffTask.Patrolling,"staff.status.patrolling_visitor_paths");
@@ -326,8 +398,9 @@ namespace Mythologicum
                 if (!ValidCreature(target) || target.IsSedated || target.Definition.threat <= worker.Actor.Definition.threat
                     || !creatures.CanSee(worker.Actor,target,tuning.threatFleeRange)) continue;
                 // Staff gates provide access but an intact fence still separates a patient from its observer.
-                var region = groundNavigation.Reachable(worker.Actor.Cell,grid.Width * grid.Depth);
-                if (!region.Contains(target.Cell)) continue;
+                var region = GroundRegion(worker.Actor.Cell);
+                if (!region.Contains(target.Cell)
+                    && !(target.Definition.Aquatic.canSwim && creatures.CanApproach(target,worker.Actor.Cell))) continue;
                 float current = Distance(worker.Actor.transform.position,target.transform.position);
                 if (current < distance) { distance = current; best = target; }
             }
@@ -336,7 +409,7 @@ namespace Mythologicum
         private void Flee(StaffAgent worker, CreatureAgent danger)
         {
             Vector2Int best = worker.Actor.Cell; float distance = -1f;
-            foreach (Vector2Int cell in navigation.Reachable(worker.Actor.Cell))
+            foreach (Vector2Int cell in ReachableWorkCells(worker.Actor.Cell))
             {
                 float score = Distance(grid.CellCenter(cell),danger.transform.position)
                     - ConstructionRouteGraph.CellDistance(worker.Actor.Cell,cell) * tuning.fleeingTravelPenalty;

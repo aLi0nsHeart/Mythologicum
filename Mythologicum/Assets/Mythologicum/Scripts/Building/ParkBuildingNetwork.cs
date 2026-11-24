@@ -37,7 +37,8 @@ namespace Mythologicum
             RuntimeId = System.Threading.Interlocked.Increment(ref nextId);
             Price = footprint.Definition.kind == BuildingKind.ParkEntrance ? Amount(footprint.Definition.admissionPrice)
                 : footprint.Definition.kind == BuildingKind.Kiosk ? Amount(footprint.Definition.foodPrice)
-                : footprint.Definition.kind == BuildingKind.RestArea ? Amount(footprint.Definition.restPrice) : 0f;
+                : footprint.Definition.kind == BuildingKind.RestArea ? Amount(footprint.Definition.restPrice)
+                : footprint.Definition.IsAttraction ? Amount(footprint.Definition.attractionPrice) : 0f;
             if (footprint.Definition.kind == BuildingKind.GoatDispenser) RestockFeed();
         }
         public bool SetPrice(float value)
@@ -86,10 +87,39 @@ namespace Mythologicum
                 if (footprint.Definition.kind == BuildingKind.ParkEntrance && HasEntrance) return false;
             }
             else if ((footprint.Definition.kind == BuildingKind.ParkEntrance) == HasEntrance) return false;
-            if (!grid.Contains(footprint.AccessCell) || grid.ContentAt(footprint.AccessCell) == BuildCellContent.Building) return false;
+            if (!grid.Contains(footprint.AccessCell) || grid.ContentAt(footprint.AccessCell) == BuildCellContent.Building || grid.Habitat.IsWater(footprint.AccessCell)) return false;
+            if (footprint.IsFenceMounted)
+            {
+                if (!grid.Contains(footprint.RearAccessCell) || grid.ContentAt(footprint.RearAccessCell) == BuildCellContent.Building) return false;
+                foreach (Vector2Int cell in footprint.Cells()) if (!grid.IsAvailable(cell)) return false;
+                foreach (var edge in footprint.AttachmentEdges())
+                {
+                    if (!fences.Contains(edge)) return false;
+                    if (!RestoringSave && (!fences.HasFence(edge) || fences.IsGate(edge) || fences.HasWindow(edge))) return false;
+                }
+                foreach (ParkBuildingRecord existing in records)
+                {
+                    if (footprint.Contains(existing.Footprint.AccessCell)
+                        || existing.Footprint.IsFenceMounted && footprint.Contains(existing.Footprint.RearAccessCell)) return false;
+                    if (!existing.Footprint.IsFenceMounted && existing.Footprint.Definition.kind != BuildingKind.PettingZoo) continue;
+                    foreach (var edge in footprint.AttachmentEdges())
+                    foreach (var occupied in existing.Footprint.AttachmentEdges())
+                        if (edge.Equals(occupied)) return false;
+                }
+                // Existing boundary segments stay intact; a fence cannot split the interior viewing room.
+                foreach (var cell in footprint.Cells())
+                {
+                    var right = cell + Vector2Int.right;
+                    var up = cell + Vector2Int.up;
+                    if (footprint.Contains(right) && fences.HasFence(new FenceEdge(right, false))) return false;
+                    if (footprint.Contains(up) && fences.HasFence(new FenceEdge(up, true))) return false;
+                }
+                return true;
+            }
             foreach (Vector2Int cell in footprint.Cells()) if (!grid.IsAvailable(cell)) return false;
             foreach (ParkBuildingRecord existing in records)
-                if (footprint.Contains(existing.Footprint.AccessCell)) return false;
+                if (footprint.Contains(existing.Footprint.AccessCell)
+                    || existing.Footprint.IsFenceMounted && footprint.Contains(existing.Footprint.RearAccessCell)) return false;
             // Boundary fences may border buildings; internal fences cannot run through them.
             for (int x = footprint.Anchor.x; x < footprint.Anchor.x + footprint.Width; x++)
             for (int z = footprint.Anchor.y; z < footprint.Anchor.y + footprint.Depth; z++)
@@ -107,6 +137,7 @@ namespace Mythologicum
             var record = new ParkBuildingRecord(footprint);
             records.Add(record);
             if (footprint.Definition.kind == BuildingKind.ParkEntrance) Entrance = record;
+            lastGridRevision = -1;
             Refresh();
             return record;
         }
@@ -117,6 +148,7 @@ namespace Mythologicum
             foreach (Vector2Int cell in record.Footprint.Cells()) grid.TryRemove(cell, BuildCellContent.Building);
             if (Entrance == record) Entrance = null;
             record.IsOpen = false;
+            lastGridRevision = -1;
             Refresh();
             return true;
         }
@@ -140,6 +172,7 @@ namespace Mythologicum
         }
 
         private bool HasUsableDoor(ParkBuildingRecord record) =>
-            grid.ContentAt(record.Footprint.AccessCell) == BuildCellContent.Path && !fences.BlocksPath(record.Footprint.EntranceEdge);
+            grid.ContentAt(record.Footprint.AccessCell) == BuildCellContent.Path
+                && (record.Footprint.IsFenceMounted || !fences.BlocksPath(record.Footprint.EntranceEdge));
     }
 }

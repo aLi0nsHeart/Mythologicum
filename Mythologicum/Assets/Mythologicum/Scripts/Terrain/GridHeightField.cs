@@ -4,6 +4,21 @@ using System.IO;
 using UnityEngine;
 namespace Mythologicum
 {
+    [Serializable]
+    public sealed class TerrainVertexChange
+    {
+        public Vector2Int node;
+        public float original, applied;
+    }
+    public sealed class TerrainExcavationPlan
+    {
+        internal GridHeightField Owner;
+        internal int Revision;
+        internal readonly Dictionary<int, float> Heights = new Dictionary<int, float>();
+        internal readonly List<TerrainVertexChange> ChangesList = new List<TerrainVertexChange>();
+        public IReadOnlyList<TerrainVertexChange> Changes => ChangesList;
+        public float CenterHeight(Vector2Int cell) => Owner.PlannedCenterHeight(this, cell);
+    }
     public sealed class TerrainFoundationPlan
     {
         public float Level {get;internal set;}
@@ -118,7 +133,7 @@ namespace Mythologicum
             { reason = Loc.Text("park.grid_height_field.the_terrain_editor_is_not_attached_to_this_map"); return false; }
             if (!Finite(center.x) || !Finite(center.y) || !Finite(radius) || radius <= 0f
                 || radius > Math.Max(Width, Depth) * 2f || !Finite(amount) || amount < 0f
-                || !Finite(targetHeight) || Math.Abs(targetHeight) > 10000f || !Enum.IsDefined(typeof(TerrainBrushMode), mode))
+                || !Finite(targetHeight) || Math.Abs(targetHeight) > 10000f || !Enum.IsDefined(typeof(TerrainBrushMode), mode) || mode > TerrainBrushMode.Flatten)
             { reason = Loc.Text("park.grid_height_field.choose_a_valid_terrain_tool_brush_size_and_strength"); return false; }
             if (center.x < 0f || center.y < 0f || center.x > Width || center.y > Depth)
             { reason = Loc.Text("park.grid_height_field.choose_a_point_inside_the_map"); return false; }
@@ -193,6 +208,96 @@ namespace Mythologicum
             }
             return result;
         }
+
+        /// <summary>Carves a smooth pond bed below a flat surface without changing protected neighbouring cells.</summary>
+        public bool TryExcavateBasin(SquareBuildGrid grid, Vector2 center, float radius, float surface, float depth,
+            Predicate<Vector2Int> canExcavate, out string reason)
+        {
+            reason = "";
+            if (grid == null || !Finite(center.x) || !Finite(center.y) || !Finite(radius) || radius <= 0 || !Finite(surface)
+                || !Finite(depth) || depth <= 0 || depth > 100 || Math.Abs(surface) > 10000)
+            { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            var proposed = new Dictionary<int, float>();
+            for (int z = Math.Max(0, (int)Math.Ceiling(center.y - radius)); z <= Math.Min(Depth, (int)Math.Floor(center.y + radius)); z++)
+            for (int x = Math.Max(0, (int)Math.Ceiling(center.x - radius)); x <= Math.Min(Width, (int)Math.Floor(center.x + radius)); x++)
+            {
+                float dx = x - center.x, dz = z - center.y;
+                float influence = TerrainBrushRules.Falloff((float)Math.Sqrt(dx * dx + dz * dz), radius);
+                if (influence <= 0) continue;
+                int index = Index(x, z);
+                float bottom = Math.Min(heights[index], surface - depth * influence);
+                if (!Finite(bottom) || Math.Abs(bottom) > 10000f) { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+                if (Math.Abs(bottom - heights[index]) <= .00001f) continue;
+                if (locks.ContainsKey(index)) { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+                proposed.Add(index, bottom);
+            }
+            foreach (int index in AffectedCells(proposed.Keys))
+            {
+                var cell = new Vector2Int(index % Width, index / Width);
+                if (grid.ContentAt(cell) != BuildCellContent.Empty || !(canExcavate?.Invoke(cell) ?? true))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+                // Keep the dry banks usable for existing land creatures. A wider brush supports deeper ponds.
+                if (Slope(cell.x, cell.y, proposed) > MaximumWalkSlope + .001f && slopes[index] <= MaximumWalkSlope + .001f)
+                { reason = Loc.Text("habitat.terrain.water_too_steep"); return false; }
+            }
+            if (proposed.Count == 0) return true;
+            foreach (var change in proposed) heights[change.Key] = change.Value;
+            Recalculate();
+            return true;
+        }
+        /// <summary>
+        /// Plans a pool bed inside an exact closed cell mask. Shared rim nodes remain
+        /// untouched, so neighbouring paths, ponds and foundation slopes are preserved.
+        /// Surface and depth are relative to the grid origin, like ordinary terrain heights.
+        /// </summary>
+        public bool TryPlanEnclosedBasin(SquareBuildGrid grid, IEnumerable<Vector2Int> selectedCells,
+            float surface, float depth, Predicate<Vector2Int> canExcavate, out TerrainExcavationPlan plan, out string reason)
+        {
+            plan = null; reason = "";
+            if (grid == null || grid.Terrain != this || selectedCells == null || !Finite(surface)
+                || !Finite(depth) || depth <= 0 || depth > 100 || Math.Abs(surface) > 10000)
+            { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            var cells = new HashSet<Vector2Int>(selectedCells);
+            if (cells.Count == 0) { reason = Loc.Text("habitat.terrain.invalid_water"); return false; }
+            foreach (var cell in cells)
+                if (!Contains(cell) || grid.ContentAt(cell) != BuildCellContent.Empty || !(canExcavate?.Invoke(cell) ?? true))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+            var candidate = new TerrainExcavationPlan { Owner = this, Revision = Revision };
+            var visited = new HashSet<Vector2Int>();
+            foreach (var cell in cells) for (int dz = 0; dz <= 1; dz++) for (int dx = 0; dx <= 1; dx++)
+            {
+                var node = cell + new Vector2Int(dx, dz);
+                if (!visited.Add(node)) continue;
+                // Only vertices wholly inside this footprint may move. The boundary is
+                // a dry structural rim, rather than a brush spilling into outside cells.
+                if (!cells.Contains(node) || !cells.Contains(node + Vector2Int.left)
+                    || !cells.Contains(node + Vector2Int.down) || !cells.Contains(node + Vector2Int.left + Vector2Int.down)) continue;
+                int index = Index(node.x, node.y);
+                float target = Math.Min(heights[index], surface - depth);
+                if (!Finite(target) || Math.Abs(target) > 10000 || locks.ContainsKey(index))
+                { reason = Loc.Text("habitat.terrain.water_blocked"); return false; }
+                if (Math.Abs(target - heights[index]) <= .00001f) continue;
+                candidate.Heights[index] = target;
+                candidate.ChangesList.Add(new TerrainVertexChange { node = node, original = heights[index], applied = target });
+            }
+            plan = candidate; return true;
+        }
+        internal float PlannedCenterHeight(TerrainExcavationPlan plan, Vector2Int cell)
+            => ReferenceEquals(plan?.Owner, this) && Contains(cell) ? Bilinear(cell.x, cell.y, .5f, .5f, plan.Heights) : float.NaN;
+
+        public bool TryApplyExcavation(TerrainExcavationPlan plan)
+        {
+            if (!ReferenceEquals(plan?.Owner, this) || plan.Revision != Revision) return false;
+            foreach (var change in plan.ChangesList)
+            {
+                int index = Index(change.node.x, change.node.y);
+                if (locks.ContainsKey(index) || Math.Abs(heights[index] - change.original) > .00001f) return false;
+            }
+            if (plan.ChangesList.Count == 0) return true;
+            foreach (var item in plan.Heights) heights[item.Key] = item.Value;
+            Recalculate(); return true;
+        }
+
         private HashSet<int> FoundationNodes(BuildingFootprint footprint)
         {
             var result=new HashSet<int>();

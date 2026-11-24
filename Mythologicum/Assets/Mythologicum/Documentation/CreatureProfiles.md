@@ -36,7 +36,7 @@ Oni wants **500 square metres** of reachable space per animal and tolerates grou
 
 Energy runs from **100 (rested)** to **0 (exhausted)**; exhaustion is its inverse. Awake activity drains energy. Hunting, fleeing, attacking and other strenuous actions consume it faster; socializing has a separate multiplier. Actual sleeping restores energy until **Wake Threshold**. Ordinary **Resting** is an awake pause. Defaults are 100 initial energy, 0.35 baseline drain/second, sleep threshold 20, wake threshold 85 and recovery 8/second. To test sleep quickly, temporarily set **Initial Energy** to 15, then restore it to 100 afterwards.
 
-**Happiness** combines fullness, calmness, environment, available space and herd satisfaction. Below **Happiness Threshold**, agitation increases. Gravestones fulfil Yurei's environment preference; trees fulfil the Chupacabra's. The information panel displays origin, health, damage, threat, needs, total group size, crowding and escape urge. Companion counts use reachable ground and **Herd Range**, never enclosure ownership. Yurei and Oni use a large herd range so their group limits apply across the accessible area.
+**Happiness** combines fullness, hydration, rest, calmness, environment, available space and herd satisfaction. Serious unmet needs also limit target happiness and directly raise agitation; good habitat or grouping cannot cancel starvation or complete exhaustion. Actual happiness and agitation change gradually, and the information panel identifies unmet needs. Ground and required shelter are checked individually as well as in the Environment summary. See [Creature wellbeing and urgent needs](Creature-Wellbeing-Guide.md) for adjustable thresholds, weights and response speeds. Companion counts use reachable ground and **Herd Range**, never enclosure ownership. Yurei and Oni use a large herd range so their group limits apply across the accessible area.
 
 ## Fences and movement
 
@@ -60,3 +60,19 @@ Hunger above 75, agitation and space pressure add to a rare base escape chance. 
 The information panel shows current chance, contributing reasons, space pressure and attempt status. This is the chance of forming an intention, not of defeating a fence. Sleeping, urgent actions and cooldowns pause rolls. Probability accounts for elapsed time rather than frame count. Space pressure compares shared ordinary ground area with the combined minimum space needs of animals there, excluding visitors. Species do not acquire new abilities just because they want to escape.
 
 To add another profile, right-click the Creatures folder and choose **Create > Mythologicum > Creature species**. Existing rules and values are editable data; genuinely new abilities require code support. Leave **Manually Placeable** enabled to include a species in the creature menu.
+
+## Aquatic species
+
+Kappa (`Kappa.asset`) is a Yokai predator from Japan, with a preferred total group
+of 2-3. Nökk (`Nokk.asset`) is a solitary Nordic predator from Northern Europe.
+Both swim, walk on land and use reachable water as their required shelter. They
+prefer human prey and also accept goats and other matching meat prey, dragging
+captured victims into water before feeding.
+
+Their editable **Aquatic** settings cover swimming depth and speed, water search
+radius and preferred area, water preference, preferred prey, capture timing,
+dragging speed and time spent subduing prey. Their ordinary **Prey Tags** still
+define which actors they may hunt. The turtle-like Kappa and horse-like Nökk are
+temporary procedural visuals; no creature behaviour depends on those models.
+See the [habitat guide](Habitat-Guide.md#kappa-and-nökk-water-predators) for starting
+values, pond setup and manual checks.

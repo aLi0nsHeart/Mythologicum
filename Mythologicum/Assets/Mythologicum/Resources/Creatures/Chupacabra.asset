@@ -13,11 +13,17 @@ MonoBehaviour:
   m_Name: Chupacabra
   m_EditorClassIdentifier: 
   displayName: creature.name.chupacabra
+  visitorAppeal:
+    thrill: 0.9
+    wonder: 0.35
+    adventure: 0.8
+    children: 0.1
   diet: 0
   tags: 2
-  preyTags: 5
+  preyTags: 21
   fearedTags: 0
   manuallyPlaceable: 1
+  pettable: 0
   rating: 2
   initialHunger: 55
   hungerPerSecond: 2
@@ -81,3 +87,32 @@ MonoBehaviour:
   canBreakFences: 0
   scareRange: 3
   maximumHealth: 120
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.10
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences:
+    - biome: 2
+      minimumFraction: 0.35
+      maximumFraction: 1
+      weight: 1
+    - biome: 1
+      minimumFraction: 0.10
+      maximumFraction: 1
+      weight: 1
+  shelter:
+    mode: 2
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 32
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

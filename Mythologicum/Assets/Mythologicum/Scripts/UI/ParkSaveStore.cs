@@ -8,10 +8,16 @@ namespace Mythologicum
     {
         public int version = 3, width, depth, departedVisitors, lostVisitors;
         public SavedTerrain terrain;
+        // Explicit presence avoids Unity JSON's empty-object representation of nullable nested classes.
+        public bool hasHabitat;
+        public SavedHabitatTerrain habitat;
+        public List<WaterTroughSave> waterTroughs;
+        public List<SavedShelter> shelters;
         public List<SavedTreeVisual> treeVisuals;
         public MapGenerationOptions generation;
         public List<Vector2Int> rocks;
         public ProgressionSave progression;
+        public SavedSpecialEnclosures specialEnclosures;
         public FinanceSnapshot finance;
         public ParkReputationSnapshot reputation;
         public int rejectedAdmissions, expensiveServiceRefusals;
@@ -22,6 +28,7 @@ namespace Mythologicum
         public Vector3 focus;
         public float yaw, zoom;
         public List<Vector2Int> paths = new List<Vector2Int>(), trees = new List<Vector2Int>(), graves = new List<Vector2Int>();
+        public List<Vector2Int> scarecrows = new List<Vector2Int>();
         public List<SavedBuilding> buildings = new List<SavedBuilding>();
         public List<SavedFence> fences = new List<SavedFence>();
         public List<SavedActor> creatures = new List<SavedActor>(), visitors = new List<SavedActor>(), staff = new List<SavedActor>();
@@ -32,18 +39,39 @@ namespace Mythologicum
         public BuildingKind kind;
         public Vector2Int cell;
         public int rotation, width, depth, door, stock;
+        // Optional; older petting entrances retain their original building footprint.
+        public bool fenceMounted;
+        public AttractionRideSave ride;
+        public bool hasRide;
         public float height, price, revenue, expenses;
         public string research;
     }
-    [Serializable] public sealed class SavedFence { public Vector2Int cell; public bool alongX, gate; public FenceKind kind; public float health; }
+    [Serializable] public sealed class SavedFence
+    {
+        public Vector2Int cell; public bool alongX, gate, window; public FenceKind kind; public float health;
+        public float windowPrice, windowRevenue, windowExpenses;
+    }
     [Serializable] public sealed class SavedResearch { public string species; public float progress; }
     [Serializable] public sealed class SavedActor
     {
         public string species;
         public Vector2Int cell;
         public float hunger, fear, energy, health, happiness, agitation, sedation, age, satisfaction, patience, explored;
+        public float thirst;
+        public AquaticHuntSave aquaticHunt;
+        public bool hasAquaticHunt;
+        public bool capturedByAquatic;
+        public int captureHunter;
+        public bool hasShelterHome, shelterSleeping, shelterRetreat;
+        public Vector2Int shelterHome;
+        public float escapeCooldown, fenceRetryCooldown, scareCooldown;
+        public float flightAltitude, lureCooldown;
         public int building = -1;
         public bool retire, sedate, leaving;
+        // Optional visitor-only data. Missing fields in older saves remain general visitors.
+        public VisitorType visitorType;
+        public List<string> observedSpecies, observedOrigins;
+        public VisitorAttractionSave attraction;
     }
     public static class ParkSaveStore
     {
@@ -108,6 +136,8 @@ namespace Mythologicum
                 throw new InvalidDataException(Loc.Text("ui.save.invalid_save"));
             if(data.version>=2 && data.progression==null)throw new InvalidDataException(Loc.Text("ui.save.missing_progression"));
             if(data.version>=3 && data.terrain==null)throw new InvalidDataException(Loc.Text("ui.save.missing_terrain"));
+            // Additive enrichment data was absent in older version-three saves.
+            data.scarecrows ??= new List<Vector2Int>();
             return data;
         }
     }

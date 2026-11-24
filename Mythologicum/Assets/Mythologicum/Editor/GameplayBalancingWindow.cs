@@ -43,8 +43,11 @@ namespace Mythologicum.Editor
                 "Building dimensions, purchase/upkeep costs, default prices, food/rest services, staff capacity and salaries, goat supply stock and dispensing. Buildings use a copy at park start; restart Play mode after editing. Existing saved footprints and player-set prices are preserved.");
             Add("Fences", "Fences/DefaultFences",
                 "Health, climbing, phasing and resistance to creature attacks, separately for each fence type. New segments use the configured health; repairs and containment use the current rules.");
+            Add("Viewing windows", "Attractions/ViewingWindow", "Fence-window purchase cost, visitor ticket price, upkeep, capacity, visit duration and appeal. Building attractions are in the Buildings catalogue.");
             Add("Visitors", "Visitors/DefaultVisitors",
-                "Arrival rate, visitor capacity, hunger, rest, fear, patience, satisfaction rewards/penalties, viewing and departure behaviour. Initial values apply to newly arriving visitors.");
+                "Arrival rate, capacity and base needs, plus visitor-type arrival weights, exhibit interests, hunger/rest/fear multipliers, patience and satisfaction. Initial values apply to newly arriving visitors.");
+            Add("People models", "People/People",
+                "Separate adult and child visitor model pools, the mixed pool for general visitors in existing parks, and staff models. Empty age-specific pools use the corresponding visitor placeholder rather than another age group's model.");
             Add("Staff & creature research", "Staff/DefaultStaff",
                 "Travel, perception, shooting, healing, repairs, sedation, creature observation and discovery milestones. Hiring costs, capacity and salaries belong to each building.");
             Add("Expeditions & technology", "Progression/DefaultProgression",
@@ -55,6 +58,8 @@ namespace Mythologicum.Editor
                 "Generation defaults, movement/path slopes, uphill travel cost, foundation earthwork and terrain brush ranges. Existing saves retain their terrain; test map generation with a new park.");
             Add("Vegetation & habitat", "Environment/Vegetation",
                 "Tree contribution to forest coverage, available plants, scattering and tree height. Habitat coverage changes apply when a park starts; trees remain physical enrichment.");
+            Add("Scarecrows", "Environment/Scarecrow",
+                "Purchase cost, height and placeholder colours for reusable fear-feeding enclosure enrichment. Fear relief and scare timing belong to each creature species.");
             string[] creatures = AssetDatabase.FindAssets("t:CreatureDefinition", new[] { "Assets/Mythologicum/Resources/Creatures" });
             Array.Sort(creatures, (a, b) => string.CompareOrdinal(AssetDatabase.GUIDToAssetPath(a), AssetDatabase.GUIDToAssetPath(b)));
             foreach (string guid in creatures)

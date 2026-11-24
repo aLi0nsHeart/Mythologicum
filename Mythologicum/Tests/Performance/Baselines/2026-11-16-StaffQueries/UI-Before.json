@@ -1,0 +1,37 @@
+{
+    "utcTime": "2026-11-16T10:13:41.2296840Z",
+    "unityVersion": "6000.0.74f1",
+    "processor": "Intel(R) Core(TM) i5-10600K CPU @ 4.10GHz",
+    "allocationCounterAvailable": false,
+    "workload": "Actual generated GameScene UI. CPU maintenance callbacks are invoked in a fixed order for 120 synthetic 60 Hz updates, with a discovery scan every 12 updates. Includes active layout, overflow, icon and frame callbacks, but excludes simulation, rendering, canvas mesh rebuilding, input and dynamic report generation. Not game FPS. Allocation bytes are -1 when the runtime fails a known-allocation counter probe; zero from an unsupported counter is not an allocation-free result.",
+    "profiles": [
+        {
+            "name": "Closed menus",
+            "totalGraphics": 396,
+            "visibleGraphics": 23,
+            "activeLayoutCallbacks": 10,
+            "activeOverflowCallbacks": 0,
+            "activeIconCallbacks": 5,
+            "activeFrameCallbacks": 0,
+            "samples": 120,
+            "medianMs": 0.1734,
+            "p95Ms": 2.2163,
+            "maximumMs": 2.8559,
+            "bytesPerUpdate": -1.0
+        },
+        {
+            "name": "Building catalogue",
+            "totalGraphics": 396,
+            "visibleGraphics": 53,
+            "activeLayoutCallbacks": 10,
+            "activeOverflowCallbacks": 0,
+            "activeIconCallbacks": 5,
+            "activeFrameCallbacks": 0,
+            "samples": 120,
+            "medianMs": 0.3351,
+            "p95Ms": 2.2091000000000005,
+            "maximumMs": 3.4286000000000005,
+            "bytesPerUpdate": -1.0
+        }
+    ]
+}

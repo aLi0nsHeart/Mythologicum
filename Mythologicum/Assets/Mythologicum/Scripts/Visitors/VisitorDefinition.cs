@@ -37,6 +37,15 @@ namespace Mythologicum
         [Min(.1f)] public float spawnInterval = 8f;
         [Min(0)] public int maximumVisitors = 30;
         [HideInInspector] public float ticketPrice = 15f; // Legacy data; the entrance now owns its editable price.
+        [Header("Visitor types")]
+        [Tooltip("Weighted arrival mix, interests and multipliers. Old saved visitors retain neutral Legacy behaviour.")]
+        public VisitorTypeSettings[] typeSettings = VisitorTypeSettings.Defaults();
+        public VisitorTypeSettings SettingsFor(VisitorType type)
+        {
+            if (typeSettings != null && VisitorInterests.IsRequestedType(type))
+                foreach (var settings in typeSettings) if (settings != null && settings.type == type) return settings;
+            return VisitorTypeSettings.DefaultFor(type);
+        }
 
         [Header("Needs")]
         [Min(1)] public float maximumHealth = 60f;
@@ -85,6 +94,17 @@ namespace Mythologicum
         [Tooltip("Minimum seconds between complaints about the same type of expensive service.")]
         [Min(0)] public float priceComplaintCooldownSeconds = 30f;
         [Header("Simulation updates")]
+        [Header("Attraction choices")]
+        [Min(.1f), Tooltip("Seconds between searches for a paid attraction.")]
+        public float attractionDecisionSeconds = 5f;
+        [Min(0), Tooltip("Minimum seconds between completed paid visits, allowing time for exhibits and services.")]
+        public float attractionVisitGapSeconds = 20f;
+        [Min(0)] public float attractionTravelPenalty = .25f;
+        [Min(0)] public float attractionPricePenalty = 2f;
+        [Tooltip("Prepare imported visitor models during the loading screen to avoid their first-use cost during arrivals.")]
+        public bool prewarmVisitorModels = true;
+        [Tooltip("Maximum entrance path cells prepared per simulation frame. New arrivals wait briefly if preparation is still in progress.")]
+        [Min(1)] public int arrivalPathCellsPerFrame = 256;
         [Tooltip("Seconds between visibility recounts for park reputation. Construction changes refresh immediately.")]
         [Min(.05f)] public float reputationRefreshSeconds = 5f;
 
@@ -95,6 +115,12 @@ namespace Mythologicum
             mood ??= new VisitorMoodRules();
             mood.patienceSeconds = Mathf.Max(.1f, mood.patienceSeconds);
             mood.tiredDiscomfortThreshold = Mathf.Max(.1f, mood.tiredDiscomfortThreshold);
+            arrivalPathCellsPerFrame = Mathf.Max(1, arrivalPathCellsPerFrame);
+            attractionDecisionSeconds = Mathf.Max(.1f, VisitorInterests.Factor(attractionDecisionSeconds));
+            attractionVisitGapSeconds = VisitorInterests.NonNegative(attractionVisitGapSeconds);
+            attractionTravelPenalty = VisitorInterests.NonNegative(attractionTravelPenalty);
+            attractionPricePenalty = VisitorInterests.NonNegative(attractionPricePenalty);
+            if (typeSettings != null) foreach (var settings in typeSettings) settings?.Validate();
         }
     }
 }

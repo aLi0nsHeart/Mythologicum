@@ -14,6 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grass: {fileID: 2100000, guid: 3c65e2373b6af284f847827134285b8d, type: 2}
   cliff: {fileID: 2100000, guid: 6dd3ae3c3670a6f4e9cbee9bb51e8ab3, type: 2}
+  soil: {fileID: 0}
+  thicket: {fileID: 0}
+  stone: {fileID: 0}
+  sand: {fileID: 0}
+  water: {fileID: 0}
+  dirtTint: {r: 0.45, g: 0.29, b: 0.16, a: 1}
+  thicketTint: {r: 0.18, g: 0.32, b: 0.12, a: 1}
+  stoneTint: {r: 0.53, g: 0.55, b: 0.53, a: 1}
+  sandTint: {r: 0.82, g: 0.72, b: 0.44, a: 1}
+  waterTint: {r: 0.13, g: 0.47, b: 0.61, a: 0.7}
+  thicketCoverScale: 1.45
   borderTrees:
   - {fileID: 1542750965012025651, guid: 9e32f9589a1126343a06a9db454cd605, type: 3}
   forest:

@@ -38,6 +38,7 @@ namespace Mythologicum
         private CreatureWorld creatureWorld;
         private TreeConstruction trees;
         private GravestoneConstruction graves;
+        private ScarecrowConstruction scarecrows;
         private GroundVegetation groundVegetation;
         private CreatureInspection creatureInspection;
         private VisitorWorld visitorWorld;
@@ -69,7 +70,7 @@ namespace Mythologicum
         public EnvironmentGrid Environment { get; private set; }
         public EnclosureMap Enclosures => enclosureMap;
         public FenceLayout Barriers => fences?.Layout;
-        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone, MoveCreature, Terraform }
+        private enum Tool { None, Building, Path, Fence, Gate, Demolish, Creature, Tree, Gravestone, MoveCreature, Terraform, Scarecrow, ViewingWindow, WaterTrough, Cave }
         private Tool tool;
         private bool dragging;
         private readonly ConstructionRouteSelection<Vector2Int> pathSelection = new ConstructionRouteSelection<Vector2Int>();
@@ -162,6 +163,7 @@ namespace Mythologicum
             fences = new FenceConstruction(grid, fenceRoot.transform, fenceMaterial, entranceMaterial,
                 Resources.Load<FenceVisualCatalog>("Fences/FenceVisuals"), FenceBalanceDefinition.Current.rules);
             buildingConstruction = new BuildingConstruction(grid, fences.Layout, buildings.transform, buildingMaterial, entranceMaterial);
+            fences.ConfigurePettingEntrances(() => buildingConstruction.Network.Records);
             var vegetation = Resources.Load<VegetationDefinition>("Environment/Vegetation");
             Environment = new EnvironmentGrid(grid, vegetation != null ? vegetation.forestCoveragePerTree : .5f);
             creatureWorld = new CreatureWorld(grid, fences.Layout, buildingConstruction.Network, view, buildingMaterial, creatureCatalog, Environment);
@@ -171,6 +173,14 @@ namespace Mythologicum
             economy = new ParkEconomy(parkSettings.economy);
             visitorWorld = new VisitorWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, visitorSettings, economy,
                 new ParkReputation(parkSettings.reputation));
+            creatureWorld.ConfigureLuring(visitorWorld);
+            buildingConstruction.AttractionOccupancy = visitorWorld.AttractionOccupancy;
+            buildingConstruction.CanDemolish = visitorWorld.CanDemolishAttraction;
+            visitorWorld.ConfigureAttractionVisuals(buildingConstruction.AttractionVisualFor);
+            SceneTransition.ReportPreparation(.4f, "ui.loading.services");
+            var visitorPreparation = visitorWorld.PrepareModels(view);
+            try { while (visitorPreparation.MoveNext()) yield return visitorPreparation.Current; }
+            finally { (visitorPreparation as System.IDisposable)?.Dispose(); }
             staffWorld = new StaffWorld(grid, fences.Layout, buildingConstruction.Network, creatureWorld, economy,
                 visitorSettings.people != null ? visitorSettings.people : Resources.Load<PeopleDefinition>("People/People"), creatureCatalog);
             InitializeProgression();
@@ -178,10 +188,14 @@ namespace Mythologicum
             trees = new TreeConstruction(grid, Environment, treeRoot.transform, buildingMaterial, vegetation);
             var graveRoot = new GameObject("Graveyard gravestones"); graveRoot.transform.SetParent(buildings.transform);
             graves = new GravestoneConstruction(grid, Environment, graveRoot.transform, buildingMaterial);
+            var scarecrowRoot = new GameObject("Enrichment scarecrows"); scarecrowRoot.transform.SetParent(buildings.transform);
+            scarecrows = new ScarecrowConstruction(grid, Environment, scarecrowRoot.transform, buildingMaterial, buildings: buildingConstruction.Network);
             var rockRoot=new GameObject("Natural rocks");rockRoot.transform.SetParent(buildings.transform);
             rocks=new RockConstruction(grid,rockRoot.transform,terrainArt!=null&&terrainArt.cliff!=null?terrainArt.cliff:buildingMaterial,
-                mapOptions?.seed??ParkSaveStore.Pending?.terrain?.seed??grid.Terrain.Seed,cell=>trees.Occupies(cell)||graves.Occupies(cell));
+                mapOptions?.seed??ParkSaveStore.Pending?.terrain?.seed??grid.Terrain.Seed,cell=>trees.Occupies(cell)||graves.Occupies(cell)||scarecrows.Occupies(cell)||HabitatFeatureAt(cell));
             rocks.Changed+=grid.NotifyPhysicalChange;
+            CreateHabitatFeatures();
+            CreateSpecialEnclosures();
             SceneTransition.ReportPreparation(.55f,"ui.loading.forests");
             yield return null;
             SeedBorderForest();
@@ -200,9 +214,13 @@ namespace Mythologicum
                 actor => { staffWorld.RequestSedate(actor); }, BeginCreatureMove);
             creatureInspection.ConfigureResearch(staffWorld.Research.Description);
             buildingInspection = new BuildingInspection(SceneTransition.GameplayCanvas,status.font,staffWorld,staffWorld.Research,creatureCatalog);
+            buildingInspection.ConfigureAttractions(visitorWorld.AttractionOccupancy, visitorWorld.AttractionAvailabilityReason);
             visitorPresentation = new VisitorPresentation(SceneTransition.GameplayCanvas, status.font, visitorWorld, economy);
             enclosureMap = new EnclosureMap(grid, fences.Layout, Environment);
+            visitorWorld.ConfigureAttractions(staffWorld.Research, Progression, PettingEntrance);
+            staffWorld.AuthorizedPettingCreature = IsSafePettingCreature;
             enclosurePresentation = new EnclosurePresentation(enclosureMap, grid, SceneTransition.GameplayCanvas, status.font, groundMaterial);
+            enclosurePresentation.ConfigureSpecialEnclosures(specialEnclosureMap, specialEnclosures);
             SelectTool(Tool.None);
             foreach (BuildingDefinition definition in buildingCatalog)
                 if (definition.kind == BuildingKind.ParkEntrance) { SelectBuilding(definition); break; }
@@ -227,7 +245,9 @@ namespace Mythologicum
                 () => SelectTool(Tool.Gate),
                 () => SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish), OpenConstructionMenu,
                 creatureCatalog, SelectCreature, () => SelectTool(Tool.Tree), () => SelectTool(Tool.Gravestone),
-                SelectTerrainBrush,OpenParkManagement,OpenEncyclopedia,OpenPauseMenu);
+                SelectTerrainBrush,OpenParkManagement,OpenEncyclopedia,OpenPauseMenu,() => SelectTool(Tool.Scarecrow));
+            palette.ConfigureWindowTool(SelectViewingWindow);
+            palette.ConfigureHabitatTools(() => SelectTool(Tool.WaterTrough), () => SelectTool(Tool.Cave));
             status = palette.Status;
             CreateTerrainEditingUI(canvas);
             foreach (Text label in canvas.GetComponentsInChildren<Text>())
@@ -262,7 +282,7 @@ namespace Mythologicum
         {
             if (terrainStroke) ResetTerrainStroke();
             if (selected != Tool.MoveCreature) movingCreature = null;
-            if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone)
+            if ((selected == Tool.Path || selected == Tool.Fence || selected == Tool.Gate || selected == Tool.ViewingWindow || selected == Tool.Creature || selected == Tool.Tree || selected == Tool.Gravestone || selected == Tool.Scarecrow || selected == Tool.WaterTrough || selected == Tool.Cave)
                 && !buildingConstruction.Network.HasEntrance) return;
             tool = selected;
             GetComponent<IsometricCameraController>()?.StopFollowing();
@@ -309,12 +329,15 @@ namespace Mythologicum
             economy.Advance(Time.deltaTime);
             groundVegetation?.Refresh();
             buildingConstruction.Refresh(view);
+            specialEnclosures?.Tick(Time.deltaTime);
             using (CreatureTickProfile.Auto()) creatureWorld.Tick(Time.deltaTime);
             using (StaffTickProfile.Auto()) staffWorld.Tick(Time.deltaTime);
+            waterTroughs?.Refresh();
             Progression.Tick(Time.deltaTime);
             fences.Refresh(view);
             using (VisitorTickProfile.Auto()) visitorWorld.Tick(Time.deltaTime);
             BuildingEconomy.Tick(buildingConstruction.Network,economy,Time.deltaTime);
+            TickWindowEconomy(Time.deltaTime);
             using (InterfaceProfile.Auto())
             {
                 parkStatus?.Refresh();
@@ -350,7 +373,8 @@ namespace Mythologicum
                 if (GameInput.Pressed(GameplayAction.Terrain)) palette.Toggle(ConstructionCategory.Terrain);
                 if (GameInput.Pressed(GameplayAction.Demolish)) SelectTool(tool == Tool.Demolish ? Tool.None : Tool.Demolish);
                 if (GameInput.Pressed(GameplayAction.Gate)) SelectTool(tool == Tool.Gate ? Tool.None : Tool.Gate);
-                if (tool == Tool.Building && GameInput.Pressed(GameplayAction.RotateBuilding)) buildingRotation = (buildingRotation + 1) % 4;
+                if ((tool == Tool.Building || tool == Tool.ViewingWindow) && GameInput.Pressed(GameplayAction.RotateBuilding))
+                    buildingRotation = (buildingRotation + (selectedBuilding.kind == BuildingKind.PettingZoo || selectedBuilding.kind == BuildingKind.ViewingWindow ? 2 : 1)) % 4;
             }
             if (tool == Tool.None)
             {
@@ -369,6 +393,8 @@ namespace Mythologicum
                 : tool == Tool.MoveCreature ? Loc.Text("park.build_mode_controller.choose_a_reachable_drop_off_for_a_zookeeper_staff_gates_pr")
                 : tool == Tool.Tree ? Loc.Format("park.build_mode_controller.click_plant_tree_tool_remove_trees_esc_finish", GameInput.KeyCaption(GameplayAction.Demolish))
                 : tool == Tool.Gravestone ? Loc.Format("park.build_mode_controller.click_place_gravestone_tool_remove_gravestones_esc_finish", GameInput.KeyCaption(GameplayAction.Demolish))
+                : tool == Tool.Scarecrow ? Loc.Format("enclosure.scarecrow.controls", GameInput.KeyCaption(GameplayAction.Demolish))
+                : tool == Tool.ViewingWindow ? Loc.Text("attraction.window.controls")
                 : tool == Tool.Path
                     ? Loc.Text("park.build_mode_controller.click_a_start_tile_esc_cancel")
                     : tool == Tool.Fence
@@ -388,6 +414,11 @@ namespace Mythologicum
             if (!GroundHit(ray, out RaycastHit hit, view.farClipPlane)) { ResetStroke(); return; }
             if (tool == Tool.Fence) { ApplyFenceRoute(mouse, hit.point); return; }
             if (tool == Tool.Gate) { ApplyGate(mouse, hit.point); return; }
+            if (tool == Tool.ViewingWindow) { ApplyViewingWindow(mouse, hit.point); return; }
+            if (tool == Tool.Building && selectedBuilding.kind == BuildingKind.PettingZoo)
+            { ApplyPettingEntrance(mouse, hit.point); return; }
+            if (tool == Tool.Building && selectedBuilding.kind == BuildingKind.ViewingWindow)
+            { ApplyViewingWindow(mouse, hit.point); return; }
             Vector2Int cell = grid.WorldToCell(hit.point);
             if (!grid.Contains(cell)) { ResetStroke(); return; }
             if(tool==Tool.Terraform){ApplyTerrainBrush(mouse,hit.point);return;}
@@ -395,6 +426,9 @@ namespace Mythologicum
             if (tool == Tool.Creature) { ApplyCreature(mouse, cell); return; }
             if (tool == Tool.Tree) { ApplyTree(mouse, cell); return; }
             if (tool == Tool.Gravestone) { ApplyGravestone(mouse, cell); return; }
+            if (tool == Tool.Scarecrow) { ApplyScarecrow(mouse, cell); return; }
+            if (tool == Tool.WaterTrough) { ApplyWaterTrough(mouse, cell); return; }
+            if (tool == Tool.Cave) { ApplyCave(mouse, cell); return; }
             if (tool == Tool.MoveCreature) { ApplyCreatureMove(mouse,cell); return; }
             ApplyBuilding(mouse, cell);
         }
@@ -416,8 +450,9 @@ namespace Mythologicum
             if (!Progression.BuildingUnlocked(selectedBuilding.kind)) { SelectTool(Tool.None); return; }
             var footprint = new BuildingFootprint(selectedBuilding, cell, buildingRotation);
             bool valid = buildingConstruction.CanPlace(footprint) && !creatureWorld.Occupies(footprint);
-            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)||rocks.Occupies(occupied)) valid = false;
-            if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)||rocks.Occupies(footprint.AccessCell)) valid = false;
+            if (selectedBuilding.kind == BuildingKind.PettingZoo && !PettingFootprintValid(footprint)) valid = false;
+            foreach (Vector2Int occupied in footprint.Cells()) if (trees.Occupies(occupied) || graves.Occupies(occupied)||scarecrows.Occupies(occupied)||rocks.Occupies(occupied)||HabitatFeatureAt(occupied)) valid = false;
+            if (trees.Occupies(footprint.AccessCell) || graves.Occupies(footprint.AccessCell)||scarecrows.Occupies(footprint.AccessCell)||rocks.Occupies(footprint.AccessCell)||HabitatFeatureAt(footprint.AccessCell)) valid = false;
             bool affordable = economy.CanAfford(selectedBuilding.constructionCost);
             previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             Vector3 platform=buildingConstruction.PreviewPosition(footprint);
@@ -443,7 +478,7 @@ namespace Mythologicum
 
         private void ApplyTree(Mouse mouse, Vector2Int cell)
         {
-            bool valid = trees.CanPlace(cell);
+            bool valid = trees.CanPlace(cell) && !HabitatFeatureAt(cell);
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, trees.CreateVisual);
             if (!valid) status.text = Loc.Text("park.build_mode_controller.choose_clear_natural_ground_without_a_tree_path_or_buildin");
@@ -457,7 +492,7 @@ namespace Mythologicum
 
         private void ApplyGravestone(Mouse mouse, Vector2Int cell)
         {
-            bool valid = graves.CanPlace(cell);
+            bool valid = graves.CanPlace(cell) && !HabitatFeatureAt(cell);
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, graves.CreateVisual);
             if (!valid) status.text = Loc.Text("park.build_mode_controller.choose_clear_ground_without_a_tree_gravestone_path_or_buil");
@@ -469,12 +504,37 @@ namespace Mythologicum
             }
         }
 
+        private void ApplyScarecrow(Mouse mouse, Vector2Int cell)
+        {
+            bool valid = scarecrows.CanPlace(cell) && !HabitatFeatureAt(cell), affordable = economy.CanAfford(scarecrows.Cost);
+            previewMaterial.color = valid && affordable ? ValidPreviewColor : new Color(.95f, .15f, .12f);
+            ShowModelPreview(grid.CellCenter(cell), Quaternion.identity, scarecrows.CreateVisual);
+            if (!valid) status.text = Loc.Text("enclosure.scarecrow.blocked");
+            else if (!affordable) status.text = Loc.Format("park.build_mode_controller.not_enough_funds_need_enable_infinite_funds_to_build_freel", scarecrows.Cost);
+            else status.text += Loc.Format("park.build_mode_controller.cost", scarecrows.Cost);
+            if (valid && affordable && mouse.leftButton.wasPressedThisFrame && TryPlaceScarecrow(cell))
+            { modelPreview.SetActive(false); Destroy(modelPreview); modelPreview = null; }
+        }
+
+        private bool TryPlaceScarecrow(Vector2Int cell)
+        {
+            if (!buildingConstruction.Network.HasEntrance || !economy.CanAfford(scarecrows.Cost) || !scarecrows.CanPlace(cell) || HabitatFeatureAt(cell)) return false;
+            BeginConstructionAction("enclosure.scarecrow.place_action");
+            if (!scarecrows.TryPlace(cell)) { CancelConstructionAction(); return false; }
+            economy.TrySpend(scarecrows.Cost, ParkTransactionCategory.Construction);
+            CommitConstructionAction(scarecrows.Cost);
+            return true;
+        }
+
         private void ApplyCreature(Mouse mouse, Vector2Int cell)
         {
             if (Progression.Stock(selectedCreature.name) < 1) { SelectTool(Tool.None); return; }
-            bool valid = creatureWorld.CanSpawn(cell);
+            bool valid = creatureWorld.CanSpawn(selectedCreature,cell);
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
-            ShowModelPreview(grid.CellCenter(cell) + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
+            var previewPoint = grid.CellCenter(cell);
+            if (selectedCreature.Aquatic.IsSwimmable(grid,cell))
+                previewPoint.y = grid.Habitat.WaterLevel(cell) + selectedCreature.Aquatic.swimmingBodyOffset;
+            ShowModelPreview(previewPoint + Vector3.up * selectedCreature.bodyScale.y, Quaternion.identity,
                 parent => creatureWorld.CreateVisual(parent, selectedCreature, selectedCreature.visualPrefab, out _));
             if (!valid) status.text = Loc.Text("park.build_mode_controller.choose_clear_walkable_ground_away_from_other_creatures_or");
             if (valid && mouse.leftButton.wasPressedThisFrame && Progression.TryPlace(selectedCreature.name,
@@ -522,6 +582,25 @@ namespace Mythologicum
                 FollowInspectedObject(selected.transform, hit);
                 return true;
             }
+            var segment = hit.GetComponentInParent<FenceSegment>();
+            var trough = hit.GetComponentInParent<WaterTroughSelection>();
+            if (trough != null)
+            {
+                creatureInspection.Select(null); visitorPresentation.Select(null); enclosurePresentation.Select(null);
+                buildingInspection.SelectTrough(trough.Record, waterTroughs); FollowInspectedObject(trough.transform, hit); return true;
+            }
+            var pettingEntrance = segment != null ? FenceAttachedBuildingAt(segment.Edge) : null;
+            if (pettingEntrance != null)
+            {
+                creatureInspection.Select(null); visitorPresentation.Select(null); enclosurePresentation.Select(null);
+                buildingInspection.Select(pettingEntrance);
+                FollowInspectedObject(buildingConstruction.TransformFor(pettingEntrance), hit); return true;
+            }
+            if (segment != null && fences.Layout.WindowAt(segment.Edge) is FenceWindowRecord window)
+            {
+                creatureInspection.Select(null); visitorPresentation.Select(null); enclosurePresentation.Select(null);
+                buildingInspection.SelectWindow(window, fences.Layout); FollowInspectedObject(segment.transform, hit); return true;
+            }
             return false;
         }
 
@@ -531,7 +610,7 @@ namespace Mythologicum
             Physics.SyncTransforms();
             Collider body = target.GetComponent<Collider>();
             RectTransform info = target.GetComponent<VisitorAgent>() != null ? visitorPresentation.PanelRect
-                : target.GetComponent<BuildingSelection>() != null || target.GetComponent<StaffAgent>() != null
+                : target.GetComponent<BuildingSelection>() != null || target.GetComponent<StaffAgent>() != null || target.GetComponent<FenceSegment>() != null || target.GetComponent<WaterTroughSelection>() != null
                     ? buildingInspection.PanelRect : creatureInspection.PanelRect;
             info.GetComponent<UIFramedPanel>().Refresh();
             var corners=new Vector3[4];info.GetWorldCorners(corners);
@@ -558,7 +637,7 @@ namespace Mythologicum
             }
             previewMaterial.color = valid ? ValidPreviewColor : new Color(0.95f, 0.15f, 0.12f);
             ShowFencePreview(edge);
-            if (!valid) status.text = Loc.Text("park.build_mode_controller.choose_any_existing_fence_without_a_gate_its_protection_is");
+            if (!valid) status.text = Loc.Text("attraction.gate.conflict");
             if (valid && mouse.leftButton.wasPressedThisFrame)
             {
                 BeginConstructionAction("park.build_mode_controller.place_staff_gate");
@@ -570,7 +649,7 @@ namespace Mythologicum
         private bool CanPlace(Vector2Int cell)
         {
             if(!grid.GroundWalkable(cell,true))return false;
-            if (trees.Occupies(cell) || graves.Occupies(cell)||rocks.Occupies(cell)) return false;
+            if (trees.Occupies(cell) || graves.Occupies(cell)||scarecrows.Occupies(cell)||rocks.Occupies(cell)||HabitatFeatureAt(cell)) return false;
             Vector3 center = grid.CellCenter(cell) + Vector3.up * (buildingHeight / 2f);
             Vector3 halfExtents = new Vector3(cellSize / 2f - 0.01f, buildingHeight / 2f - 0.01f, cellSize / 2f - 0.01f);
             return grid.IsAvailable(cell) && !Physics.CheckBox(center, halfExtents,
@@ -594,6 +673,11 @@ namespace Mythologicum
                 node => ConstructionRouteGraph.FenceNeighbors(node, fences.Layout),
                 node => fences.CanPlace(node, selectedFenceKind), ConstructionRouteGraph.EdgeDistance, ShowFencePreview,
                 node => fences.TryPlace(node, selectedFenceKind));
+            if (tool == Tool.Fence && fences.CanPlace(edge, selectedFenceKind))
+            {
+                if (selectedFenceKind == FenceKind.Aviary) status.text += "\n" + Loc.Text("construction.aviary.hint");
+                if (selectedFenceKind == FenceKind.Aquarium) status.text += "\n" + Loc.Text("construction.aquarium.hint");
+            }
         }
 
         private void ApplyRoute<T>(Mouse mouse, T destination, ConstructionRouteSelection<T> selection,
@@ -670,6 +754,7 @@ namespace Mythologicum
             {
                 modelPreview = new GameObject("Placement model preview");
                 createVisual(modelPreview.transform);
+                foreach (var animation in modelPreview.GetComponentsInChildren<AttractionVisualAnimator>()) animation.enabled = false;
                 PreparePreview(modelPreview);
             }
             modelPreview.transform.SetPositionAndRotation(position, rotation);
@@ -704,6 +789,9 @@ namespace Mythologicum
         {
             if (!Physics.Raycast(view.ScreenPointToRay(pointer), out RaycastHit hit, view.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)) return null;
+            var segment = hit.collider.GetComponentInParent<FenceSegment>();
+            var entrance = segment != null ? FenceAttachedBuildingAt(segment.Edge) : null;
+            if (entrance != null) return buildingConstruction.TransformFor(entrance).GetComponent<DemolitionTarget>();
             return hit.collider.GetComponentInParent<DemolitionTarget>();
         }
 
@@ -711,6 +799,7 @@ namespace Mythologicum
         {
             Physics.SyncTransforms();
             DemolitionTarget target = TargetAt(pointer);
+            if (target != null && !target.CanDemolish) status.text = Loc.Text("attraction.demolition.in_use");
             if (target != null)
             {
                 Bounds bounds = target.GetComponent<Collider>().bounds;
@@ -725,7 +814,7 @@ namespace Mythologicum
             {
                 dragging = true;
                 previousPointer = pointer;
-                if (target != null) { ResetConstructionHistory("park.build_mode_controller.demolition_clears_construction_undo_history"); target.Demolish(); }
+                if (target != null && target.CanDemolish) { ResetConstructionHistory("park.build_mode_controller.demolition_clears_construction_undo_history"); target.Demolish(); }
                 preview.SetActive(false);
                 return;
             }
@@ -736,7 +825,7 @@ namespace Mythologicum
             for (int i = 1; i <= samples; i++)
             {
                 DemolitionTarget selected = TargetAt(Vector2.Lerp(previousPointer, pointer, (float)i / samples));
-                if (selected != null) { ResetConstructionHistory("park.build_mode_controller.demolition_clears_construction_undo_history"); selected.Demolish(); }
+                if (selected != null && selected.CanDemolish) { ResetConstructionHistory("park.build_mode_controller.demolition_clears_construction_undo_history"); selected.Demolish(); }
             }
             previousPointer = pointer;
             preview.SetActive(false);
@@ -749,8 +838,9 @@ namespace Mythologicum
 
         private void OnDestroy()
         {
-            DisposeTerrain();fences?.Dispose();
+            specialEnclosures?.Dispose();DisposeTerrain();fences?.Dispose();
             terrainEditing?.Dispose();rocks?.Dispose();
+            waterTroughs?.Dispose(); shelters?.Dispose(); habitatSurface?.Dispose();
             if(terrainCursor!=null)Destroy(terrainCursor.gameObject);
             if(terrainCursorMaterial!=null)Destroy(terrainCursorMaterial);
             management?.Dispose();
@@ -767,6 +857,7 @@ namespace Mythologicum
             groundVegetation?.Dispose();
             trees?.Dispose();
             graves?.Dispose();
+            scarecrows?.Dispose();
             creatureWorld?.Dispose();
             enclosurePresentation?.Dispose();
             foreach (GameObject item in routePreviews)
@@ -784,6 +875,7 @@ namespace Mythologicum
             if (pathMaterial != null) Destroy(pathMaterial);
             if (fenceMaterial != null) Destroy(fenceMaterial);
             if (entranceMaterial != null) Destroy(entranceMaterial);
+            AttractionVisuals.ReleaseSharedMaterials();
             if (ownsVisitorSettings && visitorSettings != null) Destroy(visitorSettings);
         }
     }

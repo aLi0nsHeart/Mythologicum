@@ -13,11 +13,17 @@ MonoBehaviour:
   m_Name: Hitotsume
   m_EditorClassIdentifier: 
   displayName: creature.name.hitotsume
+  visitorAppeal:
+    thrill: 0.45
+    wonder: 0.8
+    adventure: 0.7
+    children: 0.9
   diet: 3
   tags: 2
   preyTags: 4
   fearedTags: 0
   manuallyPlaceable: 1
+  pettable: 0
   rating: 1
   initialHunger: 45
   hungerPerSecond: 0.8
@@ -72,6 +78,11 @@ MonoBehaviour:
   damage: 0
   origin: creature.origin.yokai
   feedsOnFear: 1
+  canUseScarecrows: 1
+  scareApproachDistance: 1.5
+  scareJumpHeight: 1.4
+  scareJumpForward: 0.65
+  scareJumpSquash: 0.25
   threat: 20
   requiredGravestones: 0
   scareSeconds: 1.5
@@ -82,3 +93,32 @@ MonoBehaviour:
   scareRange: 6
   maximumHealth: 80
   randomEscapeChance: 0.12
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.06
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences:
+    - biome: 2
+      minimumFraction: 0.20
+      maximumFraction: 1
+      weight: 1
+    - biome: 0
+      minimumFraction: 0.20
+      maximumFraction: 1
+      weight: 1
+  shelter:
+    mode: 3
+    requiredForSleep: 0
+    retreatWhenAfraid: 1
+    searchRadius: 32
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

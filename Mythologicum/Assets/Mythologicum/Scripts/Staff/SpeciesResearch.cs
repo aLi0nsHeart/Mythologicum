@@ -80,16 +80,27 @@ namespace Mythologicum
             int stages = UnlockedStages(species);
             text.Append(Loc.Format("research.creature.knowledge", species.DisplayName, Progress(species)));
             if (stages < 1) text.Append(Loc.Text("research.creature.observe"));
-            else text.Append(Loc.Text(species.feedsOnFear || species.diet == CreatureDiet.Fear ? "research.creature.food.fear"
-                : species.diet == CreatureDiet.Carnivore ? "research.creature.food.carnivore"
+            else text.Append(Loc.Text(!species.needsFood ? "research.creature.food.none"
+                : species.feedsOnFear || species.diet == CreatureDiet.Fear ? "research.creature.food.fear"
+                : species.diet == CreatureDiet.Carnivore ? species.Aquatic.dragPreyToWater
+                    ? "research.creature.food.water_hunter" : "research.creature.food.carnivore"
                 : species.diet == CreatureDiet.Herbivore ? "research.creature.food.herbivore" : "research.creature.food.none"));
             if (stages >= 2)
             {
-                if (species.requiredTrees > 0) text.Append(Loc.Format("research.creature.habitat.trees", species.requiredTrees));
+                if (species.Aquatic.canSwim && species.Aquatic.preferredWaterArea > 0)
+                    text.Append(Loc.Format("research.creature.habitat.water", species.Aquatic.preferredWaterArea, species.Aquatic.minimumSwimDepth));
+                else if (species.requiredTrees > 0) text.Append(Loc.Format("research.creature.habitat.trees", species.requiredTrees));
                 else if (species.requiredGravestones > 0) text.Append(Loc.Format("research.creature.habitat.graves", species.requiredGravestones));
                 else text.Append(Loc.Text("research.creature.habitat.none"));
-                text.Append(Loc.Text(species.requiresGravestoneForSleep ? "research.creature.sleep.grave"
-                    : species.requiresTreeForSleep ? "research.creature.sleep.tree" : "research.creature.sleep.ground"));
+                if (species.minimumOpenGroundFraction > 0f)
+                    text.Append(Loc.Format("research.creature.habitat.meadow", species.minimumOpenGroundFraction * 100f));
+                var shelter = species.Shelter.mode;
+                text.Append(Loc.Text(shelter == CreatureShelterMode.Water ? "research.creature.sleep.water"
+                    : shelter == CreatureShelterMode.Cave ? "research.creature.sleep.cave"
+                    : shelter == CreatureShelterMode.Burrow ? "research.creature.sleep.burrow"
+                    : shelter == CreatureShelterMode.Gravestone ? "research.creature.sleep.grave"
+                    : shelter == CreatureShelterMode.TreeCanopy ? "research.creature.sleep.tree"
+                    : shelter == CreatureShelterMode.TreeShade ? "research.creature.sleep.shade" : "research.creature.sleep.ground"));
             }
             if (stages >= 3)
             {
@@ -101,9 +112,16 @@ namespace Mythologicum
             }
             if (stages >= 4)
             {
-                if (species.canPhaseFences) text.Append(Loc.Format("research.creature.containment.phase", species.phaseHungerThreshold));
+                if (species.Flight.canFly) text.Append(Loc.Text("research.creature.containment.flight"));
+                if (species.Stalking.enabled) text.Append(Loc.Text("research.creature.behaviour.stalking"));
+                if (species.Lure.enabled) text.Append(Loc.Text("research.creature.behaviour.luring"));
+                if (species.Aquatic.canSwim) text.Append(Loc.Text("research.creature.containment.water"));
+                if (species.canPhaseFences) text.Append(species.needsFood
+                    ? Loc.Format("research.creature.containment.phase", species.phaseHungerThreshold)
+                    : Loc.Text("research.creature.containment.phase_no_hunger"));
                 if (species.canBreakFences) text.Append(Loc.Text("research.creature.containment.break"));
                 if (species.canClimbWoodenFences) text.Append(Loc.Text("research.creature.containment.climb"));
+                if (species.canBurrowFences) text.Append(Loc.Text("research.creature.containment.burrow"));
                 text.Append(Loc.Text("research.creature.escape_pressure"));
             }
             else text.Append(Loc.Format("research.creature.next", NextDiscovery(species)));

@@ -13,6 +13,9 @@ namespace Mythologicum
         private readonly ParkEconomy economy;
         private readonly PeopleDefinition people;
         private readonly StaffNavigation navigation;
+        private readonly List<Vector2Int> workCells;
+        private readonly Queue<Vector2Int> workPending;
+        private readonly HashSet<Vector2Int> workVisited;
         private readonly CreatureNavigation groundNavigation;
         private readonly Dictionary<StaffRole, CreatureDefinition> profiles = new Dictionary<StaffRole, CreatureDefinition>();
         private readonly List<StaffAgent> workers = new List<StaffAgent>();
@@ -25,6 +28,7 @@ namespace Mythologicum
         public SpeciesResearch Research { get; }
         public IReadOnlyList<StaffAgent> Staff => workers;
         public ParkProgression Progression { get; set; }
+        public Func<CreatureAgent, bool> AuthorizedPettingCreature { get; set; }
         private float Efficiency => Progression?.StaffEfficiency ?? 1f;
         public bool StartTechnology(ParkBuildingRecord home, string id)
         {
@@ -41,6 +45,10 @@ namespace Mythologicum
             this.tuning = tuning ?? Resources.Load<StaffDefinition>("Staff/DefaultStaff");
             if (this.tuning == null) { this.tuning = ScriptableObject.CreateInstance<StaffDefinition>(); ownsTuning = true; }
             navigation = new StaffNavigation(grid, fences, creatures.IsClear);
+            int capacity = checked(grid.Width * grid.Depth);
+            workCells = new List<Vector2Int>(capacity);
+            workPending = new Queue<Vector2Int>(capacity);
+            workVisited = new HashSet<Vector2Int>(capacity);
             groundNavigation = new CreatureNavigation(grid, fences, creatures.IsClear);
             Research = new SpeciesResearch(species, this.tuning.discoveries);
         }
@@ -52,7 +60,7 @@ namespace Mythologicum
                 || home.HiredCount >= home.Footprint.Definition.staffCapacity || !economy.CanAfford(home.Footprint.Definition.hireCost)) return false;
             StaffRole role = RoleFor(home.Footprint.Definition.kind);
             CreatureAgent actor = null;
-            foreach (Vector2Int cell in navigation.Reachable(home.Footprint.AccessCell))
+            foreach (Vector2Int cell in ReachableWorkCells(home.Footprint.AccessCell))
             {
                 if (ConstructionRouteGraph.CellDistance(home.Footprint.AccessCell, cell) > tuning.hiringSpawnRadiusCells) continue;
                 if (!creatures.CanSpawn(cell)) continue;
@@ -137,6 +145,7 @@ namespace Mythologicum
         public void Tick(float dt)
         {
             if (dt <= 0f || float.IsNaN(dt) || float.IsInfinity(dt)) return;
+            workQueryTime += dt;
             Buildings.Refresh(); RefreshRoutes(); TickShots(dt);
             for (int i = workers.Count - 1; i >= 0; i--)
             {
@@ -170,7 +179,6 @@ namespace Mythologicum
                     Work(worker, dt);
                 }
                 Move(worker, dt);
-                actor.ExternalStatus = worker.Status;
                 creatures.RefreshExternal(actor);
             }
         }
@@ -218,8 +226,10 @@ namespace Mythologicum
         }
         private void ClearJob(StaffAgent worker)
         {
+            workApproaches.Remove(worker);
             if (worker.Target != null && worker.Target.CarriedBy == worker.Actor) creatures.CancelCarry(worker.Target);
             worker.Target = null; worker.Fence = null; worker.Feeder = null; worker.Destination = null; worker.MeetingPoint = null;
+            worker.WaterTrough = null;
             worker.ActionTimer = 0f;
             if (worker.Actor != null) { worker.Actor.Route.Clear(); worker.Actor.Goal = null; }
             SetStatus(worker, StaffTask.Idle, "staff.status.ready_for_work");
@@ -231,7 +241,6 @@ namespace Mythologicum
             {
                 worker.Actor.Activity = task == StaffTask.Fleeing ? CreatureActivity.Fleeing
                     : task == StaffTask.Hunting || task == StaffTask.Retiring ? CreatureActivity.Hunting : CreatureActivity.Wandering;
-                worker.Actor.ExternalStatus = status;
             }
         }
         private bool Claimed(CreatureAgent target, StaffAgent except)
@@ -246,6 +255,12 @@ namespace Mythologicum
                 if (worker.Actor.Route.Count > 0 && !navigation.CanCross(worker.Actor.Cell, worker.Actor.Route[0]))
                 { worker.Actor.Route.Clear(); worker.Actor.Goal = null; worker.Actor.transform.position = Position(worker.Actor, worker.Actor.Cell); }
             }
+        }
+        // Staff queries consume this list synchronously; no worker retains it.
+        private List<Vector2Int> ReachableWorkCells(Vector2Int start, bool pathsOnly = false)
+        {
+            navigation.FillReachable(start, pathsOnly, workCells, workPending, workVisited);
+            return workCells;
         }
         private bool SetGoal(StaffAgent worker, Vector2Int target, bool pathsOnly = false)
         {

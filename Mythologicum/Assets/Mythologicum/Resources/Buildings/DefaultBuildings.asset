@@ -237,3 +237,483 @@ MonoBehaviour:
     hireCost: 50
     feederCapacity: 6
     restockCost: 12
+  - kind: 8
+    displayName: attraction.petting_zoo.name
+    width: 1
+    depth: 1
+    height: 2
+    openColor: {r: 0.55, g: 0.75, b: 0.4, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 350
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 12
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 6
+    attraction:
+      kind: 1
+      appeal:
+        thrill: 0.15
+        wonder: 0.5
+        adventure: 0.35
+        children: 1
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 1
+      requiresPettableCreatures: 1
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 9
+    displayName: attraction.viewing_tower.name
+    width: 3
+    depth: 3
+    height: 9
+    openColor: {r: 0.55, g: 0.47, b: 0.3, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 550
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 12
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 8
+    attraction:
+      kind: 2
+      appeal:
+        thrill: 0.45
+        wonder: 0.85
+        adventure: 0.9
+        children: 0.45
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 24
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 0
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 7
+      rideRadius: 4
+      entrySeconds: 5
+      exitSeconds: 4
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 10
+    displayName: attraction.balloon_ride.name
+    width: 4
+    depth: 4
+    height: 4
+    openColor: {r: 0.75, g: 0.37, b: 0.22, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 1400
+    operatingCostPerSecond: 0.18
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 35
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 25
+    attraction:
+      kind: 3
+      appeal:
+        thrill: 0.65
+        wonder: 1
+        adventure: 0.95
+        children: 0.6
+      satisfactionReward: 20
+      revisitSeconds: 120
+      exhibitRadius: 36
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 0
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 40
+      rideHeight: 16
+      rideRadius: 10
+      entrySeconds: 3
+      exitSeconds: 3
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 11
+    displayName: attraction.predator_feeding_gallery.name
+    width: 4
+    depth: 2
+    height: 3
+    openColor: {r: 0.64, g: 0.38, b: 0.25, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 650
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 16
+    serviceCapacity: 5
+    restRecoveryPerSecond: 10
+    attractionPrice: 12
+    attraction:
+      kind: 4
+      appeal:
+        thrill: 1
+        wonder: 0.25
+        adventure: 0.7
+        children: 0.15
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 1
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 1
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 12
+    displayName: attraction.trickster_theatre.name
+    width: 4
+    depth: 3
+    height: 3
+    openColor: {r: 0.62, g: 0.4, b: 0.75, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 500
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 15
+    serviceCapacity: 6
+    restRecoveryPerSecond: 10
+    attractionPrice: 8
+    attraction:
+      kind: 5
+      appeal:
+        thrill: 0.8
+        wonder: 0.55
+        adventure: 0.35
+        children: 0.95
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 1
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 1
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 13
+    displayName: attraction.cabinet_of_curiosities.name
+    width: 3
+    depth: 3
+    height: 3
+    openColor: {r: 0.35, g: 0.65, b: 0.68, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 450
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 12
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 7
+    attraction:
+      kind: 6
+      appeal:
+        thrill: 0.2
+        wonder: 1
+        adventure: 0.7
+        children: 0.5
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 0
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 14
+    displayName: attraction.expedition_pavilion.name
+    width: 4
+    depth: 3
+    height: 3
+    openColor: {r: 0.57, g: 0.66, b: 0.35, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 500
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 12
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 9
+    attraction:
+      kind: 7
+      appeal:
+        thrill: 0.4
+        wonder: 0.65
+        adventure: 1
+        children: 0.35
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 0
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12
+  - kind: 15
+    displayName: attraction.clockwork_carousel.name
+    width: 3
+    depth: 3
+    height: 3
+    openColor: {r: 0.85, g: 0.65, b: 0.3, a: 1}
+    visualPrefab: {fileID: 0}
+    visualYaw: 0
+    useVisualCatalogFallback: 0
+    entranceColumn: -1
+    constructionCost: 400
+    operatingCostPerSecond: 0.06
+    admissionPrice: 15
+    restPrice: 0
+    foodPrice: 0
+    foodRelief: 65
+    serviceSeconds: 12
+    serviceCapacity: 4
+    restRecoveryPerSecond: 10
+    attractionPrice: 4
+    attraction:
+      kind: 8
+      appeal:
+        thrill: 0.25
+        wonder: 0.65
+        adventure: 0.2
+        children: 1
+      satisfactionReward: 12
+      revisitSeconds: 60
+      exhibitRadius: 12
+      exhibitBonus: 1
+      noveltyBonus: 0.5
+      feedingBonus: 0.5
+      requiresCreatures: 0
+      requiresPettableCreatures: 0
+      requiresDangerousCreatures: 0
+      requiresFearFeeder: 0
+      maximumCreatureThreat: 10
+      minimumInterest: 0.15
+      decisionWeight: 14
+      maximumPrice: 20
+      rideHeight: 8
+      rideRadius: 4
+      entrySeconds: 1.5
+      exitSeconds: 1.5
+      boardingWindowSeconds: 5
+      passengerSpacing: 0.65
+      balloonAscentFraction: 0.2
+      carouselTurns: 1
+      scareFoodRelief: 30
+      scareCooldownSeconds: 10
+    dispensedCreature: {fileID: 0}
+    dispenseInterval: 20
+    maximumDispensed: 12
+    dispenseSearchSteps: 2
+    staffCapacity: 0
+    staffSalaryPerSecond: 0.12
+    hireCost: 50
+    feederCapacity: 6
+    restockCost: 12

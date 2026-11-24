@@ -19,6 +19,11 @@ namespace Mythologicum
         private int lastRevision = -1;
         private int lastTerrainRevision=-1;
         private bool inspecting = true;
+        private SpecialEnclosureMap specialMap;
+        private SpecialEnclosureConstruction specialConstruction;
+
+        public void ConfigureSpecialEnclosures(SpecialEnclosureMap map, SpecialEnclosureConstruction construction)
+        { specialMap = map; specialConstruction = construction; }
 
         public EnclosurePresentation(EnclosureMap map, SquareBuildGrid grid, Canvas canvas, Font font, Material groundMaterial)
         {
@@ -94,6 +99,17 @@ namespace Mythologicum
             frame.Refresh();
             EnvironmentStats stats = selected.Environment;
             information.text = Loc.Format("park.enclosure_presentation.enclosure_area_m_tiles_forest_coverage_gates_click_elsewhe", selected.Id, (selected.IsSecured ? Loc.Text("park.enclosure_presentation.secured_perimeter") : Loc.Text("park.enclosure_presentation.unsecured_fence_gap")), stats.Area, stats.Tiles, stats.ForestPercent, selected.GateCount, (selected.HasStaffAccess ? Loc.Text("park.enclosure_presentation.staff_access_connected") : Loc.Text("park.enclosure_presentation.staff_access_no_park_path")));
+            if (selectedCell.HasValue && specialMap != null)
+            {
+                Vector2Int cell = selectedCell.Value;
+                if (specialMap.IsAviary(cell)) information.text += Loc.Text("special.enclosure.aviary");
+                if (specialMap.IsAquarium(cell))
+                {
+                    string blocked = specialConstruction?.StatusAt(cell);
+                    information.text += string.IsNullOrEmpty(blocked)
+                        ? Loc.Text("special.enclosure.aquarium") : "\n" + blocked;
+                }
+            }
         }
 
         private void RebuildHighlight()

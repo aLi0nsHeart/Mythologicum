@@ -403,6 +403,9 @@ public static class SteampunkUIIntegrationValidation
         creatures.RefreshExternal(guest.Actor);
         CheckNoWorldLabels("Buildings, staff, visitors and creatures");
         checks += ParkOperationsNativeChecks.Run(controller);
+        var undoInputChecks = ConstructionUndoInputNativeChecks.Run(controller, Check);
+        try { while (undoInputChecks.MoveNext()) yield return undoInputChecks.Current; }
+        finally { (undoInputChecks as IDisposable)?.Dispose(); }
         var overlayChecks = Field<ParkOverlayPresentation>(controller, "overlays");
         overlayChecks.SetMode(ParkOverlayMode.PathConnections);
         yield return null;
@@ -600,6 +603,9 @@ public static class SteampunkUIIntegrationValidation
         Capture("Encyclopedia-Management-Ultrawide", book, 2560, 1080);
         Check(controller.CloseManagementWindow() && !encyclopedia.IsOpen,
             "The normal management-window close route dismisses the encyclopedia");
+        // The research panel defaults to the first species; additions to the roster
+        // must not replace the fully researched profile used by this overflow case.
+        controller.Personnel.SetResearchTarget(records[BuildingKind.ResearchCentre], chupacabra);
         buildingInfo.Select(records[BuildingKind.ResearchCentre]);
         yield return null;
         RefreshResponsiveInspectors();
@@ -828,10 +834,13 @@ public static class SteampunkUIIntegrationValidation
             "An explicitly configured zero uphill cost survives native JSON save and restore");
 
         string catalogBefore = JsonUtility.ToJson(catalog);
+        var viewingWindow = ViewingWindowDefinition.Current;
+        string viewingWindowBefore = JsonUtility.ToJson(viewingWindow);
         var runtime = catalog.CreateRuntimeCatalog();
         foreach (var item in runtime)
         {
-            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            var original = item.kind == BuildingKind.ViewingWindow ? viewingWindow.CreateBuildingDefinition()
+                : catalog.buildings.Single(source => source.kind == item.kind);
             Check(!ReferenceEquals(item, original) && item.width == original.width && item.depth == original.depth
                 && Near(item.height, original.height) && Near(item.constructionCost, original.constructionCost)
                 && Near(item.operatingCostPerSecond, original.operatingCostPerSecond),
@@ -843,7 +852,8 @@ public static class SteampunkUIIntegrationValidation
         visuals.ApplyTo(runtime);
         foreach (var item in runtime)
         {
-            var original = catalog.buildings.Single(source => source.kind == item.kind);
+            var original = item.kind == BuildingKind.ViewingWindow ? viewingWindow.CreateBuildingDefinition()
+                : catalog.buildings.Single(source => source.kind == item.kind);
             Check(item.width == original.width + 1 && item.depth == original.depth && Near(item.height, original.height)
                 && item.entranceColumn == original.entranceColumn && Near(item.constructionCost, original.constructionCost + 17f),
                 "Visual binding preserves edited building geometry, doors and balance values: " + item.kind);
@@ -856,6 +866,8 @@ public static class SteampunkUIIntegrationValidation
             "Explicit building prefab and rotation choices take precedence over appearance fallbacks");
         Check(JsonUtility.ToJson(catalog) == catalogBefore,
             "Runtime catalogue edits do not modify the designer's building asset");
+        Check(JsonUtility.ToJson(viewingWindow) == viewingWindowBefore,
+            "Runtime catalogue edits do not modify the designer's shared viewing-window asset");
         var customBuilding = catalog.buildings.First(item => item.IsEmployeeBuilding).Copy();
         customBuilding.staffCapacity = 9;
         customBuilding.staffSalaryPerSecond = 2f;

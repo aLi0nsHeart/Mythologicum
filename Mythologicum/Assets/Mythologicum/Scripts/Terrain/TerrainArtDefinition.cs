@@ -15,6 +15,11 @@ namespace Mythologicum
     public sealed class TerrainArtDefinition : ScriptableObject
     {
         public Material grass,cliff,soil;
+        [Header("Painted habitats (optional materials; empty uses tinted existing ground art)")]
+        public Material thicket,stone,sand,water;
+        public Color dirtTint=new Color(.45f,.29f,.16f),thicketTint=new Color(.18f,.32f,.12f),stoneTint=new Color(.53f,.55f,.53f),sandTint=new Color(.82f,.72f,.44f);
+        public Color waterTint=new Color(.13f,.47f,.61f,.7f);
+        [Min(1f)] public float thicketCoverScale=1.45f;
         public GameObject[] borderTrees = Array.Empty<GameObject>();
         public ForestBorderSettings forest = new ForestBorderSettings();
     }

@@ -5,7 +5,8 @@ using UnityEngine;
 namespace Mythologicum
 {
     public enum BuildingKind { ParkEntrance, ExpeditionCentre, Kiosk, GoatDispenser, RestArea,
-        ResearchCentre, MercenaryHQ, ZookeeperHut }
+        ResearchCentre, MercenaryHQ, ZookeeperHut, PettingZoo, ViewingTower, BalloonRide, PredatorFeedingGallery,
+        TricksterTheatre, CabinetOfCuriosities, ExpeditionPavilion, ClockworkCarousel, ViewingWindow }
 
     [Serializable]
     public sealed class BuildingDefinition
@@ -47,6 +48,11 @@ namespace Mythologicum
         [Min(1)] public int serviceCapacity = 2;
         [Tooltip("Rest points recovered per simulation second while using a rest area (0-100 scale).")]
         [Min(0f)] public float restRecoveryPerSecond = 10f;
+        [Header("Paid attractions")]
+        [Min(0), Tooltip("Starting price of a completed attraction visit. Placed attractions retain their chosen price.")]
+        public float attractionPrice = 6f;
+        public AttractionDefinition attraction = new AttractionDefinition();
+        public bool IsAttraction => attraction != null && attraction.kind != AttractionKind.None;
         [Tooltip("Optional creature profile released by a dispenser. Defaults to the goat profile.")]
         public CreatureDefinition dispensedCreature;
         [Tooltip("Simulation seconds between dispenser release attempts. One supply unit is consumed by each successful release.")]
@@ -69,9 +75,14 @@ namespace Mythologicum
         public bool RequiresPathConnection => kind != BuildingKind.GoatDispenser;
         public bool IsEmployeeBuilding => kind == BuildingKind.ResearchCentre || kind == BuildingKind.MercenaryHQ
             || kind == BuildingKind.ZookeeperHut;
-        public bool CanSetPrice => kind == BuildingKind.ParkEntrance || kind == BuildingKind.Kiosk || kind == BuildingKind.RestArea;
+        public bool CanSetPrice => kind == BuildingKind.ParkEntrance || kind == BuildingKind.Kiosk || kind == BuildingKind.RestArea || IsAttraction;
 
-        public BuildingDefinition Copy() => (BuildingDefinition)MemberwiseClone();
+        public BuildingDefinition Copy()
+        {
+            var copy = (BuildingDefinition)MemberwiseClone();
+            copy.attraction = attraction?.Copy() ?? new AttractionDefinition();
+            return copy;
+        }
 
         public void Validate()
         {
@@ -86,6 +97,7 @@ namespace Mythologicum
             dispenseSearchSteps = Math.Max(1, dispenseSearchSteps); staffCapacity = Math.Max(0, staffCapacity);
             staffSalaryPerSecond = Amount(staffSalaryPerSecond); hireCost = Amount(hireCost);
             feederCapacity = Math.Max(1, feederCapacity); restockCost = Amount(restockCost);
+            attractionPrice = Amount(attractionPrice); attraction?.Validate();
         }
 
         private static float Amount(float value) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Math.Max(0f, value);
@@ -116,7 +128,16 @@ namespace Mythologicum
                 operatingCostPerSecond = .08f, staffSalaryPerSecond = .20f }, // 4.8 base + 12 per mercenary / minute.
             new BuildingDefinition { kind = BuildingKind.ZookeeperHut, displayName = "park.building_definition.zookeeper_station", width = 4, depth = 2,
                 height = 4f, openColor = new Color(.46f,.64f,.42f), constructionCost = 350f,
-                operatingCostPerSecond = .06f, staffSalaryPerSecond = .10f } // 3.6 base + 6 per keeper / minute.
+                operatingCostPerSecond = .06f, staffSalaryPerSecond = .10f }, // 3.6 base + 6 per keeper / minute.
+            AttractionDefinition.Building(BuildingKind.PettingZoo),
+            AttractionDefinition.Building(BuildingKind.ViewingTower),
+            AttractionDefinition.Building(BuildingKind.BalloonRide),
+            AttractionDefinition.Building(BuildingKind.PredatorFeedingGallery),
+            AttractionDefinition.Building(BuildingKind.TricksterTheatre),
+            AttractionDefinition.Building(BuildingKind.CabinetOfCuriosities),
+            AttractionDefinition.Building(BuildingKind.ExpeditionPavilion),
+            AttractionDefinition.Building(BuildingKind.ClockworkCarousel),
+            AttractionDefinition.Building(BuildingKind.ViewingWindow)
         };
     }
 
@@ -125,22 +146,49 @@ namespace Mythologicum
         public BuildingDefinition Definition { get; }
         public Vector2Int Anchor { get; }
         public int Rotation { get; }
+        public bool IsFenceMounted { get; }
+        public bool RequiresFoundation => !IsFenceMounted || Definition.kind == BuildingKind.ViewingWindow;
         public int Width => Rotation % 2 == 0 ? Definition.width : Definition.depth;
         public int Depth => Rotation % 2 == 0 ? Definition.depth : Definition.width;
         // One exterior path cell, immediately in front of the dedicated door.
-        public Vector2Int AccessCell => Anchor + Rotate(new Vector2Int(Definition.DoorColumn, -1));
-        public Vector2Int DoorCell => Anchor + Rotate(new Vector2Int(Definition.DoorColumn, 0));
-        public FenceEdge EntranceEdge => DoorCell.x == AccessCell.x
+        public Vector2Int AccessCell => IsFenceMounted ? Anchor : Anchor + Rotate(new Vector2Int(Definition.DoorColumn, -1));
+        public Vector2Int DoorCell => IsFenceMounted ? Anchor : Anchor + Rotate(new Vector2Int(Definition.DoorColumn, 0));
+        // The petting entrance is a two-sided portal: public paths use the front,
+        // while authorized visitors step onto clear enclosure ground at the rear.
+        public Vector2Int RearAccessCell => IsFenceMounted ? Anchor + InwardDirection : Anchor + Rotate(new Vector2Int(Definition.DoorColumn, Definition.depth));
+        public Vector2Int InsideAccessCell => RearAccessCell;
+        public Vector2Int RearDoorCell => IsFenceMounted ? Anchor : Anchor + Rotate(new Vector2Int(Definition.DoorColumn, Definition.depth - 1));
+        public FenceEdge RearEdge => RearDoorCell.x == RearAccessCell.x
+            ? new FenceEdge(new Vector2Int(RearDoorCell.x, Math.Max(RearDoorCell.y, RearAccessCell.y)), true)
+            : new FenceEdge(new Vector2Int(Math.Max(RearDoorCell.x, RearAccessCell.x), RearDoorCell.y), false);
+        public FenceEdge EntranceEdge => IsFenceMounted ? RearEdge : DoorCell.x == AccessCell.x
             ? new FenceEdge(new Vector2Int(DoorCell.x, Math.Max(DoorCell.y, AccessCell.y)), true)
             : new FenceEdge(new Vector2Int(Math.Max(DoorCell.x, AccessCell.x), DoorCell.y), false);
 
-        public BuildingFootprint(BuildingDefinition definition, Vector2Int anchor, int rotation)
+        public Vector2Int InwardDirection => Rotation == 0 ? Vector2Int.up : Rotation == 1 ? Vector2Int.left
+            : Rotation == 2 ? Vector2Int.down : Vector2Int.right;
+        public Vector2Int AlongFenceDirection => Rotation == 0 ? Vector2Int.right : Rotation == 1 ? Vector2Int.up
+            : Rotation == 2 ? Vector2Int.left : Vector2Int.down;
+
+        /// <summary>Boundary segments occupied by this entrance or enclosed viewing bay.</summary>
+        public IEnumerable<FenceEdge> AttachmentEdges()
+        {
+            int count = IsFenceMounted && Definition.kind == BuildingKind.ViewingWindow ? Definition.width : 1;
+            var first = RearEdge;
+            for (int column = 0; column < count; column++)
+                yield return new FenceEdge(first.Start + AlongFenceDirection * column, first.AlongX);
+        }
+
+        public BuildingFootprint(BuildingDefinition definition, Vector2Int anchor, int rotation, bool fenceMounted = false)
         {
             if (definition == null || definition.width < 1 || definition.depth < 1)
                 throw new ArgumentException("Building dimensions must be positive.");
+            if (fenceMounted && definition.kind != BuildingKind.PettingZoo && definition.kind != BuildingKind.ViewingWindow)
+                throw new ArgumentException("Only a petting-zoo entrance or viewing window can be mounted on a fence.");
             Definition = definition;
             Anchor = anchor;
             Rotation = ((rotation % 4) + 4) % 4;
+            IsFenceMounted = fenceMounted;
         }
 
         private Vector2Int Rotate(Vector2Int cell)
@@ -154,17 +202,47 @@ namespace Mythologicum
             }
         }
 
-        public bool Contains(Vector2Int cell) => cell.x >= Anchor.x && cell.x < Anchor.x + Width
-            && cell.y >= Anchor.y && cell.y < Anchor.y + Depth;
+        public bool Contains(Vector2Int cell)
+        {
+            if (!IsFenceMounted) return cell.x >= Anchor.x && cell.x < Anchor.x + Width
+                && cell.y >= Anchor.y && cell.y < Anchor.y + Depth;
+            if (Definition.kind != BuildingKind.ViewingWindow) return false;
+            var delta = cell - Anchor;
+            int column = delta.x * AlongFenceDirection.x + delta.y * AlongFenceDirection.y;
+            int row = delta.x * InwardDirection.x + delta.y * InwardDirection.y;
+            return column >= 0 && column < Definition.width && row >= 1 && row <= Definition.depth;
+        }
 
         public IEnumerable<Vector2Int> Cells()
         {
+            if (IsFenceMounted)
+            {
+                if (Definition.kind == BuildingKind.ViewingWindow)
+                    for (int column = 0; column < Definition.width; column++)
+                    for (int row = 1; row <= Definition.depth; row++)
+                        yield return Anchor + AlongFenceDirection * column + InwardDirection * row;
+                yield break;
+            }
             for (int x = 0; x < Width; x++)
             for (int z = 0; z < Depth; z++) yield return Anchor + new Vector2Int(x, z);
         }
 
         public Vector3 Center(SquareBuildGrid grid)
         {
+            if (IsFenceMounted)
+            {
+                if (Definition.kind == BuildingKind.ViewingWindow)
+                {
+                    var bayCenter = grid.CellCenter(RearAccessCell)
+                        + new Vector3(AlongFenceDirection.x, 0, AlongFenceDirection.y) * ((Definition.width - 1) * grid.CellSize / 2f)
+                        + new Vector3(InwardDirection.x, 0, InwardDirection.y) * ((Definition.depth - 1) * grid.CellSize / 2f);
+                    bayCenter.y = grid.GroundHeight(bayCenter);
+                    return bayCenter;
+                }
+                var edgeCenter = (grid.CellCenter(AccessCell) + grid.CellCenter(RearAccessCell)) * .5f;
+                edgeCenter.y = grid.GroundHeight(edgeCenter);
+                return edgeCenter;
+            }
             var p=grid.Origin+new Vector3((Anchor.x+Width/2f)*grid.CellSize,0,(Anchor.y+Depth/2f)*grid.CellSize);
             p.y=grid.GroundHeight(p);return p;
         }

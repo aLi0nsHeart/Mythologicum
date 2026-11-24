@@ -58,7 +58,9 @@ public static class BalanceChecks
 
     public static void Main()
     {
-        var definitions = BuildingDefinition.Defaults();
+        // The startup audit concerns the original park services. Optional paid
+        // attractions are separately researched expansions with their own income.
+        var definitions = BuildingDefinition.Defaults().Where(item => !item.IsAttraction).ToArray();
         CheckSceneCosts(definitions);
         var rules = new ProgressionRules();
         var byKind = definitions.ToDictionary(item => item.kind);

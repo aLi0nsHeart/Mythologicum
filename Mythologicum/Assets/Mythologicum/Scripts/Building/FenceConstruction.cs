@@ -18,6 +18,16 @@ namespace Mythologicum
         private readonly Dictionary<FenceEdge, GameObject> objects = new Dictionary<FenceEdge, GameObject>();
         private static Mesh spikeMesh;
         private readonly Dictionary<FenceKind,Material> terrainMaterials=new Dictionary<FenceKind,Material>();
+        private Material windowGlassMaterial;
+        private Material windowFrameMaterial;
+        private Material deepFoundationMaterial;
+        private readonly FenceFoundationVisual deepFoundation;
+        private System.Func<IEnumerable<ParkBuildingRecord>> pettingBuildings;
+        private readonly HashSet<FenceEdge> pettingPortals = new HashSet<FenceEdge>();
+        private readonly HashSet<FenceEdge> viewingBuildings = new HashSet<FenceEdge>();
+        private readonly Dictionary<FenceEdge, bool> visualGates = new Dictionary<FenceEdge, bool>();
+        private readonly List<FenceEdge> removedObjects = new List<FenceEdge>(), changedObjects = new List<FenceEdge>();
+        public void ConfigurePettingEntrances(System.Func<IEnumerable<ParkBuildingRecord>> records) => pettingBuildings = records;
         public static float HeightFor(FenceKind kind) => kind == FenceKind.Heavy ? HeavyHeight
             : kind == FenceKind.Spiked || kind == FenceKind.Sanctified ? SpikedHeight : Height;
 
@@ -27,6 +37,8 @@ namespace Mythologicum
             this.parent = parent;
             this.material = material;
             this.visuals = visuals;
+            deepFoundation = visuals != null && visuals.deepFoundation != null ? visuals.deepFoundation : new FenceFoundationVisual();
+            deepFoundation.Validate();
             this.gateMaterial = gateMaterial != null ? gateMaterial : material;
             Layout = new FenceLayout(grid, rules);
         }
@@ -57,7 +69,14 @@ namespace Mythologicum
             return true;
         }
 
-        public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge);
+        public bool CanPlaceGate(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge) && !Layout.HasWindow(edge) && !pettingPortals.Contains(edge) && !viewingBuildings.Contains(edge);
+        public bool CanPlaceWindow(FenceEdge edge) => Layout.HasFence(edge) && !Layout.IsGate(edge) && !Layout.HasWindow(edge) && !pettingPortals.Contains(edge) && !viewingBuildings.Contains(edge);
+
+        public bool TryPlaceWindow(FenceEdge edge, float price)
+        {
+            if (!CanPlaceWindow(edge) || !Layout.TrySetWindow(edge, price)) return false;
+            RemoveObject(edge); CreateObject(edge, false); return true;
+        }
 
         internal bool RestoreSegment(FenceEdge edge, FenceKind kind, bool gate, float health)
         {
@@ -83,29 +102,50 @@ namespace Mythologicum
             old.SetActive(false);
             Object.Destroy(old);
             objects.Remove(edge);
+            visualGates.Remove(edge);
         }
 
         /// <summary>Synchronizes simulation damage with visuals; partial damage does not rebuild imported models.</summary>
         public void Refresh(Camera camera = null)
         {
-            var removed = new List<FenceEdge>();
+            pettingPortals.Clear();
+            viewingBuildings.Clear();
+            if (pettingBuildings != null)
+                foreach (var record in pettingBuildings())
+                {
+                    if (record.Footprint.Definition.kind == BuildingKind.PettingZoo && Layout.HasFence(record.Footprint.RearEdge)
+                        && !Layout.HasWindow(record.Footprint.RearEdge)) pettingPortals.Add(record.Footprint.RearEdge);
+                    if (record.Footprint.IsFenceMounted && record.Footprint.Definition.kind == BuildingKind.ViewingWindow)
+                    {
+                        foreach (var edge in record.Footprint.AttachmentEdges()) viewingBuildings.Add(edge);
+                        // The doorway needs a visible opening, while the logical fence
+                        // remains closed to animals and ordinary navigation.
+                        if (Layout.HasFence(record.Footprint.RearEdge) && !Layout.HasWindow(record.Footprint.RearEdge))
+                            pettingPortals.Add(record.Footprint.RearEdge);
+                    }
+                }
+            removedObjects.Clear(); changedObjects.Clear();
             foreach (var pair in objects)
             {
                 FenceEdge edge = pair.Key;
-                if (!Layout.HasFence(edge)) removed.Add(edge);
+                if (!Layout.HasFence(edge)) removedObjects.Add(edge);
+                else if (visualGates.TryGetValue(edge, out bool wasGate) && wasGate != (Layout.IsGate(edge) || pettingPortals.Contains(edge))) changedObjects.Add(edge);
             }
-            foreach (FenceEdge edge in removed) RemoveObject(edge);
+            foreach (FenceEdge edge in removedObjects) RemoveObject(edge);
+            foreach (FenceEdge edge in changedObjects) { RemoveObject(edge); CreateObject(edge, Layout.IsGate(edge)); }
         }
 
         private void CreateObject(FenceEdge edge, bool gate)
         {
+            gate |= pettingPortals.Contains(edge);
             FenceKind kind = Layout.KindAt(edge);
             float height = HeightFor(kind);
             var root = new GameObject($"{kind} {(gate ? "gate" : "fence")} [{edge.Start.x}, {edge.Start.y}] {(edge.AlongX ? "X" : "Z")}");
             root.transform.SetParent(parent);
             root.transform.position = Layout.Center(edge);
             root.transform.rotation = Quaternion.Euler(0f, edge.AlongX ? 0f : 90f, 0f);
-            CreateVisual(root.transform, kind, gate);
+            if (Layout.HasWindow(edge)) CreateWindowVisual(root.transform, kind);
+            else CreateVisual(root.transform, kind, gate);
             var collider = root.AddComponent<BoxCollider>();
             collider.center = Vector3.up * height / 2f;
             collider.size = new Vector3(grid.CellSize, height, Thickness);
@@ -122,35 +162,59 @@ namespace Mythologicum
                 FitTerrain(edge,root);
             }
             objects[edge] = root;
+            visualGates[edge] = gate;
             root.AddComponent<FenceSegment>().Initialize(edge);
             root.AddComponent<DemolitionTarget>().Initialize(() =>
             {
                 Layout.TryRemove(edge);
                 objects.Remove(edge);
+                visualGates.Remove(edge);
             });
         }
 
         public void CreateVisual(Transform parent, FenceKind kind, bool gate = false)
         {
+            if (kind == FenceKind.Aquarium && (grid.Terrain != null || visuals == null || visuals.aquarium == null))
+            {
+                EnsureWindowMaterials();
+                if (grid.Terrain != null)
+                {
+                    var glassWall = new GameObject(gate ? "Conforming aquarium gate" : "Conforming aquarium wall");
+                    glassWall.transform.SetParent(parent, false);
+                    glassWall.AddComponent<GroundConformingVisual>().Initialize(grid, windowFrameMaterial, true, kind, gate, true, windowGlassMaterial);
+                }
+                else
+                {
+                    CreateWindowVisual(parent, kind);
+                    if (gate)
+                        AddPart(parent, new Vector3(0, HeightFor(kind) * .5f, .06f), new Vector3(grid.CellSize * .8f, .08f, .08f));
+                }
+                return;
+            }
             if(grid.Terrain!=null)
             {
                 if(!terrainMaterials.TryGetValue(kind,out var shared))
                 {
                     shared=new Material(material){color=kind==FenceKind.Heavy?new Color(.28f,.32f,.36f):kind==FenceKind.Sanctified
-                        ?new Color(.78f,.78f,.86f):new Color(.38f,.25f,.14f)};terrainMaterials[kind]=shared;
+                        ?new Color(.78f,.78f,.86f):kind==FenceKind.Aviary?new Color(.48f,.53f,.56f):new Color(.38f,.25f,.14f)};terrainMaterials[kind]=shared;
                 }
                 var visual=new GameObject(gate?"Conforming gate":"Conforming fence");visual.transform.SetParent(parent,false);
-                visual.AddComponent<GroundConformingVisual>().Initialize(grid,shared,true,kind,gate);return;
+                visual.AddComponent<GroundConformingVisual>().Initialize(grid,shared,true,kind,gate,
+                    foundationMaterial:kind==FenceKind.Deep?DeepFoundationMaterial():null,foundation:deepFoundation);return;
             }
             bool spiked = !gate && kind == FenceKind.Spiked;
             float height = HeightFor(kind);
             // Appearance is a gate; protection and health remain those of its underlying fence kind.
             GameObject prefab = visuals == null ? null : gate ? visuals.gate : kind == FenceKind.Heavy ? visuals.heavy
                 : kind == FenceKind.Sanctified ? visuals.sanctified
+                : kind == FenceKind.Deep ? visuals.deep
+                : kind == FenceKind.Aviary ? visuals.aviary : kind == FenceKind.Aquarium ? visuals.aquarium
                 : spiked ? visuals.spiked : visuals.normal;
             if (prefab != null)
             {
                 float yaw = gate ? visuals.gateYaw : kind == FenceKind.Heavy ? visuals.heavyYaw : kind == FenceKind.Sanctified ? visuals.sanctifiedYaw
+                    : kind == FenceKind.Deep ? visuals.deepYaw
+                    : kind == FenceKind.Aviary ? visuals.aviaryYaw : kind == FenceKind.Aquarium ? visuals.aquariumYaw
                     : spiked ? visuals.spikedYaw : visuals.normalYaw;
                 CreateModel(parent, prefab, yaw, height);
             }
@@ -162,6 +226,10 @@ namespace Mythologicum
                     new Vector3(Thickness, height, Thickness));
                 AddPart(parent, new Vector3(0f, height * 0.35f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
                 AddPart(parent, new Vector3(0f, height * 0.8f, 0f), new Vector3(grid.CellSize, 0.12f, 0.09f));
+                if (kind == FenceKind.Aviary)
+                    for (int i = 1; i < 8; i++)
+                        AddPart(parent, new Vector3(Mathf.Lerp(-grid.CellSize / 2f, grid.CellSize / 2f, i / 8f), height / 2f, 0),
+                            new Vector3(.035f, height, .035f));
                 if (spiked)
                 {
                     int count = Mathf.Max(3, Mathf.CeilToInt(grid.CellSize / 0.3f));
@@ -184,6 +252,72 @@ namespace Mythologicum
                     leaf.GetComponent<MeshRenderer>().sharedMaterial = gateMaterial;
                 }
             }
+            if (kind == FenceKind.Deep) CreateFoundationVisual(parent);
+        }
+
+        public void CreateWindowVisual(Transform parent, FenceKind kind)
+        {
+            EnsureWindowMaterials();
+            if(grid.Terrain!=null)
+            {
+                var visual=new GameObject("Conforming viewing window");visual.transform.SetParent(parent,false);
+                visual.AddComponent<GroundConformingVisual>().Initialize(grid,windowFrameMaterial,true,kind,false,true,windowGlassMaterial,
+                    kind==FenceKind.Deep?DeepFoundationMaterial():null,deepFoundation);
+                return;
+            }
+            float height=HeightFor(kind),post=kind==FenceKind.Heavy?.24f:.14f,half=grid.CellSize/2f;
+            void Part(string name,Vector3 at,Vector3 scale,Material shared)
+            {
+                var part=GameObject.CreatePrimitive(PrimitiveType.Cube);part.name=name;part.transform.SetParent(parent,false);
+                part.transform.localPosition=at;part.transform.localScale=scale;part.GetComponent<Collider>().enabled=false;
+                part.GetComponent<MeshRenderer>().sharedMaterial=shared;
+            }
+            foreach(float x in new[]{-half+post/2,half-post/2})
+                Part("Viewing window frame",new Vector3(x,height/2,0),new Vector3(post,height,post),windowFrameMaterial);
+            foreach(float y in new[]{.15f,.85f})
+                Part("Viewing window rail",new Vector3(0,height*y,0),new Vector3(grid.CellSize,post,post),windowFrameMaterial);
+            Part("Viewing glass",new Vector3(0,height*.5f,0),new Vector3(grid.CellSize-2*post,height*.7f,.025f),windowGlassMaterial);
+            if(kind==FenceKind.Spiked)
+                for(int i=0;i<=6;i++)AddSpike(parent,new Vector3(Mathf.Lerp(-half+post,half-post,i/6f),Height,0));
+            if(kind==FenceKind.Sanctified)
+                foreach(float x in new[]{-half+post/2,half-post/2})
+                {
+                    Part("Sanctified window cross",new Vector3(x,height+.1f,0),new Vector3(.1f,.5f,.1f),windowFrameMaterial);
+                    Part("Sanctified window cross",new Vector3(x,height+.15f,0),new Vector3(.5f,.1f,.1f),windowFrameMaterial);
+                }
+            if (kind == FenceKind.Deep) CreateFoundationVisual(parent);
+        }
+        private Material DeepFoundationMaterial()
+        {
+            if (deepFoundationMaterial == null)
+                deepFoundationMaterial = new Material(material) { name = "Deep fence foundation", color = deepFoundation.color };
+            return deepFoundationMaterial;
+        }
+        private void CreateFoundationVisual(Transform parent)
+        {
+            var foundation = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            foundation.name = "Deep foundation";
+            foundation.transform.SetParent(parent, false);
+            foundation.transform.localPosition = Vector3.up * ((deepFoundation.visibleHeight - deepFoundation.buriedDepth) / 2f);
+            foundation.transform.localScale = new Vector3(grid.CellSize, deepFoundation.visibleHeight + deepFoundation.buriedDepth, deepFoundation.width);
+            foundation.GetComponent<Collider>().enabled = false;
+            foundation.GetComponent<MeshRenderer>().sharedMaterial = DeepFoundationMaterial();
+        }
+        private void EnsureWindowMaterials()
+        {
+            if(windowFrameMaterial!=null)return;
+            var settings=ViewingWindowDefinition.Current;
+            windowFrameMaterial=new Material(material){name="Viewing window frame",color=settings.frameColor};
+            windowGlassMaterial=new Material(Shader.Find("Universal Render Pipeline/Unlit")??Shader.Find("Standard"))
+                {name="Viewing glass",color=settings.glassColor,renderQueue=3000};
+            if(windowGlassMaterial.HasProperty("_BaseColor"))windowGlassMaterial.SetColor("_BaseColor",settings.glassColor);
+            windowGlassMaterial.SetOverrideTag("RenderType","Transparent");
+            windowGlassMaterial.SetFloat("_Surface",1);windowGlassMaterial.SetFloat("_ZWrite",0);
+            windowGlassMaterial.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            windowGlassMaterial.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            windowGlassMaterial.SetFloat("_Cull",(float)UnityEngine.Rendering.CullMode.Off);
+            windowGlassMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            windowGlassMaterial.EnableKeyword("_ALPHABLEND_ON");
         }
 
         private void CreateModel(Transform parent, GameObject prefab, float yaw, float height)
@@ -219,7 +353,13 @@ namespace Mythologicum
         }
         public void RefreshTerrain()
         {if(grid.Terrain!=null)foreach(var pair in objects)if(Layout.HasFence(pair.Key))FitTerrain(pair.Key,pair.Value);}
-        public void Dispose(){foreach(var m in terrainMaterials.Values)Object.Destroy(m);terrainMaterials.Clear();}
+        public void Dispose()
+        {
+            foreach(var m in terrainMaterials.Values)Object.Destroy(m);terrainMaterials.Clear();
+            if(windowFrameMaterial!=null)Object.Destroy(windowFrameMaterial);
+            if(windowGlassMaterial!=null)Object.Destroy(windowGlassMaterial);
+            if(deepFoundationMaterial!=null)Object.Destroy(deepFoundationMaterial);
+        }
 
         private static Bounds LocalBounds(Transform parent, Renderer[] renderers)
         {

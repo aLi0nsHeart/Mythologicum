@@ -14,6 +14,7 @@ namespace Mythologicum
         public int Depth { get; }
         public int Revision { get; private set; }
         public GridHeightField Terrain { get; }
+        public HabitatTerrain Habitat { get; }
         public void NotifyPhysicalChange()=>Revision++;
         // Map bounds are fixed. Direct indexing avoids hashing coordinates on every
         // movement, sight, construction and path-search occupancy lookup.
@@ -31,6 +32,8 @@ namespace Mythologicum
             Depth = depth;
             occupied = new BuildCellContent[checked(width * depth)];
             Terrain=terrain;
+            Habitat = new HabitatTerrain(this);
+            Habitat.Changed += () => Revision++;
             if(terrain!=null)
             {
                 centerHeights = new float[occupied.Length];
@@ -66,7 +69,7 @@ namespace Mythologicum
         public float GroundHeight(Vector3 point)=>Origin.y+(Terrain?.Sample((point.x-Origin.x)/CellSize,(point.z-Origin.z)/CellSize)??0f);
         public Vector3 NodePosition(Vector2Int node)
         {var p=Origin+new Vector3(node.x*CellSize,0,node.y*CellSize);p.y=GroundHeight(p);return p;}
-        public bool GroundWalkable(Vector2Int cell,bool path=false)=>Contains(cell)&&(Terrain?.Walkable(cell,path)??true);
+        public bool GroundWalkable(Vector2Int cell,bool path=false)=>Contains(cell)&&!Habitat.IsWater(cell)&&(Terrain?.Walkable(cell,path)??true);
         public bool CanTraverse(Vector2Int from,Vector2Int to,bool path=false)=>GroundWalkable(from,path)&&GroundWalkable(to,path);
         public float MovementCost(Vector2Int from,Vector2Int to)
         {
@@ -82,7 +85,10 @@ namespace Mythologicum
         public bool GroundLineOfSight(Vector2Int from,Vector2Int to,float eyeHeight=1.5f)
         {
             if(Terrain==null)return true;
-            Vector3 a=CellCenter(from)+Vector3.up*eyeHeight,b=CellCenter(to)+Vector3.up*eyeHeight;
+            Vector3 a=CellCenter(from),b=CellCenter(to);
+            if(Habitat.IsWater(from))a.y=Mathf.Max(a.y,Habitat.WaterLevel(from));
+            if(Habitat.IsWater(to))b.y=Mathf.Max(b.y,Habitat.WaterLevel(to));
+            a+=Vector3.up*eyeHeight;b+=Vector3.up*eyeHeight;
             int samples=Math.Max(Math.Abs(from.x-to.x),Math.Abs(from.y-to.y))*4;
             for(int i=1;i<samples;i++)
             {var p=Vector3.Lerp(a,b,(float)i/samples);if(GroundHeight(p)>p.y+.01f)return false;}
@@ -95,7 +101,7 @@ namespace Mythologicum
         public BuildCellContent ContentAt(Vector2Int cell) => Contains(cell)
             ? occupied[cell.y * Width + cell.x] : BuildCellContent.Empty;
 
-        public bool IsAvailable(Vector2Int cell) => Contains(cell) && occupied[cell.y * Width + cell.x] == BuildCellContent.Empty;
+        public bool IsAvailable(Vector2Int cell) => Contains(cell) && occupied[cell.y * Width + cell.x] == BuildCellContent.Empty && !Habitat.IsWater(cell);
 
         public bool TryOccupy(Vector2Int cell, BuildCellContent content = BuildCellContent.Building)
         {

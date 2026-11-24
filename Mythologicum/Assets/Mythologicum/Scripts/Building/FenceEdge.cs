@@ -4,7 +4,30 @@ using UnityEngine;
 
 namespace Mythologicum
 {
-    public enum FenceKind { Wooden, Spiked, Heavy, Sanctified }
+    // Values are persisted in park saves; append new kinds without reordering existing ones.
+    public enum FenceKind { Wooden = 0, Spiked = 1, Heavy = 2, Sanctified = 3, Deep = 4, Aviary = 5, Aquarium = 6 }
+
+    /// <summary>A paid viewing point attached to a physical fence segment.</summary>
+    public sealed class FenceWindowRecord
+    {
+        public FenceEdge Edge { get; }
+        public float Price { get; private set; }
+        public float Revenue { get; private set; }
+        public float Expenses { get; private set; }
+        public float Profit => Revenue - Expenses;
+        public FenceWindowRecord(FenceEdge edge, float price) { Edge = edge; SetPrice(price); }
+        public bool SetPrice(float value)
+        {
+            if (!Valid(value)) return false;
+            Price = value; return true;
+        }
+        public void RecordRevenue(float value) { if (Valid(value)) Revenue = Bounded((double)Revenue + value); }
+        public void RecordExpense(float value) { if (Valid(value)) Expenses = Bounded((double)Expenses + value); }
+        public void RestoreAccounts(float price, float revenue, float expenses)
+        { SetPrice(price); Revenue = Valid(revenue) ? revenue : 0; Expenses = Valid(expenses) ? expenses : 0; }
+        private static bool Valid(float value) => value >= 0 && !float.IsNaN(value) && !float.IsInfinity(value);
+        private static float Bounded(double value) => (float)Math.Min(float.MaxValue, value);
+    }
 
     /// <summary>A canonical grid edge, shared by the cells on either side.</summary>
     public readonly struct FenceEdge : IEquatable<FenceEdge>
@@ -58,10 +81,12 @@ namespace Mythologicum
         public FenceRules Rules { get; }
         private readonly HashSet<FenceEdge> edges = new HashSet<FenceEdge>();
         private readonly HashSet<FenceEdge> gates = new HashSet<FenceEdge>();
+        private readonly Dictionary<FenceEdge, FenceWindowRecord> windows = new Dictionary<FenceEdge, FenceWindowRecord>();
         private readonly Dictionary<FenceEdge, FenceKind> kinds = new Dictionary<FenceEdge, FenceKind>();
         private readonly Dictionary<FenceEdge, float> health = new Dictionary<FenceEdge, float>();
         public IEnumerable<FenceEdge> Edges => edges;
         public IEnumerable<FenceEdge> Gates => gates;
+        public IEnumerable<FenceEdge> Windows => windows.Keys;
         public FenceLayout(SquareBuildGrid grid, FenceRules rules = null)
         { this.grid = grid; Rules = rules ?? new FenceRules(); Rules.Validate(); }
 
@@ -70,10 +95,18 @@ namespace Mythologicum
                 : edge.Start.x <= grid.Width && edge.Start.y < grid.Depth);
         public bool HasFence(FenceEdge edge) => edges.Contains(edge);
         public bool IsGate(FenceEdge edge) => gates.Contains(edge);
+        public bool HasWindow(FenceEdge edge) => windows.ContainsKey(edge);
+        public FenceWindowRecord WindowAt(FenceEdge edge) => windows.TryGetValue(edge, out var window) ? window : null;
+        public bool TrySetWindow(FenceEdge edge, float price)
+        {
+            if (!HasFence(edge) || IsGate(edge) || HasWindow(edge) || price < 0 || float.IsNaN(price) || float.IsInfinity(price)) return false;
+            windows.Add(edge, new FenceWindowRecord(edge, price)); Revision++; return true;
+        }
         public FenceKind KindAt(FenceEdge edge) => kinds.TryGetValue(edge, out FenceKind kind) ? kind : FenceKind.Wooden;
         public bool CanClimb(FenceEdge edge) => HasFence(edge) && !IsGate(edge) && Rules.For(KindAt(edge)).allowsClimbing;
         public bool CanPhase(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).blocksPhasing;
         public bool CanBreak(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).resistsCreatureDamage;
+        public bool CanBurrow(FenceEdge edge) => HasFence(edge) && !Rules.For(KindAt(edge)).blocksBurrowing;
         public float HealthAt(FenceEdge edge) => health.TryGetValue(edge, out float remaining) ? remaining : 0f;
         public float MaximumHealthAt(FenceEdge edge) => HasFence(edge) ? Rules.For(KindAt(edge)).maximumHealth : 0f;
         // Compatibility helper for callers without a live layout; live fences use their injected Rules.
@@ -108,7 +141,7 @@ namespace Mythologicum
         public bool BlocksPath(FenceEdge edge) => HasFence(edge) && !IsGate(edge);
         public bool TrySetGate(FenceEdge edge)
         {
-            if (!HasFence(edge) || !gates.Add(edge)) return false;
+            if (!HasFence(edge) || HasWindow(edge) || !gates.Add(edge)) return false;
             Revision++;
             return true;
         }
@@ -132,6 +165,7 @@ namespace Mythologicum
         {
             if (!edges.Remove(edge)) return false;
             gates.Remove(edge);
+            windows.Remove(edge);
             kinds.Remove(edge);
             health.Remove(edge);
             Revision++;

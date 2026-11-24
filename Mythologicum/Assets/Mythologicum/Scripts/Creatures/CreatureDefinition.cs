@@ -6,7 +6,7 @@ namespace Mythologicum
     public enum CreatureDiet { Carnivore, Herbivore, None, Fear }
 
     [Flags]
-    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8 }
+    public enum CreatureTags { None = 0, Goat = 1, Predator = 2, Visitor = 4, Staff = 8, Herbivore = 16 }
 
     /// <summary>Editable species rules. Individual needs live in CreatureVitals and CreatureEnergy.</summary>
     [CreateAssetMenu(menuName = "Mythologicum/Creature species", fileName = "NewCreature")]
@@ -23,6 +23,8 @@ namespace Mythologicum
         [Tooltip("Legacy tag setting retained for existing profiles. Fear now compares threat values.")]
         public CreatureTags fearedTags;
         public bool manuallyPlaceable = true;
+        [Tooltip("Suitable for designated safe-contact petting exhibits, subject to the attraction's threat limit.")]
+        public bool pettable;
         [Tooltip("Expedition rarity and difficulty tier, independent of combat threat.")]
         [Range(1, 5)] public int rating = 1;
 
@@ -36,20 +38,62 @@ namespace Mythologicum
         [Tooltip("Visible creatures with a higher threat cause fear, subject to perception and safe barriers.")]
         [Min(0f)] public float threat = 30f;
 
+        [Header("Exhibit appeal")]
+        [Tooltip("How interesting this species is to different visitors, from 0 to 1. Independent of real threat, damage and fear.")]
+        public CreatureVisitorAppeal visitorAppeal = new CreatureVisitorAppeal();
+        public CreatureVisitorAppeal VisitorAppeal => visitorAppeal ?? (visitorAppeal = new CreatureVisitorAppeal());
+
         [Header("Fear feeding")]
         [Tooltip("Relieves hunger by successfully frightening people rather than dealing damage.")]
         public bool feedsOnFear;
         [Min(0.1f)] public float scareRange = 3f;
         [Min(0.1f)] public float scareSeconds = 1.5f;
         [Min(0.1f)] public float scareCooldownSeconds = 8f;
+        [Tooltip("Maximum distance to approach a person or scarecrow before starting the scare jump, capped by Scare Range.")]
+        [Min(0.1f)] public float scareApproachDistance = 1.5f;
+        [Tooltip("Can satisfy fear feeding by practising on reachable scarecrows.")]
+        public bool canUseScarecrows = true;
+        [Min(0f), Tooltip("Height of the visible scare jump. The creature's collider stays on the ground.")]
+        public float scareJumpHeight = 1.4f;
+        [Min(0f), Tooltip("Visual forward reach during the jump, limited to the current grid cell.")]
+        public float scareJumpForward = .65f;
+        [Range(0f, .8f), Tooltip("Squash and stretch exaggeration while preparing and landing the scare jump.")]
+        public float scareJumpSquash = .25f;
 
         [Header("Hunger (0 = full; 100 = starving)")]
+        [Tooltip("Food-free creatures remain full and do not accumulate hunger.")]
+        public bool needsFood = true;
         [Range(0f, 100f)] public float initialHunger = 35f;
         [Min(0f)] public float hungerPerSecond = 2f;
+        public float StartingHunger => needsFood ? initialHunger : 0f;
+        public float HungerRate => needsFood ? hungerPerSecond : 0f;
         [Range(0f, 100f)] public float huntThreshold = 50f;
         [Tooltip("Hunger relieved by one successful meal.")]
         [Range(0f, 100f)] public float foodRelief = 60f;
         [Min(0.1f)] public float grazeSeconds = 3f;
+
+        [Header("Thirst (0 = hydrated; 100 = dehydrated)")]
+        public CreatureThirstSettings thirst = new CreatureThirstSettings();
+        public CreatureThirstSettings Thirst => thirst ?? (thirst = new CreatureThirstSettings());
+
+        [Header("Habitat and shelter")]
+        public CreatureHabitatSettings habitat = new CreatureHabitatSettings();
+        public CreatureHabitatSettings Habitat => habitat ?? (habitat = new CreatureHabitatSettings());
+        public CreatureShelterSettings shelter = new CreatureShelterSettings();
+        public CreatureShelterSettings Shelter => CreatureShelterSettings.Resolve(this);
+        [Header("Aquatic movement and hunting")]
+        public CreatureAquaticSettings aquatic = new CreatureAquaticSettings();
+        public CreatureAquaticSettings Aquatic => aquatic ?? (aquatic = new CreatureAquaticSettings());
+
+        [Header("Flight and sky abilities")]
+        public CreatureFlightSettings flight = new CreatureFlightSettings();
+        public CreatureFlightSettings Flight => flight ?? (flight = new CreatureFlightSettings());
+        [Header("Stalking and ambush")]
+        public CreatureStalkingSettings stalking = new CreatureStalkingSettings();
+        public CreatureStalkingSettings Stalking => stalking ?? (stalking = new CreatureStalkingSettings());
+        [Header("Shoreline luring")]
+        public CreatureLureSettings lure = new CreatureLureSettings();
+        public CreatureLureSettings Lure => lure ?? (lure = new CreatureLureSettings());
 
         [Header("Energy (100 = rested; 0 = exhausted)")]
         [Range(0f, 100f)] public float initialEnergy = 100f;
@@ -70,13 +114,22 @@ namespace Mythologicum
         public bool requiresTreeForSleep;
         [Tooltip("Can cross ordinary wooden fences by climbing. Spiked fences resist climbing.")]
         public bool canClimbWoodenFences;
-        [Tooltip("Can phase through ordinary barriers while very hungry. Sanctified barriers still stop phasing.")]
+        [Tooltip("Can phase through ordinary barriers while very hungry, or without a hunger gate for food-free species. Sanctified barriers still stop phasing.")]
         public bool canPhaseFences;
         [Range(0f, 100f)] public float phaseHungerThreshold = 80f;
-        [Tooltip("Actively seeks to break vulnerable fences when a barrier obstructs its goal.")]
+        [Tooltip("Its normal escape method is to try breaking a fence. Damage still requires agitation and is limited to one strike per escape intention.")]
         public bool canBreakFences;
         [Tooltip("Must reach a gravestone before sleeping.")]
         public bool requiresGravestoneForSleep;
+        [Tooltip("Must dig into clear natural ground to sleep. Paved, occupied or steep ground cannot host a burrow.")]
+        public bool requiresBurrowForSleep;
+        [Tooltip("Can dig under fences during an escape intention. Buried fence foundations can block this method.")]
+        public bool canBurrowFences;
+        [Min(.1f), Tooltip("Seconds to enter or leave a sleeping burrow, or cross underneath one fence.")]
+        public float burrowSeconds = 2f;
+        [Min(.1f), Tooltip("Visible depth below the ground while burrowing or sleeping.")]
+        public float burrowDepth = 1f;
+        [Range(0f, 100f)] public float burrowEnergyCost = 5f;
         [Min(0.1f)] public float treeClimbSeconds = 1.5f;
         [Min(0.1f)] public float fenceClimbSeconds = 2f;
         [Min(0.1f)] public float failedClimbSeconds = 1.2f;
@@ -106,6 +159,10 @@ namespace Mythologicum
         [Min(0)] public int requiredTrees;
         [Min(0)] public int requiredGravestones;
         [Min(0.1f)] public float environmentRadius = 12f;
+        [Range(0f, 1f), Tooltip("Minimum fraction of nearby accessible natural ground needed as open meadow. Zero disables this need.")]
+        public float minimumOpenGroundFraction;
+        [Tooltip("Prefers to rest on the ground in tree shade when a nearby tree is reachable; never climbs into the tree.")]
+        public bool prefersTreeShadeForSleep;
 
         [Header("Social needs")]
         [Tooltip("Desired nearby companions of the same species, excluding this animal.")]
@@ -149,12 +206,22 @@ namespace Mythologicum
 
         [Header("Placeholder appearance and simulation bounds")]
         public Color color = new Color(0.85f, 0.8f, 0.65f);
+        public CreaturePlaceholderKind placeholderKind;
+        public Color placeholderAccentColor = new Color(.65f, .52f, .3f);
+        public Color placeholderDetailColor = new Color(.12f, .1f, .08f);
         public Vector3 bodyScale = new Vector3(0.8f, 0.8f, 1.1f);
 
         private void OnValidate()
         {
             maximumHealth = Mathf.Max(1f, maximumHealth);
             damage = Mathf.Max(0f, damage); threat = Mathf.Max(0f, threat);
+            VisitorAppeal.Validate();
+            Habitat.Validate();
+            Thirst.Validate(); shelter?.Validate(); Aquatic.Validate();
+            Flight.Validate(); Stalking.Validate(); Lure.Validate();
+            scareApproachDistance = Mathf.Max(.1f, scareApproachDistance);
+            scareJumpHeight = Mathf.Max(0f, scareJumpHeight); scareJumpForward = Mathf.Max(0f, scareJumpForward);
+            scareJumpSquash = Mathf.Clamp(scareJumpSquash, 0f, .8f);
             pauseMinSeconds = Mathf.Max(0f, pauseMinSeconds);
             pauseMaxSeconds = Mathf.Max(pauseMinSeconds, pauseMaxSeconds);
             sleepThreshold = Mathf.Clamp(sleepThreshold, 0f, 99.9f);
@@ -164,7 +231,33 @@ namespace Mythologicum
             decisionInterval = Mathf.Max(.05f, decisionInterval);
             minimumSpace = Mathf.Max(0f, minimumSpace);
             requiredTrees = Mathf.Max(0, requiredTrees); requiredGravestones = Mathf.Max(0, requiredGravestones);
+            burrowSeconds = Mathf.Max(.1f, burrowSeconds); burrowDepth = Mathf.Max(.1f, burrowDepth);
+            burrowEnergyCost = Mathf.Clamp(burrowEnergyCost, 0f, 100f);
+            minimumOpenGroundFraction = Mathf.Clamp01(minimumOpenGroundFraction);
             Behaviour.Validate();
+        }
+    }
+
+    /// <summary>Visitor interest is separate from an animal's ability to harm or frighten someone.</summary>
+    [Serializable]
+    public sealed class CreatureVisitorAppeal
+    {
+        [Range(0f, 1f), Tooltip("Interest for visitors seeking spectacular or dangerous exhibits. Does not change actual danger.")]
+        public float thrill = .5f;
+        [Range(0f, 1f), Tooltip("Interest for Wonderlust visitors seeking magical, beautiful or mysterious creatures.")]
+        public float wonder = .5f;
+        [Range(0f, 1f), Tooltip("Interest for adventurous visitors, in addition to their separate rarity and discovery preferences.")]
+        public float adventure = .5f;
+        [Range(0f, 1f), Tooltip("Interest for children seeking approachable, playful or charming creatures. Does not make an animal safe.")]
+        public float children = .5f;
+
+        public static float Normalize(float value) => float.IsNaN(value) || float.IsInfinity(value)
+            ? .5f : Math.Max(0f, Math.Min(1f, value));
+
+        public void Validate()
+        {
+            thrill = Normalize(thrill); wonder = Normalize(wonder);
+            adventure = Normalize(adventure); children = Normalize(children);
         }
     }
 
@@ -176,10 +269,30 @@ namespace Mythologicum
         [Range(0f, 100f), Tooltip("Happiness of newly placed or dispensed creatures. Saved individuals retain their saved happiness.")]
         public float initialHappiness = 75f;
         [Min(0f)] public float hungerWeight = .30f;
+        [Min(0f), Tooltip("Influence of hydration on happiness for species that require water.")]
+        public float thirstWeight = .20f;
+        [Min(0f), Tooltip("Influence of energy on happiness. Zero disables exhaustion-related unhappiness and distress.")]
+        public float energyWeight = .20f;
         [Min(0f)] public float fearWeight = .10f;
         [Min(0f)] public float environmentWeight = .25f;
         [Min(0f)] public float spaceWeight = .20f;
         [Min(0f)] public float herdWeight = .15f;
+
+        [Header("Serious unmet needs")]
+        [Range(0f, 100f), Tooltip("Individual satisfaction below this score creates distress, even when other needs are met. Zero disables this rule.")]
+        public float criticalNeedThreshold = 40f;
+        [Range(0f, 100f), Tooltip("Maximum target happiness when any enabled need is completely unmet. The limit eases toward 100 at Critical Need Threshold.")]
+        public float criticalHappinessCap = 20f;
+        [Range(0f, 1f), Tooltip("Agitation caused by one completely unmet need. Multiple serious deficits combine toward one.")]
+        public float criticalAgitation = .85f;
+        [Range(0f, 100f), Tooltip("Satisfaction below this score is listed as an unmet need in the creature panel.")]
+        public float unmetNeedThreshold = 80f;
+
+        [Header("Agitation response")]
+        [Min(0f), Tooltip("Maximum agitation increase per simulation second, on a zero-to-one scale.")]
+        public float agitationBuildPerSecond = .20f;
+        [Min(0f), Tooltip("Maximum agitation decrease per simulation second once conditions improve.")]
+        public float agitationRecoveryPerSecond = .08f;
 
         [Header("Socializing and local exploration")]
         [Min(.1f), Tooltip("Maximum distance in metres for starting and continuing a social interaction.")]
@@ -194,10 +307,12 @@ namespace Mythologicum
         public float needsCheckSeconds = .5f;
 
         [Header("Urgency and escape attempts")]
-        [Range(0f, 100f), Tooltip("Hunger that overrides initial settling caution and permits fence attacks.")]
+        [Range(0f, 100f), Tooltip("Hunger that overrides initial settling caution when seeking food or shelter.")]
         public float urgentHunger = 80f;
         [Range(0f, 100f), Tooltip("Energy low enough to override settling caution when seeking a sleeping site.")]
         public float urgentEnergy = 8f;
+        [Min(.1f), Tooltip("Seconds before retrying an unsuccessful sleep search. Other urgent needs can be addressed meanwhile.")]
+        public float sleepSearchRetrySeconds = 5f;
         [Range(0f, 100f), Tooltip("Hunger where hunger-driven escape pressure begins; it reaches full strength at 100.")]
         public float escapeHungerStart = 75f;
         [Range(0f, 1f), Tooltip("Cap on combined escape intention chance per simulation minute.")]
@@ -218,13 +333,23 @@ namespace Mythologicum
         [Min(0f), Tooltip("Immediate fear after surviving a hit, expressed as seconds of the victim's normal fear gain.")]
         public float attackFearSeconds = .25f;
         [Range(0f, 100f)] public float fenceStrikeEnergyCost = 1f;
-        [Min(1), Tooltip("Maximum fence strikes in one attack before pausing and reconsidering.")]
-        public int maximumFenceStrikes = 30;
+        // Retained for compatibility with earlier profile assets. Escape intentions
+        // now always allow a single strike, independently of this legacy value.
+        [HideInInspector] public int maximumFenceStrikes = 1;
 
         public void Validate()
         {
             initialHappiness = Mathf.Clamp(initialHappiness, 0, 100);
             hungerWeight = Mathf.Max(0, hungerWeight); fearWeight = Mathf.Max(0, fearWeight);
+            thirstWeight = Mathf.Max(0, thirstWeight);
+            energyWeight = FiniteRange(energyWeight, .20f, 0f, float.MaxValue);
+            criticalNeedThreshold = FiniteRange(criticalNeedThreshold, 40f, 0f, 100f);
+            criticalHappinessCap = FiniteRange(criticalHappinessCap, 20f, 0f, 100f);
+            criticalAgitation = FiniteRange(criticalAgitation, .85f, 0f, 1f);
+            unmetNeedThreshold = FiniteRange(unmetNeedThreshold, 80f, 0f, 100f);
+            agitationBuildPerSecond = FiniteRange(agitationBuildPerSecond, .20f, 0f, float.MaxValue);
+            agitationRecoveryPerSecond = FiniteRange(agitationRecoveryPerSecond, .08f, 0f, float.MaxValue);
+            sleepSearchRetrySeconds = FiniteRange(sleepSearchRetrySeconds, 5f, .1f, float.MaxValue);
             environmentWeight = Mathf.Max(0, environmentWeight); spaceWeight = Mathf.Max(0, spaceWeight);
             herdWeight = Mathf.Max(0, herdWeight);
             socialInteractionRange = Mathf.Max(.1f, socialInteractionRange);
@@ -239,5 +364,8 @@ namespace Mythologicum
             attackFearSeconds = Mathf.Max(0, attackFearSeconds); fenceStrikeEnergyCost = Mathf.Clamp(fenceStrikeEnergyCost, 0, 100);
             maximumFenceStrikes = Mathf.Max(1, maximumFenceStrikes);
         }
+
+        private static float FiniteRange(float value, float fallback, float minimum, float maximum)
+            => float.IsNaN(value) || float.IsInfinity(value) ? fallback : Math.Max(minimum, Math.Min(maximum, value));
     }
 }

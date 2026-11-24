@@ -40,6 +40,11 @@ namespace Mythologicum
         [Min(.01f)] public float minimumStrength = .25f;
         [Min(.01f)] public float maximumStrength = 4f;
         [Min(.01f)] public float strengthStep = .25f;
+        [Header("Pond depth in metres")]
+        [Min(.1f)] public float initialWaterDepth = 1.2f;
+        [Min(.1f)] public float minimumWaterDepth = .3f;
+        [Min(.1f)] public float maximumWaterDepth = 4f;
+        [Min(.1f)] public float waterDepthStep = .3f;
 
         public void Validate()
         {
@@ -49,6 +54,9 @@ namespace Mythologicum
             minimumStrength = Positive(minimumStrength, .01f); maximumStrength = Math.Max(minimumStrength, Positive(maximumStrength, .01f));
             initialStrength = Math.Max(minimumStrength, Math.Min(maximumStrength, Positive(initialStrength, .01f)));
             strengthStep = Positive(strengthStep, .01f);
+            minimumWaterDepth = Positive(minimumWaterDepth, .1f); maximumWaterDepth = Math.Max(minimumWaterDepth, Positive(maximumWaterDepth, .1f));
+            initialWaterDepth = Math.Max(minimumWaterDepth, Math.Min(maximumWaterDepth, Positive(initialWaterDepth, .1f)));
+            waterDepthStep = Positive(waterDepthStep, .1f);
         }
         private static float Positive(float value, float minimum) => float.IsNaN(value) || float.IsInfinity(value) ? minimum : Math.Max(minimum, value);
     }

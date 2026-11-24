@@ -1,0 +1,60 @@
+{
+    "utcTime": "2026-11-16T09:43:06.8098401Z",
+    "unityVersion": "6000.0.74f1",
+    "scope": "128x128 real flat GridHeightField, imported visitor models. Edit-mode CPU only: no rendering, skinning, GPU uploads, or frame-rate claim.",
+    "mapSize": 128,
+    "connectedPathTiles": 4935,
+    "exhibits": 48,
+    "checks": 115,
+    "timings": [
+        {
+            "name": "RefreshReputation",
+            "samples": 16,
+            "coldMs": 3.0849,
+            "medianMs": 0.332,
+            "worstMs": 3.0849
+        },
+        {
+            "name": "TrySpawn-real-model",
+            "samples": 16,
+            "coldMs": 219.0913,
+            "medianMs": 0.7143,
+            "worstMs": 219.0913
+        },
+        {
+            "name": "RestoreTyped-real-model",
+            "samples": 16,
+            "coldMs": 1.5272,
+            "medianMs": 0.2556,
+            "worstMs": 1.5272
+        },
+        {
+            "name": "FirstThink-real-model-cold-viewing",
+            "samples": 16,
+            "coldMs": 22.994,
+            "medianMs": 7.2304,
+            "worstMs": 22.994
+        },
+        {
+            "name": "FirstThink-real-model-shared-viewing",
+            "samples": 16,
+            "coldMs": 7.1836,
+            "medianMs": 4.3321,
+            "worstMs": 7.1836
+        },
+        {
+            "name": "RestoreTyped-placeholder",
+            "samples": 16,
+            "coldMs": 0.5122,
+            "medianMs": 0.1388,
+            "worstMs": 0.5122
+        },
+        {
+            "name": "FirstThink-placeholder-cold-viewing",
+            "samples": 16,
+            "coldMs": 6.9474,
+            "medianMs": 6.9454,
+            "worstMs": 7.4883
+        }
+    ]
+}

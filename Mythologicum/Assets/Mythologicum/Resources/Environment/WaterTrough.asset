@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26adef0c25444f3983e281f582f582c3, type: 3}
+  m_Name: WaterTrough
+  m_EditorClassIdentifier: 
+  constructionCost: 75
+  capacity: 120
+  waterUnitsPerThirstPoint: 0.1
+  refillThreshold: 30
+  refillSeconds: 3
+  refillCost: 8
+  height: 0.65
+  frameColor: {r: 0.28, g: 0.22, b: 0.15, a: 1}
+  waterColor: {r: 0.17, g: 0.58, b: 0.78, a: 1}

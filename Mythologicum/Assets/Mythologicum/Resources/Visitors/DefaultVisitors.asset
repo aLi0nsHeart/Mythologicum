@@ -15,6 +15,12 @@ MonoBehaviour:
   people: {fileID: 11400000, guid: 699756794611c714eb65bf9af704dc5a, type: 2}
   spawnInterval: 8
   maximumVisitors: 30
+  prewarmVisitorModels: 1
+  arrivalPathCellsPerFrame: 256
+  attractionDecisionSeconds: 5
+  attractionVisitGapSeconds: 20
+  attractionTravelPenalty: 0.25
+  attractionPricePenalty: 2
   ticketPrice: 15
   initialHunger: 20
   initialEnergy: 80
@@ -34,3 +40,104 @@ MonoBehaviour:
   watchingSeconds: 6
   minimumStaySeconds: 30
   maximumStaySeconds: 300
+  typeSettings:
+  - type: 1
+    displayName: visitor.type.thrill_seekers
+    description: visitor.type.thrill_seekers.description
+    arrivalWeight: 1
+    hungerMultiplier: 1
+    energyMultiplier: 1
+    hungerThresholdMultiplier: 1
+    restThresholdMultiplier: 1
+    walkSpeedMultiplier: 1
+    runSpeedMultiplier: 1
+    fearGainMultiplier: 0.7
+    fearLossMultiplier: 0.7
+    patienceMultiplier: 1
+    watchingSecondsMultiplier: 1.1
+    bodyScale: {x: 0.5, y: 0.85, z: 0.5}
+    interestChoiceWeight: 12
+    appealWeight: 0.85
+    rarityWeight: 0.15
+    newSpeciesBonus: 0
+    newOriginBonus: 0
+    minimumExhibitReward: 0.35
+    maximumExhibitReward: 1.6
+    exhibitRewardMultiplier: 1
+    serviceRewardMultiplier: 1
+    revisitMultiplier: 1
+  - type: 2
+    displayName: visitor.type.wonderlust
+    description: visitor.type.wonderlust.description
+    arrivalWeight: 1
+    hungerMultiplier: 1
+    energyMultiplier: 1
+    hungerThresholdMultiplier: 1
+    restThresholdMultiplier: 1
+    walkSpeedMultiplier: 1
+    runSpeedMultiplier: 1
+    fearGainMultiplier: 1
+    fearLossMultiplier: 1
+    patienceMultiplier: 1.05
+    watchingSecondsMultiplier: 1.25
+    bodyScale: {x: 0.5, y: 0.85, z: 0.5}
+    interestChoiceWeight: 12
+    appealWeight: 0.9
+    rarityWeight: 0
+    newSpeciesBonus: 0.05
+    newOriginBonus: 0.05
+    minimumExhibitReward: 0.35
+    maximumExhibitReward: 1.6
+    exhibitRewardMultiplier: 1
+    serviceRewardMultiplier: 1
+    revisitMultiplier: 1
+  - type: 3
+    displayName: visitor.type.adventurers
+    description: visitor.type.adventurers.description
+    arrivalWeight: 1
+    hungerMultiplier: 1
+    energyMultiplier: 0.9
+    hungerThresholdMultiplier: 1
+    restThresholdMultiplier: 1
+    walkSpeedMultiplier: 1
+    runSpeedMultiplier: 1
+    fearGainMultiplier: 1
+    fearLossMultiplier: 1
+    patienceMultiplier: 1.15
+    watchingSecondsMultiplier: 0.9
+    bodyScale: {x: 0.5, y: 0.85, z: 0.5}
+    interestChoiceWeight: 12
+    appealWeight: 0.45
+    rarityWeight: 0.2
+    newSpeciesBonus: 0.2
+    newOriginBonus: 0.15
+    minimumExhibitReward: 0.35
+    maximumExhibitReward: 1.6
+    exhibitRewardMultiplier: 1
+    serviceRewardMultiplier: 1
+    revisitMultiplier: 2
+  - type: 4
+    displayName: visitor.type.children
+    description: visitor.type.children.description
+    arrivalWeight: 1
+    hungerMultiplier: 1.2
+    energyMultiplier: 1.3
+    hungerThresholdMultiplier: 0.85
+    restThresholdMultiplier: 1.15
+    walkSpeedMultiplier: 0.9
+    runSpeedMultiplier: 1
+    fearGainMultiplier: 1.25
+    fearLossMultiplier: 1.25
+    patienceMultiplier: 0.75
+    watchingSecondsMultiplier: 0.8
+    bodyScale: {x: 0.4, y: 0.55, z: 0.4}
+    interestChoiceWeight: 12
+    appealWeight: 0.95
+    rarityWeight: 0
+    newSpeciesBonus: 0.05
+    newOriginBonus: 0
+    minimumExhibitReward: 0.35
+    maximumExhibitReward: 1.6
+    exhibitRewardMultiplier: 1
+    serviceRewardMultiplier: 1.2
+    revisitMultiplier: 0.75

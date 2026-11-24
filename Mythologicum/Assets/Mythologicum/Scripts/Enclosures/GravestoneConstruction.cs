@@ -26,7 +26,7 @@ namespace Mythologicum
         public bool CanPlace(Vector2Int cell)
         {
             if (disposed || !grid.IsAvailable(cell) || Occupies(cell) || environment.GravestonesAt(cell) > 0
-                || environment.TreesAt(cell) > 0) return false;
+                || environment.TreesAt(cell) > 0 || environment.ScarecrowsAt(cell) > 0) return false;
             float half = Mathf.Max(.01f, grid.CellSize / 2f - .08f);
             return !Physics.CheckBox(grid.CellCenter(cell) + Vector3.up * .65f,
                 new Vector3(half, .64f, half), Quaternion.identity,

@@ -4,7 +4,9 @@ namespace Mythologicum
 {
     public enum CreatureActivity { Wandering, Searching, Hunting, Fleeing, Grazing, Resting, Attacking, Feeding, Dying,
         SeekingSleep, ClimbingTree, Sleeping, DescendingTree, ClimbingFence, FailedClimb, Socializing, Escaping,
-        AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave, Sedated, Carried }
+        AttackingFence, PhasingFence, Scaring, EnteringGrave, LeavingGrave, Sedated, Carried, FailedPhase,
+        EnteringBurrow, LeavingBurrow, BurrowingFence, FailedBurrow, SeekingWater, Drinking, DraggingPrey, DrowningPrey,
+        Stalking, Luring, FailedFlight }
 
     /// <summary>Individual runtime state. Species rules live in the shared profile asset.</summary>
     public sealed class CreatureAgent : MonoBehaviour
@@ -21,6 +23,16 @@ namespace Mythologicum
         public CreatureEnergy Energy { get; internal set; }
         public CreatureHealth Health { get; internal set; }
         public int NearbyGravestones { get; internal set; }
+        public float NearbyOpenGroundFraction { get; internal set; }
+        public readonly float[] NearbyBiomeFractions = new float[5];
+        public float BiomeSatisfaction { get; internal set; } = 100;
+        public float ShelterSatisfaction { get; internal set; } = 100;
+        public float ReachableWaterArea { get; internal set; }
+        public float WaterSatisfaction { get; internal set; } = 100;
+        internal bool WaterHuntActive;
+        internal Vector2Int WaterHuntWaterCell, WaterHuntReleaseCell;
+        public bool InBurrow { get; internal set; }
+        public bool IsUnderground => InBurrow || Activity == CreatureActivity.BurrowingFence;
         public bool IsSedated { get; internal set; }
         public float SedationRemaining { get; internal set; }
         public CreatureAgent CarriedBy { get; internal set; }
@@ -31,6 +43,9 @@ namespace Mythologicum
         public string StaffStatus { get => staffStatus.Value; internal set => staffStatus.Set(value); }
         internal float ScareAfter;
         internal bool ScareSucceeded;
+        internal Vector2Int? ScarecrowTarget;
+        internal bool ScarePoseActive;
+        internal Vector3 ScareBodyScale;
         internal FenceEdge? AttackedFence;
         internal int FenceStrikes;
         public float EscapeChancePerMinute { get; internal set; }
@@ -44,7 +59,11 @@ namespace Mythologicum
         internal FenceEdge? EscapeBarrier;
         internal readonly CreatureExploration Exploration = new CreatureExploration();
         internal bool ExternallyControlled;
-        internal string ExternalStatus;
+        internal ParkBuildingRecord PettingHost;
+        internal ParkBuildingRecord AttractionHost;
+        internal bool AttractionPoseControlled;
+        internal bool AttractionWalking;
+        internal float AttractionScareRelief = -1f, AttractionScareCooldown;
         internal bool ExternalResting;
         internal readonly List<Vector2Int> Route = new List<Vector2Int>();
         internal Vector2Int? Goal;
@@ -62,8 +81,14 @@ namespace Mythologicum
         internal Animator BodyAnimator;
         internal string AnimationState;
         internal bool WantsSleep;
+        internal float SleepRetryAfter;
+        internal bool ShelterRetreat;
+        internal Vector2Int? ShelterCell;
+        public bool HasShelter { get; internal set; }
         internal Vector2Int? SleepTree;
         internal float Elevation, TraversalDuration, TraversalStartElevation, AttemptAfter;
+        internal CreatureFlightRuntime FlightState;
+        public bool IsAirborne => FlightState != null && FlightState.Altitude > .05f;
         internal Vector2Int TraversalFrom, TraversalTo;
         internal FenceEdge? AttemptFence;
         internal CreatureAgent SocialPartner;

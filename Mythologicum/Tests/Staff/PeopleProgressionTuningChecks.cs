@@ -37,13 +37,13 @@ public static class PeopleProgressionTuningChecks
         Check(research.UnlockedStages == 3, "Existing research reads edited discovery milestones");
 
         var rules = new ProgressionRules { startingTeams = 3,
-            startingRegions = new[] { "japan" }, startingTechnologies = new[] { "staff-training" },
+            startingRegions = new[] { "east-asia" }, startingTechnologies = new[] { "staff-training" },
             startingCreatures = new[] { new CreatureStock { species = "Oni", count = 7 } },
             startingFences = new[] { FenceKind.Heavy }, extraTeamSuccess = .2f, maximumSuccess = .99f,
             notificationMergeSeconds = 2f };
         var park = new ParkProgression(rules, new ParkEconomy(), null, new Dictionary<string,int> { { "Oni", 5 } });
         Check(park.Teams == 3 && park.AvailableTeams == 3, "New parks use configured initial expedition teams");
-        Check(park.HasAccess("japan") && park.Completed("staff-training") && park.Stock("Oni") == 7,
+        Check(park.HasAccess("east-asia") && park.Completed("staff-training") && park.Stock("Oni") == 7,
             "New parks use configured locations, technology and creature stock");
         Check(park.FenceUnlocked(FenceKind.Heavy) && !park.FenceUnlocked(FenceKind.Wooden), "Starting fence selection is data driven");
         Equal(.55f, park.Chance("dangerous", 2), "Team probability bonus uses edited rules");

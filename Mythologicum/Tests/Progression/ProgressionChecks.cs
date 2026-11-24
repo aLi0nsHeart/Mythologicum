@@ -22,13 +22,13 @@ public static class ProgressionChecks
         Check(park.BuildingUnlocked(BuildingKind.ResearchCentre)&&park.BuildingUnlocked(BuildingKind.ExpeditionCentre),"No progression building deadlock");
         Check(!park.BuildingUnlocked(BuildingKind.Kiosk)&&!park.BuildingUnlocked(BuildingKind.RestArea),"Visitor service research gates new construction");
         Check(park.FenceUnlocked(FenceKind.Wooden)&&!park.FenceUnlocked(FenceKind.Heavy)&&!park.FenceUnlocked(FenceKind.Spiked),"Only basic fences at start");
-        Check(park.Eligible("japan","survey").Count==1&&park.Eligible("japan","survey")[0]=="Hitotsume","Easy Japanese missions yield low-rated creatures");
-        Check(park.Eligible("japan","dangerous").Contains("Oni")&&!park.Eligible("japan","survey").Contains("Oni"),"High-rated creatures require dangerous missions");
+        Check(park.Eligible("east-asia","survey").Count==1&&park.Eligible("east-asia","survey")[0]=="Hitotsume","Easy East Asian missions yield low-rated creatures");
+        Check(park.Eligible("east-asia","dangerous").Contains("Oni")&&!park.Eligible("east-asia","survey").Contains("Oni"),"High-rated creatures require dangerous missions");
         Check(park.Chance("survey",1)>park.Chance("capture",1)&&park.Chance("capture",1)>park.Chance("dangerous",1),"Difficulty lowers success chance");
         Check(park.Chance("survey",2)>park.Chance("survey",1)&&park.Chance("survey",100)<=rules.maximumSuccess,"Teams help but never guarantee success");
         float balance=economy.Balance;
         Check(!park.Launch(expedition,"south-america","survey",1)&&economy.Balance==balance,"Cannot dispatch without permit or teams");
-        Check(!park.BuyAccess(expedition,"china")&&economy.Balance==balance,"Do not sell empty regions");
+        Check(!park.BuyAccess(expedition,"north-africa")&&economy.Balance==balance,"Do not sell empty regions");
         expedition.IsOpen=false;Check(!park.BuyTeam(expedition)&&economy.Balance==balance,"Disconnected centre cannot buy teams");expedition.IsOpen=true;
         Check(park.BuyAccess(expedition,"south-america")&&park.HasAccess("south-america"),"Buy regional permit");
         balance=economy.Balance;Check(!park.BuyAccess(expedition,"south-america")&&economy.Balance==balance,"Cannot charge twice for access");

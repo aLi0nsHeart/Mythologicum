@@ -34,11 +34,14 @@ namespace Mythologicum
             var kinds = new HashSet<BuildingKind>();
             foreach (BuildingDefinition definition in buildings ?? Array.Empty<BuildingDefinition>())
             {
+                // Viewing-window tuning has one source, shared with legacy fence windows.
+                if (definition != null && definition.kind == BuildingKind.ViewingWindow) continue;
                 if (definition == null || !kinds.Add(definition.kind)) continue;
                 BuildingDefinition copy = definition.Copy();
                 copy.Validate();
                 result.Add(copy);
             }
+            result.Add(ViewingWindowDefinition.Current.CreateBuildingDefinition());
             return result.ToArray();
         }
 

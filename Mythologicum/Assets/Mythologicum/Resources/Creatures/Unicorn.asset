@@ -1,0 +1,134 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9f13e9dcb024d109430b42831e1204c, type: 3}
+  m_Name: Unicorn
+  m_EditorClassIdentifier: 
+  displayName: creature.name.unicorn
+  visitorAppeal:
+    thrill: 0.1
+    wonder: 1
+    adventure: 0.7
+    children: 0.95
+  diet: 1
+  tags: 16
+  preyTags: 0
+  fearedTags: 2
+  manuallyPlaceable: 1
+  pettable: 1
+  rating: 2
+  origin: creature.origin.central_europe
+  maximumHealth: 150
+  damage: 15
+  threat: 2
+  feedsOnFear: 0
+  scareRange: 3
+  scareSeconds: 1.5
+  scareCooldownSeconds: 8
+  initialHunger: 30
+  hungerPerSecond: 1.1
+  huntThreshold: 50
+  foodRelief: 60
+  grazeSeconds: 3
+  initialEnergy: 100
+  energyDrainPerSecond: 0.35
+  strenuousEnergyMultiplier: 3
+  sleepThreshold: 20
+  wakeThreshold: 85
+  sleepRecoveryPerSecond: 8
+  settlingSeconds: 45
+  requiresTreeForSleep: 0
+  canClimbWoodenFences: 0
+  canPhaseFences: 0
+  phaseHungerThreshold: 80
+  canBreakFences: 0
+  requiresGravestoneForSleep: 0
+  treeClimbSeconds: 1.5
+  fenceClimbSeconds: 2
+  failedClimbSeconds: 1.2
+  climbRetrySeconds: 8
+  climbEnergyCost: 5
+  fearGainPerSecond: 50
+  fearRecoveryPerSecond: 15
+  fleeThreshold: 20
+  walkSpeed: 2
+  runSpeed: 6
+  visionRange: 14
+  fearRange: 3
+  interactionRange: 1.2
+  decisionInterval: 0.35
+  minimumSpace: 160
+  requiredTrees: 1
+  requiredGravestones: 0
+  environmentRadius: 12
+  minimumCompanions: 1
+  maximumCompanions: 4
+  herdRange: 18
+  socializingSeconds: 3
+  socializingEnergyMultiplier: 2
+  happinessThreshold: 50
+  happinessChangePerSecond: 4
+  randomEscapeChance: 0.0005
+  hungryEscapeChance: 0.3
+  agitatedEscapeChance: 0.35
+  crowdedEscapeChance: 0.35
+  escapeRetrySeconds: 30
+  pauseMinSeconds: 2
+  pauseMaxSeconds: 5
+  preyMemorySeconds: 5
+  attackSeconds: 0.8
+  feedingSeconds: 4
+  fleeSafeDistance: 6
+  agitatedSpeedMultiplier: 1.35
+  visualPrefab: {fileID: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  color: {r: 0.94, g: 0.92, b: 0.84, a: 1}
+  bodyScale: {x: 1, y: 0.9, z: 1.5}
+  placeholderKind: 2
+  placeholderAccentColor: {r: 0.92, g: 0.72, b: 0.28, a: 1}
+  placeholderDetailColor: {r: 0.15, g: 0.14, b: 0.23, a: 1}
+  needsFood: 1
+  requiresBurrowForSleep: 0
+  canBurrowFences: 0
+  burrowSeconds: 2
+  burrowDepth: 1
+  burrowEnergyCost: 5
+  minimumOpenGroundFraction: 0.7
+  prefersTreeShadeForSleep: 1
+  thirst:
+    needsWater: 1
+    initialThirst: 15
+    thirstPerSecond: 0.07
+    drinkThreshold: 55
+    criticalThirst: 85
+    satisfiedThirst: 5
+    drinkReliefPerSecond: 20
+    drinkSeconds: 3
+    searchRadius: 40
+  habitat:
+    preferences:
+    - biome: 0
+      minimumFraction: 0.60
+      maximumFraction: 1
+      weight: 1
+    - biome: 3
+      minimumFraction: 0
+      maximumFraction: 0.20
+      weight: 1
+  shelter:
+    mode: 3
+    requiredForSleep: 1
+    retreatWhenAfraid: 1
+    searchRadius: 32
+    retreatSafeDistance: 4
+    treeHeight: 1.8
+    calmFearThreshold: 10
+    fearRecoveryMultiplier: 3

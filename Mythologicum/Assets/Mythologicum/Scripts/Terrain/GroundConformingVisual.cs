@@ -6,16 +6,34 @@ namespace Mythologicum
     public sealed class GroundConformingVisual : MonoBehaviour
     {
         private SquareBuildGrid grid;
-        private bool fence,gate;
+        private bool fence,gate,window;
         private FenceKind kind;
         private RuntimeGroundMesh owner;
+        private RuntimeGroundMesh windowPane;
+        private RuntimeGroundMesh foundationMesh;
+        private FenceFoundationVisual foundation;
         private Vector3 lastPosition;
         private Quaternion lastRotation;
         private int lastRevision=-1;
-        public void Initialize(SquareBuildGrid grid,Material material,bool fence=false,FenceKind kind=FenceKind.Wooden,bool gate=false)
+        public void Initialize(SquareBuildGrid grid,Material material,bool fence=false,FenceKind kind=FenceKind.Wooden,bool gate=false,bool window=false,Material paneMaterial=null,
+            Material foundationMaterial=null,FenceFoundationVisual foundation=null)
         {
-            this.grid=grid;this.fence=fence;this.kind=kind;this.gate=gate;
-            gameObject.AddComponent<MeshFilter>();gameObject.AddComponent<MeshRenderer>().sharedMaterial=material;owner=gameObject.AddComponent<RuntimeGroundMesh>();Refresh();
+            this.grid=grid;this.fence=fence;this.kind=kind;this.gate=gate;this.window=window;
+            gameObject.AddComponent<MeshFilter>();gameObject.AddComponent<MeshRenderer>().sharedMaterial=material;owner=gameObject.AddComponent<RuntimeGroundMesh>();
+            if(fence&&kind==FenceKind.Deep)
+            {
+                this.foundation=foundation??new FenceFoundationVisual();this.foundation.Validate();
+                var footing=new GameObject("Deep foundation");footing.transform.SetParent(transform,false);footing.AddComponent<MeshFilter>();
+                footing.AddComponent<MeshRenderer>().sharedMaterial=foundationMaterial??material;foundationMesh=footing.AddComponent<RuntimeGroundMesh>();
+            }
+            if(window)
+            {
+                var pane=new GameObject("Viewing glass");pane.transform.SetParent(transform,false);pane.AddComponent<MeshFilter>();
+                var paneRenderer=pane.AddComponent<MeshRenderer>();paneRenderer.sharedMaterial=paneMaterial??material;
+                paneRenderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;paneRenderer.receiveShadows=false;
+                windowPane=pane.AddComponent<RuntimeGroundMesh>();
+            }
+            Refresh();
         }
         public void Refresh()
         {
@@ -38,7 +56,27 @@ namespace Mythologicum
                 float height=FenceConstruction.HeightFor(kind),half=grid.CellSize/2,post=kind==FenceKind.Heavy?.24f:.14f;
                 foreach(float x in new[]{-half+post/2,half-post/2})
                     GroundMeshBuilder.Beam(v,t,Ground(x,0),Ground(x,0,height),post,post);
-                if(kind==FenceKind.Heavy&&!gate)
+                if(window)
+                {
+                    foreach(float rail in new[]{.15f,.85f})
+                        GroundMeshBuilder.Beam(v,t,Ground(-half,0,height*rail),Ground(half,0,height*rail),post,post);
+                    var glass=new List<Vector3>();var triangles=new List<int>();
+                    Vector3 a=Ground(-half+post,0,height*.15f),b=Ground(-half+post,0,height*.85f),
+                        c=Ground(half-post,0,height*.85f),d=Ground(half-post,0,height*.15f);
+                    GroundMeshBuilder.AddQuad(glass,triangles,a,b,c,d);
+                    windowPane.Set(GroundMeshBuilder.Finish("Terrain-following viewing glass",glass,triangles));
+                }
+                else if(kind==FenceKind.Aviary)
+                {
+                    for(int i=1;i<8;i++)
+                    {
+                        float x=Mathf.Lerp(-half,half,i/8f);
+                        GroundMeshBuilder.Beam(v,t,Ground(x,0,.08f),Ground(x,0,height-.08f),.035f,.035f);
+                    }
+                    foreach(float rail in new[]{.1f,.5f,.9f})
+                        GroundMeshBuilder.Beam(v,t,Ground(-half,0,height*rail),Ground(half,0,height*rail),.035f,.035f);
+                }
+                else if(kind==FenceKind.Heavy&&!gate)
                 {
                     for(int i=0;i<4;i++)
                     {float a=-half+i*grid.CellSize/4,b=a+grid.CellSize/4;GroundMeshBuilder.Beam(v,t,Ground(a,0,height/2),Ground(b,0,height/2),.13f,height*.9f);}
@@ -52,7 +90,7 @@ namespace Mythologicum
                     for(int i=0;i<=8;i++)
                     {
                         float x=-half+i*grid.CellSize/8;
-                        GroundMeshBuilder.Beam(v,t,Ground(x,0),Ground(x,0,height-.25f),.07f,.07f);
+                        if(!window)GroundMeshBuilder.Beam(v,t,Ground(x,0),Ground(x,0,height-.25f),.07f,.07f);
                         Vector3 a=Ground(x,0,height-.25f),tip=Ground(x,0,height+.05f);int start=v.Count;
                         var p=new[]{a+new Vector3(-.09f,0,-.09f),a+new Vector3(-.09f,0,.09f),a+new Vector3(.09f,0,.09f),a+new Vector3(.09f,0,-.09f)};
                         for(int side=0;side<4;side++){v.Add(p[side]);v.Add(p[(side+1)%4]);v.Add(tip);t.Add(start+side*3);t.Add(start+side*3+1);t.Add(start+side*3+2);}
@@ -64,6 +102,17 @@ namespace Mythologicum
                 {
                     GroundMeshBuilder.Beam(v,t,Ground(-half+.2f,0,.25f),Ground(half-.2f,0,height*.85f),.13f,.13f);
                     GroundMeshBuilder.Beam(v,t,Ground(-half+.2f,0,height*.85f),Ground(half-.2f,0,.25f),.13f,.13f);
+                }
+                if(foundationMesh!=null)
+                {
+                    var footing=new List<Vector3>();var triangles=new List<int>();
+                    float centre=(foundation.visibleHeight-foundation.buriedDepth)/2f;
+                    for(int i=0;i<GridHeightField.Subdivisions;i++)
+                    {
+                        float a=-half+i*grid.CellSize/GridHeightField.Subdivisions,b=a+grid.CellSize/GridHeightField.Subdivisions;
+                        GroundMeshBuilder.Beam(footing,triangles,Ground(a,0,centre),Ground(b,0,centre),foundation.width,foundation.visibleHeight+foundation.buriedDepth);
+                    }
+                    foundationMesh.Set(GroundMeshBuilder.Finish("Terrain-following deep foundation",footing,triangles));
                 }
             }
             owner.Set(GroundMeshBuilder.Finish(fence?"Terrain-following fence":"Terrain-following path",v,t));
